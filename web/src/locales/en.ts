@@ -81,6 +81,8 @@ export default {
       bulkOperate: 'Bulk operate',
     },
     login: {
+      welcomeIntro: 'Welcome to',
+      brandTagline: 'Intelligent knowledge hub for engineering teams',
       loginTitle: 'Sign in to your account',
       signUpTitle: 'Create an account',
       login: 'Sign in',
