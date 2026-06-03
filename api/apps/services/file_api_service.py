@@ -17,8 +17,8 @@ import logging
 import os
 import pathlib
 
-from api.common.check_team_permission import check_file_team_permission
-from api.db import FileType
+from api.common.check_team_permission import check_file_team_permission, check_file_department_manageable
+from api.db import FileType, TenantPermission
 from api.db.services import duplicate_name
 from api.db.services.document_service import DocumentService
 from api.db.services.file2document_service import File2DocumentService
@@ -172,6 +172,54 @@ def list_files(tenant_id: str, args: dict):
 
     return True, {"total": total, "files": files, "parent_folder": parent_folder.to_json()}
 
+
+def list_department_files(department_id: str, args: dict):
+    """
+    List department-visible files (flat) shared within a department.
+
+    :param department_id: the viewer's department id
+    :param args: query arguments (keywords, page, page_size, orderby, desc)
+    :return: (success, result)
+    """
+    if not department_id:
+        return True, {"total": 0, "files": []}
+    keywords = args.get("keywords", "")
+    page_number = int(args.get("page", 1))
+    items_per_page = int(args.get("page_size", 15))
+    orderby = args.get("orderby", "create_time")
+    desc = args.get("desc", True)
+    files, total = FileService.get_department_files(
+        department_id, page_number, items_per_page, orderby, desc, keywords
+    )
+    return True, {"total": total, "files": files}
+
+
+def set_file_permission(uid: str, file_id: str, permission: str, department_id: str = None):
+    """
+    Share/unshare a file to the department. Only the owner or a department admin may change it.
+
+    :param uid: acting user id
+    :param file_id: file id
+    :param permission: 'me' or 'department'
+    :param department_id: actor's department id (stamped when sharing to department)
+    :return: (success, result)
+    """
+    if permission not in (TenantPermission.ME.value, TenantPermission.DEPARTMENT.value):
+        return False, "Invalid permission. Use 'me' or 'department'."
+    e, file = FileService.get_by_id(file_id)
+    if not e or not file:
+        return False, "File not found!"
+    if file.type == FileType.FOLDER.value:
+        return False, "Folders can't be shared."
+    if not check_file_department_manageable(file, uid):
+        return False, "No authorization."
+    update = {"permission": permission}
+    if permission == TenantPermission.DEPARTMENT.value:
+        if not department_id:
+            return False, "You don't belong to a department."
+        update["department_id"] = department_id
+    FileService.update_by_id(file_id, update)
+    return True, {"id": file_id, "permission": permission}
 
 
 def get_parent_folder(file_id: str, user_id: str = None):
@@ -454,7 +502,12 @@ async def delete_files(uid: str, file_ids: list, auth_header: str = ""):
             if not file.tenant_id:
                 errors.append(f"Tenant not found for file {file_id}")
                 continue
-            if not check_file_team_permission(file, uid):
+            # Department-visible files may only be deleted by the owner or a department admin
+            if file.permission == TenantPermission.DEPARTMENT.value:
+                if not check_file_department_manageable(file, uid):
+                    errors.append(f"No authorization for file {file_id}")
+                    continue
+            elif not check_file_team_permission(file, uid):
                 errors.append(f"No authorization for file {file_id}")
                 continue
 

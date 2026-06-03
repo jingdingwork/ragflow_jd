@@ -28,8 +28,8 @@ logger = logging.getLogger(__name__)
 import xxhash
 from peewee import fn
 
-from api.db import KNOWLEDGEBASE_FOLDER_NAME, SKILLS_FOLDER_NAME, FileType
-from api.db.db_models import DB, Document, File, File2Document, Knowledgebase, Task
+from api.db import KNOWLEDGEBASE_FOLDER_NAME, SKILLS_FOLDER_NAME, FileType, TenantPermission
+from api.db.db_models import DB, Document, File, File2Document, Knowledgebase, Task, User
 from api.db.services import duplicate_name
 from api.db.services.common_service import CommonService
 from api.db.services.document_service import DocumentService
@@ -94,6 +94,41 @@ class FileService(CommonService):
             file["kbs_info"] = kbs_info
 
         return res_files, count
+
+    @classmethod
+    @DB.connection_context()
+    def get_department_files(cls, department_id, page_number, items_per_page, orderby, desc, keywords):
+        """Flat list of department-visible files shared within a department, with owner info."""
+        fields = [
+            cls.model.id,
+            cls.model.name,
+            cls.model.type,
+            cls.model.size,
+            cls.model.created_by,
+            cls.model.permission,
+            cls.model.department_id,
+            cls.model.create_time,
+            cls.model.create_date,
+            User.nickname.alias("owner_name"),
+        ]
+        query = (
+            cls.model.select(*fields)
+            .join(User, on=(cls.model.created_by == User.id))
+            .where(
+                (cls.model.department_id == department_id)
+                & (cls.model.permission == TenantPermission.DEPARTMENT.value)
+                & (cls.model.type != FileType.FOLDER.value)
+            )
+        )
+        if keywords:
+            query = query.where(fn.LOWER(cls.model.name).contains(keywords.lower()))
+        count = query.count()
+        if desc:
+            query = query.order_by(cls.model.getter_by(orderby).desc())
+        else:
+            query = query.order_by(cls.model.getter_by(orderby).asc())
+        query = query.paginate(page_number, items_per_page)
+        return list(query.dicts()), count
 
     @classmethod
     @DB.connection_context()

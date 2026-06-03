@@ -105,9 +105,12 @@ docker build --platform linux/amd64 -f Dockerfile -t infiniflow/ragflow:nightly 
 
 ## Testing
 
-- **Python**: pytest with markers (p1/p2/p3 priority levels)
-- **Frontend**: Jest with React Testing Library
-- **API Tests**: HTTP API and SDK tests in `test/` and `sdk/python/test/`
+- **Python**: pytest (`testpaths = ["test"]`); markers defined in `pyproject.toml` are `p0`/`p1`/`p2`/`p3` (priority), `smoke`, `auth`, `asyncio`. Note `filterwarnings` treats warnings as errors.
+  - Run one file: `uv run pytest test/unit_test/rag/llm/test_xxx.py`
+  - Run one test: `uv run pytest test/path/test_file.py::TestClass::test_name`
+  - Run by marker: `uv run pytest -m p1` (or `-m smoke`)
+- **Frontend**: `cd web && npm run test` (Jest); `npm run type-check` for `tsc --noEmit`
+- **API Tests**: HTTP API and SDK integration tests in `test/testcases/` (require a running backend); unit tests in `test/unit_test/`
 
 ## Database Engines
 
@@ -118,7 +121,7 @@ RAGFlow supports switching between Elasticsearch (default) and Infinity:
 
 ## Development Environment Requirements
 
-- Python 3.10-3.12
+- Python >=3.12,<3.15 (`pyproject.toml`; install with `uv sync --python 3.12`)
 - Node.js >=18.20.4
 - Docker & Docker Compose
 - uv package manager

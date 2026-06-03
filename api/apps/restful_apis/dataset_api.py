@@ -143,6 +143,8 @@ async def create(tenant_id: str = None):
     try:
         if not tenant_id:
             tenant_id = current_user.id
+        # Stamp the creator's department so department-visible datasets resolve correctly
+        req["department_id"] = getattr(current_user, "department_id", None)
         success, result = await dataset_api_service.create_dataset(tenant_id, req)
         if success:
             return get_result(data=result)
@@ -201,7 +203,7 @@ async def delete(tenant_id):
         return get_error_argument_result(err)
 
     try:
-        success, result = await dataset_api_service.delete_datasets(tenant_id, req.get("ids"), req.get("delete_all", False))
+        success, result = await dataset_api_service.delete_datasets(tenant_id, req.get("ids"), req.get("delete_all", False), acting_user_id=current_user.id)
         if success:
             return get_result(data=result)
         else:
@@ -287,8 +289,12 @@ async def update(tenant_id, dataset_id):
     if err is not None:
         return get_error_argument_result(err)
 
+    # When switching to department visibility, ensure the dataset carries the actor's department
+    if req.get("permission") == "department":
+        req["department_id"] = getattr(current_user, "department_id", None)
+
     try:
-        success, result = await dataset_api_service.update_dataset(tenant_id, dataset_id, req)
+        success, result = await dataset_api_service.update_dataset(tenant_id, dataset_id, req, acting_user_id=current_user.id)
         if success:
             return get_result(data=result)
         else:

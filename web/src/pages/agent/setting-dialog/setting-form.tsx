@@ -88,7 +88,8 @@ export function SettingForm({ submit }: SettingFormProps) {
                 </FormLabel>
               </FormItem>
 
-              <FormItem className="flex items-center gap-3">
+              {/* "team" option hidden from UI (backend logic retained) */}
+              {/* <FormItem className="flex items-center gap-3">
                 <FormControl>
                   <RadioGroupItem value="team" id="team" />
                 </FormControl>
@@ -97,6 +98,18 @@ export function SettingForm({ submit }: SettingFormProps) {
                   htmlFor="team"
                 >
                   {t('team')}
+                </FormLabel>
+              </FormItem> */}
+
+              <FormItem className="flex items-center gap-3">
+                <FormControl>
+                  <RadioGroupItem value="department" id="department" />
+                </FormControl>
+                <FormLabel
+                  className="font-normal !m-0 cursor-pointer"
+                  htmlFor="department"
+                >
+                  {t('department')}
                 </FormLabel>
               </FormItem>
             </RadioGroup>

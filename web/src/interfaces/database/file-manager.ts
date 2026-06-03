@@ -14,6 +14,8 @@ export interface IFile {
   update_time: number;
   source_type: string;
   has_child_folder?: boolean;
+  permission?: string;
+  department_id?: string | null;
 }
 
 export interface IFolder {

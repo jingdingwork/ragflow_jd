@@ -33,6 +33,8 @@ export enum Routes {
   SearchShare = '/search/share',
   Chats = '/chats',
   Chat = '/chat',
+  Apps = '/apps',
+  AppView = '/apps/view',
 
   Skills = '/files/skills',
   ProfileSetting = '/profile-setting',
@@ -70,6 +72,11 @@ export enum Routes {
   Admin = '/admin',
   AdminServices = `${Admin}/services`,
   AdminUserManagement = `${Admin}/users`,
+  AdminDepartments = `${Admin}/departments`,
+  AdminChatHistory = `${Admin}/chat-history`,
+  AdminApplications = `${Admin}/applications`,
+  AdminEsData = `${Admin}/es-data`,
+  AdminRetrievalTest = `${Admin}/retrieval-test`,
   AdminSandboxSettings = `${Admin}/sandbox-settings`,
   AdminWhitelist = `${Admin}/whitelist`,
   AdminRoles = `${Admin}/roles`,
@@ -249,6 +256,14 @@ const routeConfigOptions = [
         Component: () => import('@/pages/files'),
       },
       {
+        path: Routes.Apps,
+        Component: () => import('@/pages/applications'),
+      },
+      {
+        path: `${Routes.AppView}/:id`,
+        Component: () => import('@/pages/applications/app-view'),
+      },
+      {
         path: Routes.Skills,
         Component: () => import('@/pages/skills'),
       },
@@ -378,6 +393,26 @@ const routeConfigOptions = [
               {
                 path: Routes.AdminUserManagement,
                 Component: () => import('@/pages/admin/users'),
+              },
+              {
+                path: Routes.AdminDepartments,
+                Component: () => import('@/pages/admin/departments'),
+              },
+              {
+                path: Routes.AdminChatHistory,
+                Component: () => import('@/pages/admin/chat-history'),
+              },
+              {
+                path: Routes.AdminApplications,
+                Component: () => import('@/pages/admin/applications'),
+              },
+              {
+                path: Routes.AdminEsData,
+                Component: () => import('@/pages/admin/es-data'),
+              },
+              {
+                path: Routes.AdminRetrievalTest,
+                Component: () => import('@/pages/admin/retrieval-test'),
               },
               {
                 path: Routes.AdminSandboxSettings,

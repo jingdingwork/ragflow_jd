@@ -5,7 +5,12 @@ import { NavLink, Outlet, useNavigate } from 'react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 import {
+  LucideDatabase,
+  LucideLayoutGrid,
+  LucideMessagesSquare,
   LucideMonitor,
+  LucideNetwork,
+  LucideSearchCheck,
   LucideServerCrash,
   LucideSquareUserRound,
   LucideUserCog,
@@ -45,6 +50,31 @@ const AdminNavigationLayout = () => {
         path: Routes.AdminUserManagement,
         name: t('admin.userManagement'),
         icon: <LucideUserCog className="size-[1em]" />,
+      },
+      {
+        path: Routes.AdminDepartments,
+        name: t('admin.departmentManagement'),
+        icon: <LucideNetwork className="size-[1em]" />,
+      },
+      {
+        path: Routes.AdminChatHistory,
+        name: t('admin.chatHistory'),
+        icon: <LucideMessagesSquare className="size-[1em]" />,
+      },
+      {
+        path: Routes.AdminApplications,
+        name: t('admin.applications'),
+        icon: <LucideLayoutGrid className="size-[1em]" />,
+      },
+      {
+        path: Routes.AdminEsData,
+        name: t('admin.esData'),
+        icon: <LucideDatabase className="size-[1em]" />,
+      },
+      {
+        path: Routes.AdminRetrievalTest,
+        name: t('admin.retrievalTest'),
+        icon: <LucideSearchCheck className="size-[1em]" />,
       },
       {
         path: Routes.AdminSandboxSettings,

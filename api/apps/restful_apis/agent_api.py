@@ -91,10 +91,27 @@ def _require_canvas_access_async(func):
 def _require_canvas_owner_sync(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if not UserCanvasService.query(user_id=kwargs.get('tenant_id'), id=kwargs.get('agent_id')):
+        # Owner, or department admin governing a department-visible agent
+        if not UserCanvasService.deletable(kwargs.get('agent_id'), kwargs.get('tenant_id')):
             return get_json_result(data=False, message="Only the owner of the agent is authorized for this operation.", code=RetCode.OPERATING_ERROR)
         return func(*args, **kwargs)
     return wrapper
+
+
+def _require_canvas_manage_async(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        agent_id = kwargs.get('agent_id')
+        tenant_id = kwargs.get('tenant_id')
+        if not await thread_pool_exec(UserCanvasService.manageable, agent_id, tenant_id):
+            return get_json_result(data=False, message="Make sure you have permission to manage the agent.", code=RetCode.OPERATING_ERROR)
+        return await func(*args, **kwargs)
+    return wrapper
+
+
+def _user_dept_id(user_id):
+    exists, user = UserService.get_by_id(user_id)
+    return getattr(user, "department_id", None) if exists else None
 
 
 def _get_user_nickname(user_id: str) -> str:
@@ -423,6 +440,8 @@ async def create_agent(tenant_id):
     req["user_id"] = tenant_id
     req["canvas_category"] = req.get("canvas_category") or CanvasCategory.Agent
     req["release"] = bool(req.get("release", ""))
+    # Stamp the creator's department so department-visible agents resolve correctly
+    req["department_id"] = _user_dept_id(tenant_id)
 
     if req.get("dsl") is None:
         return get_json_result(
@@ -664,10 +683,13 @@ def delete_agent(agent_id, tenant_id):
 @manager.route("/agents/<agent_id>", methods=["PUT"])  # noqa: F821
 @login_required
 @add_tenant_id_to_kwargs
-@_require_canvas_access_async
+@_require_canvas_manage_async
 async def update_agent(agent_id, tenant_id):
     req = {k: v for k, v in (await get_request_json()).items() if v is not None}
     req["release"] = bool(req.get("release", ""))
+    # Stamp the actor's department when switching an agent to department visibility
+    if req.get("permission") == "department":
+        req["department_id"] = _user_dept_id(tenant_id)
 
     if req.get("dsl") is not None:
         try:

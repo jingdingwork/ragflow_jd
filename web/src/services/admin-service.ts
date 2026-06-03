@@ -127,6 +127,19 @@ const {
 
   adminListResources,
 
+  adminDepartmentTree,
+  adminSyncDepartments,
+  adminFetchDepartmentModels,
+  adminResyncAllDepartmentModels,
+
+  adminChatHistoryStats,
+  adminChatHistoryOverview,
+
+  adminListApplications,
+  adminCreateApplication,
+
+  adminEsListKnowledgebases,
+
   adminListWhitelist,
   adminCreateWhitelistEntry,
   adminUpdateWhitelistEntry,
@@ -184,6 +197,431 @@ export const updateUserPassword = (email: string, password: string) =>
   request.put(adminUpdateUserPassword(email), { new_password: password });
 export const deleteUser = (email: string) =>
   request.delete(adminDeleteUser(email));
+
+export type DepartmentMember = {
+  email: string;
+  nickname: string;
+  avatar?: string | null;
+  is_active: string;
+  is_superuser: boolean;
+  is_dept_admin?: boolean;
+  last_login_time?: string | null;
+  models: string[];
+};
+
+export type DepartmentNode = {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  path_key: string;
+  llm_configured: boolean;
+  member_count: number;
+  members: DepartmentMember[];
+  children: DepartmentNode[];
+};
+
+export type DepartmentSyncStats = {
+  keycloak_users: number;
+  local_users: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  no_ou: number;
+  failed: number;
+};
+
+export const listDepartmentTree = () =>
+  request.get<ResponseData<DepartmentNode[]>>(adminDepartmentTree);
+
+export const syncDepartments = () =>
+  request.post<ResponseData<DepartmentSyncStats>>(adminSyncDepartments);
+
+export type DepartmentLlmModel = {
+  llm_name: string;
+  enabled: boolean;
+};
+
+export type DepartmentLlmConfig = {
+  department_id: string;
+  api_base: string;
+  api_key: string;
+  models: DepartmentLlmModel[];
+};
+
+export const fetchDepartmentModels = (params: {
+  api_base: string;
+  api_key: string;
+}) => request.post<ResponseData<string[]>>(adminFetchDepartmentModels, params);
+
+export const getDepartmentLlm = (departmentId: string) =>
+  request.get<ResponseData<DepartmentLlmConfig>>(
+    api.adminDepartmentLlm(departmentId),
+  );
+
+export const saveDepartmentLlm = (
+  departmentId: string,
+  params: { api_base: string; api_key: string; models: DepartmentLlmModel[] },
+) =>
+  request.post<ResponseData<NonNullable<unknown>>>(
+    api.adminDepartmentLlm(departmentId),
+    params,
+  );
+
+export type UserLlmConfig = {
+  email: string;
+  nickname: string;
+  department_id: string | null;
+  api_base: string;
+  has_token: boolean;
+  models: DepartmentLlmModel[];
+};
+
+export type ResyncModelsStats = {
+  departments: number;
+  added: number;
+  removed: number;
+  failed: number;
+};
+
+export const resyncAllDepartmentModels = () =>
+  request.post<ResponseData<ResyncModelsStats>>(adminResyncAllDepartmentModels);
+
+export type ImpersonateResult = {
+  auth: string;
+  email: string;
+  nickname: string;
+};
+
+export const impersonateUser = (email: string) =>
+  request.post<ResponseData<ImpersonateResult>>(
+    api.adminImpersonateUser(email),
+  );
+
+export const setDeptAdmin = (email: string, isDeptAdmin: boolean) =>
+  request.post<ResponseData<{ email: string; is_dept_admin: boolean }>>(
+    api.adminSetDeptAdmin(email),
+    { is_dept_admin: isDeptAdmin },
+  );
+
+export const getUserLlm = (email: string) =>
+  request.get<ResponseData<UserLlmConfig>>(api.adminUserLlm(email));
+
+export const saveUserLlm = (
+  email: string,
+  params: { models: DepartmentLlmModel[] },
+) =>
+  request.post<ResponseData<NonNullable<unknown>>>(
+    api.adminUserLlm(email),
+    params,
+  );
+
+export type ChatHistoryStats = {
+  today_sessions: number;
+  today_rounds: number;
+  week_sessions: number;
+  week_rounds: number;
+};
+
+export type ChatHistoryMember = {
+  user_id: string;
+  email: string;
+  nickname: string;
+  is_active: string;
+  is_superuser: boolean;
+  is_dept_admin: boolean;
+  session_count: number;
+  round_count: number;
+};
+
+export type ChatHistoryDeptNode = {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  children: ChatHistoryDeptNode[];
+  members: ChatHistoryMember[];
+  member_count: number;
+  session_count: number;
+  round_count: number;
+};
+
+export type ChatHistoryConversation = {
+  id: string;
+  source: 'chat' | 'agent';
+  name: string | null;
+  app_name: string;
+  dialog_id: string | null;
+  create_time: number | null;
+  create_date: string | null;
+  round_count: number;
+  msg_count: number;
+};
+
+export type ChatHistoryConversationList = {
+  total: number;
+  page: number;
+  size: number;
+  items: ChatHistoryConversation[];
+};
+
+export type ChatHistoryMessage = {
+  role: string;
+  content: string;
+  created_at: number | null;
+};
+
+export type ChatHistoryConversationDetail = {
+  id: string;
+  source: 'chat' | 'agent';
+  name: string | null;
+  app_name: string;
+  user_id: string | null;
+  user_nickname: string | null;
+  user_email: string | null;
+  create_date: string | null;
+  messages: ChatHistoryMessage[];
+};
+
+export const getChatHistoryStats = () =>
+  request.get<ResponseData<ChatHistoryStats>>(adminChatHistoryStats);
+
+export const getChatHistoryOverview = (params: {
+  start?: number;
+  end?: number;
+}) =>
+  request.get<ResponseData<ChatHistoryDeptNode[]>>(adminChatHistoryOverview, {
+    params,
+  });
+
+export const listUserConversations = (
+  userId: string,
+  params: { start?: number; end?: number; page?: number; size?: number },
+) =>
+  request.get<ResponseData<ChatHistoryConversationList>>(
+    api.adminChatHistoryUserConversations(userId),
+    { params },
+  );
+
+export const getConversationDetail = (
+  conversationId: string,
+  source: 'chat' | 'agent',
+) =>
+  request.get<ResponseData<ChatHistoryConversationDetail>>(
+    api.adminChatHistoryConversationDetail(conversationId),
+    { params: { source } },
+  );
+
+export type ApplicationVersion = {
+  id: string;
+  application_id?: string;
+  version: string;
+  description: string | null;
+  file_name: string | null;
+  file_size: number | null;
+  is_latest: boolean;
+  create_date: string | null;
+};
+
+export type Application = {
+  id: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  app_type: 'web' | 'exe';
+  url: string | null;
+  visibility: 'all' | 'dept';
+  sort: number;
+  status: string;
+  create_date: string | null;
+  version_count: number;
+  latest_version: string | null;
+  // present in detail responses
+  versions?: ApplicationVersion[];
+  department_ids?: string[];
+};
+
+export type ApplicationPayload = {
+  name: string;
+  description?: string;
+  icon?: string;
+  app_type: 'web' | 'exe';
+  url?: string;
+  visibility: 'all' | 'dept';
+  sort?: number;
+  department_ids?: string[];
+};
+
+export const listApplications = () =>
+  request.get<ResponseData<Application[]>>(adminListApplications);
+
+export const getApplication = (id: string) =>
+  request.get<ResponseData<Application>>(api.adminGetApplication(id));
+
+export const createApplication = (payload: ApplicationPayload) =>
+  request.post<ResponseData<Application>>(adminCreateApplication, payload);
+
+export const updateApplication = (
+  id: string,
+  payload: Partial<ApplicationPayload>,
+) =>
+  request.put<ResponseData<Application>>(
+    api.adminUpdateApplication(id),
+    payload,
+  );
+
+export const deleteApplication = (id: string) =>
+  request.delete<ResponseData<{ deleted: boolean }>>(
+    api.adminDeleteApplication(id),
+  );
+
+export const addApplicationVersion = (
+  id: string,
+  params: { version: string; description?: string; file: File },
+) => {
+  const form = new FormData();
+  form.append('version', params.version);
+  form.append('description', params.description ?? '');
+  form.append('file', params.file);
+  return request.post<ResponseData<Application>>(
+    api.adminAddApplicationVersion(id),
+    form,
+  );
+};
+
+export const deleteApplicationVersion = (id: string, versionId: string) =>
+  request.delete<ResponseData<Application>>(
+    api.adminDeleteApplicationVersion(id, versionId),
+  );
+
+export const setLatestApplicationVersion = (id: string, versionId: string) =>
+  request.put<ResponseData<Application>>(
+    api.adminSetLatestApplicationVersion(id, versionId),
+  );
+
+// ---- ES data inspection (read-only) ----
+
+export type EsKnowledgebase = {
+  id: string;
+  name: string;
+  tenant_id: string;
+  created_by: string;
+  creator_name: string;
+  doc_num: number;
+  chunk_num: number;
+  token_num: number;
+  language: string | null;
+  parser_id: string;
+  create_date: string | null;
+};
+
+export type EsKbStats = {
+  kb: {
+    id: string;
+    name: string;
+    tenant_id: string;
+    doc_num: number;
+    chunk_num: number;
+    token_num: number;
+  };
+  engine: string;
+  index_name: string;
+  index_exist: boolean;
+  es_total: number;
+  doc_aggregation: { name: string; count: number }[];
+  health: Record<string, unknown>;
+};
+
+export type EsKbDocument = {
+  id: string;
+  name: string;
+  chunk_num: number;
+};
+
+export type EsChunk = {
+  id: string;
+  doc_id: string;
+  docnm_kwd: string;
+  content: string;
+  highlighted: boolean;
+  important_kwd: string[];
+  question_kwd: string[];
+  doc_type_kwd: string;
+  available: boolean;
+  positions: number[][] | number[];
+  img_id: string;
+  score?: number;
+};
+
+export type EsChunkSearchResult = {
+  total: number;
+  chunks: EsChunk[];
+};
+
+export const esListKnowledgebases = () =>
+  request.get<ResponseData<EsKnowledgebase[]>>(adminEsListKnowledgebases);
+
+export const esGetKbStats = (kbId: string) =>
+  request.get<ResponseData<EsKbStats>>(api.adminEsKbStats(kbId));
+
+export const esListKbDocuments = (kbId: string) =>
+  request.get<ResponseData<EsKbDocument[]>>(api.adminEsKbDocuments(kbId));
+
+export const esSearchChunks = (
+  kbId: string,
+  params: { q?: string; doc_id?: string; page?: number; size?: number },
+) =>
+  request.get<ResponseData<EsChunkSearchResult>>(api.adminEsKbChunks(kbId), {
+    params,
+  });
+
+export const esGetChunkDetail = (kbId: string, chunkId: string) =>
+  request.get<ResponseData<Record<string, unknown>>>(
+    api.adminEsKbChunkDetail(kbId, chunkId),
+  );
+
+export type RetrievalChunk = {
+  chunk_id: string;
+  doc_id: string;
+  docnm_kwd: string;
+  content: string;
+  similarity: number;
+  vector_similarity: number;
+  term_similarity: number;
+  important_kwd: string[];
+};
+
+export type RetrievalRanks = {
+  total: number;
+  chunks: RetrievalChunk[];
+};
+
+export type RetrievalTestResult = {
+  kb: { id: string; name: string };
+  embedding_model: string;
+  rerank_model: string | null;
+  rerank_available: boolean;
+  rerank_error: string | null;
+  vector_similarity_weight: number;
+  similarity_threshold: number;
+  question: string;
+  base: RetrievalRanks;
+  reranked: RetrievalRanks | null;
+};
+
+export type RetrievalTestParams = {
+  kb_id: string;
+  question: string;
+  doc_id?: string;
+  top_k?: number;
+  page_size?: number;
+  similarity_threshold?: number;
+  vector_similarity_weight?: number;
+};
+
+export const retrievalTest = (params: RetrievalTestParams) =>
+  request.post<ResponseData<RetrievalTestResult>>(
+    api.adminRetrievalTest,
+    params,
+  );
 
 export const listServices = () =>
   request.get<ResponseData<AdminService.ListServicesItem[]>>(adminListServices);

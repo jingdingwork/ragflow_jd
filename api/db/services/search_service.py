@@ -18,6 +18,7 @@ from datetime import datetime
 from peewee import fn
 
 from common.constants import StatusEnum
+from api.db import TenantPermission
 from api.db.db_models import DB, Search, User
 from api.db.services.common_service import CommonService
 from common.time_utils import current_timestamp, datetime_format
@@ -39,18 +40,48 @@ class SearchService(CommonService):
         return obj
 
     @classmethod
+    def _user_department_id(cls, user_id):
+        u = User.get_or_none(User.id == user_id)
+        return u.department_id if u else None
+
+    @classmethod
     @DB.connection_context()
     def accessible4deletion(cls, search_id, user_id) -> bool:
+        """Owner/creator, or a department admin governing a department-visible search."""
         search = (
-            cls.model.select(cls.model.id)
-            .where(
-                cls.model.id == search_id,
-                cls.model.created_by == user_id,
-                cls.model.status == StatusEnum.VALID.value,
-            )
+            cls.model.select(cls.model.created_by, cls.model.permission, cls.model.department_id)
+            .where(cls.model.id == search_id, cls.model.status == StatusEnum.VALID.value)
             .first()
         )
-        return search is not None
+        if search is None:
+            return False
+        if search.created_by == user_id:
+            return True
+        if search.permission == TenantPermission.DEPARTMENT.value:
+            u = User.get_or_none(User.id == user_id)
+            if u and getattr(u, "is_dept_admin", False) and u.department_id and search.department_id == u.department_id:
+                return True
+        return False
+
+    @classmethod
+    @DB.connection_context()
+    def accessible(cls, search_id, user_id) -> bool:
+        """Read access: own, team within joined tenants, or department-visible same department."""
+        from api.db.services.user_service import TenantService
+        search = cls.model.select(
+            cls.model.tenant_id, cls.model.permission, cls.model.department_id
+        ).where(cls.model.id == search_id, cls.model.status == StatusEnum.VALID.value).first()
+        if search is None:
+            return False
+        if search.tenant_id == user_id:
+            return True
+        if search.permission == TenantPermission.DEPARTMENT.value:
+            dept = cls._user_department_id(user_id)
+            return bool(dept and search.department_id == dept)
+        if search.permission == TenantPermission.TEAM.value:
+            joined = TenantService.get_joined_tenants_by_user_id(user_id)
+            return any(t["tenant_id"] == search.tenant_id for t in joined)
+        return False
 
     @classmethod
     @DB.connection_context()
@@ -94,11 +125,19 @@ class SearchService(CommonService):
             User.nickname,
             User.avatar.alias("tenant_avatar"),
         ]
+        visibility = (
+            (cls.model.tenant_id == user_id)
+            | (cls.model.tenant_id.in_(joined_tenant_ids) & (cls.model.permission == TenantPermission.TEAM.value))
+        )
+        dept_id = cls._user_department_id(user_id)
+        if dept_id:
+            visibility = visibility | (
+                (cls.model.department_id == dept_id) & (cls.model.permission == TenantPermission.DEPARTMENT.value)
+            )
         query = (
             cls.model.select(*fields)
             .join(User, on=(cls.model.tenant_id == User.id))
-            .where(((cls.model.tenant_id.in_(joined_tenant_ids)) | (cls.model.tenant_id == user_id)) & (
-                        cls.model.status == StatusEnum.VALID.value))
+            .where(visibility & (cls.model.status == StatusEnum.VALID.value))
         )
 
         if keywords:

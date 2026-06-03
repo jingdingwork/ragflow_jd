@@ -17,7 +17,7 @@ import logging
 import re
 
 from quart import request, make_response
-from api.apps import login_required
+from api.apps import login_required, current_user
 from api.db import FileType
 from api.db.services.file2document_service import File2DocumentService
 from api.utils.api_utils import (
@@ -25,6 +25,7 @@ from api.utils.api_utils import (
     get_error_argument_result,
     get_error_data_result,
     get_json_result,
+    get_request_json,
     get_result,
 )
 from common.constants import RetCode
@@ -148,6 +149,50 @@ async def list_files(tenant_id: str = None):
             return get_result(data=result)
         else:
             return get_error_data_result(message=result)
+    except Exception as e:
+        logging.exception(e)
+        return get_error_data_result(message="Internal server error")
+
+
+@manager.route("/files/department", methods=["GET"])  # noqa: F821
+@login_required
+async def list_department_files():
+    """List department-visible files shared within the current user's department."""
+    try:
+        args = {
+            "keywords": request.args.get("keywords", ""),
+            "page": request.args.get("page", 1),
+            "page_size": request.args.get("page_size", 15),
+            "orderby": request.args.get("orderby", "create_time"),
+            "desc": request.args.get("desc", "true").lower() != "false",
+        }
+        success, result = file_api_service.list_department_files(
+            getattr(current_user, "department_id", None), args
+        )
+        if success:
+            return get_result(data=result)
+        return get_error_data_result(message=result)
+    except Exception as e:
+        logging.exception(e)
+        return get_error_data_result(message="Internal server error")
+
+
+@manager.route("/files/<file_id>/permission", methods=["POST"])  # noqa: F821
+@login_required
+async def set_file_permission(file_id: str = None):
+    """Share/unshare a file to the department ('me' or 'department')."""
+    try:
+        body = await get_request_json() or {}
+        permission = body.get("permission", "me")
+        success, result = file_api_service.set_file_permission(
+            current_user.id,
+            file_id,
+            permission,
+            department_id=getattr(current_user, "department_id", None),
+        )
+        if success:
+            return get_result(data=result)
+        return get_error_data_result(message=result)
     except Exception as e:
         logging.exception(e)
         return get_error_data_result(message="Internal server error")

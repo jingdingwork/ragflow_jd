@@ -5,7 +5,10 @@ import {
 import { FileIcon } from '@/components/icon-font';
 import NewDocumentLink from '@/components/new-document-link';
 import { Button } from '@/components/ui/button';
-import { useDownloadFile } from '@/hooks/use-file-request';
+import {
+  useDownloadFile,
+  useSetFilePermission,
+} from '@/hooks/use-file-request';
 import { IFile } from '@/interfaces/database/file-manager';
 import { cn } from '@/lib/utils';
 import {
@@ -21,6 +24,7 @@ import {
   FolderPen,
   Link2,
   Trash2,
+  Users,
 } from 'lucide-react';
 import { useCallback } from 'react';
 import {
@@ -78,6 +82,15 @@ export function ActionCell({
     handleRemoveFile([documentId]);
   }, [handleRemoveFile, documentId]);
 
+  const { setFilePermission } = useSetFilePermission();
+  const isSharedToDepartment = record.permission === 'department';
+  const onToggleShare = useCallback(() => {
+    setFilePermission({
+      fileId: documentId,
+      permission: isSharedToDepartment ? 'me' : 'department',
+    });
+  }, [setFilePermission, documentId, isSharedToDepartment]);
+
   if (isSkillsFolder) {
     return null;
   }
@@ -112,6 +125,26 @@ export function ActionCell({
           onClick={handleShowFileRenameModal}
         >
           <FolderPen />
+        </Button>
+      )}
+      {isFolder || isKnowledgeBase || (
+        <Button
+          variant="transparent"
+          className={cn(
+            'border-none hover:bg-bg-card',
+            isSharedToDepartment
+              ? 'text-[#F39800] hover:text-[#FFA826]'
+              : 'text-text-primary',
+          )}
+          size="icon-sm"
+          title={
+            isSharedToDepartment
+              ? t('fileManager.unshareFromDepartment')
+              : t('fileManager.shareToDepartment')
+          }
+          onClick={onToggleShare}
+        >
+          <Users />
         </Button>
       )}
       {isFolder || (

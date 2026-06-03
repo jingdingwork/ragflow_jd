@@ -179,6 +179,9 @@ export default {
   connectFileToKnowledge: `${restAPIv1}/files/link-to-datasets`,
   getFile: `${restAPIv1}/files`,
   moveFile: `${restAPIv1}/files/move`,
+  listDepartmentFiles: `${restAPIv1}/files/department`,
+  setFilePermission: (fileId: string) =>
+    `${restAPIv1}/files/${fileId}/permission`,
 
   // system
   getSystemVersion: `${restAPIv1}/system/version`,
@@ -192,8 +195,7 @@ export default {
   listAgentTemplate: `${restAPIv1}/agents/templates`,
   listAgents: `${restAPIv1}/agents`,
   listAgentTags: `${restAPIv1}/agents/tags`,
-  updateAgentTags: (agentId: string) =>
-    `${restAPIv1}/agents/${agentId}/tags`,
+  updateAgentTags: (agentId: string) => `${restAPIv1}/agents/${agentId}/tags`,
   createAgent: `${restAPIv1}/agents`,
   updateAgent: (agentId: string) => `${restAPIv1}/agents/${agentId}`,
   deleteAgent: (agentId: string) => `${restAPIv1}/agents/${agentId}`,
@@ -296,6 +298,58 @@ export default {
     `${restAPIv1}/admin/users/${username}/datasets`,
   adminListUserAgents: (username: string) =>
     `${restAPIv1}/admin/users/${username}/agents`,
+
+  adminDepartmentTree: `${restAPIv1}/admin/departments/tree`,
+  adminSyncDepartments: `${restAPIv1}/admin/departments/sync`,
+  adminFetchDepartmentModels: `${restAPIv1}/admin/departments/llm/fetch-models`,
+  adminDepartmentLlm: (departmentId: string) =>
+    `${restAPIv1}/admin/departments/${departmentId}/llm`,
+  adminUserLlm: (email: string) => `${restAPIv1}/admin/users/${email}/llm`,
+  adminImpersonateUser: (email: string) =>
+    `${restAPIv1}/admin/users/${email}/impersonate`,
+  adminSetDeptAdmin: (email: string) =>
+    `${restAPIv1}/admin/users/${email}/dept-admin`,
+  adminResyncAllDepartmentModels: `${restAPIv1}/admin/departments/llm/resync-all`,
+  adminResyncDepartmentModels: (departmentId: string) =>
+    `${restAPIv1}/admin/departments/${departmentId}/llm/resync`,
+
+  adminChatHistoryStats: `${restAPIv1}/admin/chat-history/stats`,
+  adminChatHistoryOverview: `${restAPIv1}/admin/chat-history/overview`,
+  adminChatHistoryUserConversations: (userId: string) =>
+    `${restAPIv1}/admin/chat-history/users/${userId}/conversations`,
+  adminChatHistoryConversationDetail: (conversationId: string) =>
+    `${restAPIv1}/admin/chat-history/conversations/${conversationId}`,
+
+  adminListApplications: `${restAPIv1}/admin/applications`,
+  adminCreateApplication: `${restAPIv1}/admin/applications`,
+  adminGetApplication: (id: string) => `${restAPIv1}/admin/applications/${id}`,
+  adminUpdateApplication: (id: string) =>
+    `${restAPIv1}/admin/applications/${id}`,
+  adminDeleteApplication: (id: string) =>
+    `${restAPIv1}/admin/applications/${id}`,
+  adminAddApplicationVersion: (id: string) =>
+    `${restAPIv1}/admin/applications/${id}/versions`,
+  adminDeleteApplicationVersion: (id: string, versionId: string) =>
+    `${restAPIv1}/admin/applications/${id}/versions/${versionId}`,
+  adminSetLatestApplicationVersion: (id: string, versionId: string) =>
+    `${restAPIv1}/admin/applications/${id}/versions/${versionId}/latest`,
+
+  // End-user application portal
+  myApplications: `${restAPIv1}/application/mine`,
+  downloadApplication: (id: string) =>
+    `${restAPIv1}/application/${id}/download`,
+
+  // Admin ES data inspection (read-only)
+  adminEsListKnowledgebases: `${restAPIv1}/admin/es/knowledgebases`,
+  adminEsKbStats: (kbId: string) =>
+    `${restAPIv1}/admin/es/knowledgebases/${kbId}/stats`,
+  adminEsKbDocuments: (kbId: string) =>
+    `${restAPIv1}/admin/es/knowledgebases/${kbId}/documents`,
+  adminEsKbChunks: (kbId: string) =>
+    `${restAPIv1}/admin/es/knowledgebases/${kbId}/chunks`,
+  adminEsKbChunkDetail: (kbId: string, chunkId: string) =>
+    `${restAPIv1}/admin/es/knowledgebases/${kbId}/chunks/${chunkId}`,
+  adminRetrievalTest: `${restAPIv1}/admin/retrieval/test`,
 
   adminListServices: `${restAPIv1}/admin/services`,
   adminShowServiceDetails: (serviceId: string) =>

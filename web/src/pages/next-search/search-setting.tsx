@@ -60,6 +60,7 @@ const SearchSettingFormSchema = z
     name: z.string().min(1, 'Name is required'),
     avatar: z.string().optional(),
     description: z.string().optional(),
+    permission: z.string().optional(),
     search_config: z.object({
       kb_ids: z.array(z.string()).min(1, 'At least one dataset is required'),
       vector_similarity_weight: z.number().min(0).max(1),
@@ -129,6 +130,7 @@ const SearchSetting: React.FC<SearchSettingProps> = ({
       name: data?.name || '',
       avatar: data?.avatar || '',
       description: data?.description || descriptionDefaultValue,
+      permission: data?.permission || 'me',
       search_config: {
         kb_ids: search_config?.kb_ids || [],
         vector_similarity_weight:
@@ -363,6 +365,31 @@ const SearchSetting: React.FC<SearchSettingProps> = ({
               name="search_config.kb_ids"
               required
             ></KnowledgeBaseFormField>
+            <FormField
+              control={formMethods.control}
+              name="permission"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {t('knowledgeConfiguration.permissions')}
+                  </FormLabel>
+                  <FormControl>
+                    <RAGFlowSelect
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={[
+                        { label: t('knowledgeConfiguration.me'), value: 'me' },
+                        {
+                          label: t('knowledgeConfiguration.department'),
+                          value: 'department',
+                        },
+                      ]}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <MetadataFilter prefix="search_config."></MetadataFilter>
             <FormField
               control={formMethods.control}

@@ -25,7 +25,7 @@ from flask_login import current_user, login_required, logout_user
 
 from auth import login_verify, login_admin, check_admin_auth
 from responses import success_response, error_response
-from services import UserMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr
+from services import UserMgr, DepartmentMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, RetrievalMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr
 from roles import RoleMgr
 from api.common.exceptions import AdminException
 from common.versions import get_ragflow_version
@@ -80,6 +80,405 @@ def list_users():
     try:
         users = UserMgr.get_all_users()
         return success_response(users, "Get all users", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/departments/tree", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_department_tree():
+    try:
+        tree = DepartmentMgr.get_department_tree()
+        return success_response(tree, "Get department tree", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/departments/sync", methods=["POST"])
+@login_required
+@check_admin_auth
+def sync_departments():
+    try:
+        stats = DepartmentMgr.sync_all_from_keycloak()
+        return success_response(stats, "Sync departments", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/departments/llm/fetch-models", methods=["POST"])
+@login_required
+@check_admin_auth
+def fetch_department_models():
+    try:
+        data = request.get_json() or {}
+        models = DepartmentMgr.fetch_models(data.get("api_base", ""), data.get("api_key", ""))
+        return success_response(models, "Fetch models", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/departments/<department_id>/llm", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_department_llm(department_id):
+    try:
+        config = DepartmentMgr.get_llm_config(department_id)
+        return success_response(config, "Get department LLM config", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/departments/<department_id>/llm", methods=["POST"])
+@login_required
+@check_admin_auth
+def save_department_llm(department_id):
+    try:
+        data = request.get_json() or {}
+        stats = DepartmentMgr.save_llm_config(
+            department_id,
+            data.get("api_base", ""),
+            data.get("api_key", ""),
+            data.get("models", []),
+        )
+        return success_response(stats, "Save department LLM config", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/departments/llm/resync-all", methods=["POST"])
+@login_required
+@check_admin_auth
+def resync_all_department_llm():
+    try:
+        stats = DepartmentMgr.resync_all_llm_models()
+        return success_response(stats, "Resync all department models", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/departments/<department_id>/llm/resync", methods=["POST"])
+@login_required
+@check_admin_auth
+def resync_department_llm(department_id):
+    try:
+        stats = DepartmentMgr.resync_llm_models(department_id)
+        return success_response(stats, "Resync department models", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/users/<email>/dept-admin", methods=["POST"])
+@login_required
+@check_admin_auth
+def set_dept_admin(email):
+    try:
+        data = request.get_json() or {}
+        result = UserMgr.set_dept_admin(email, bool(data.get("is_dept_admin", False)))
+        return success_response(result, "Set department admin", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/users/<email>/impersonate", methods=["POST"])
+@login_required
+@check_admin_auth
+def impersonate_user(email):
+    try:
+        result = UserMgr.impersonate_user(email)
+        logging.warning(
+            f"[IMPERSONATE] admin={current_user.email} signed in as user={email}"
+        )
+        return success_response(result, "Impersonate user", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/users/<email>/llm", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_user_llm(email):
+    try:
+        config = DepartmentMgr.get_user_llm(email)
+        return success_response(config, "Get user LLM config", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/users/<email>/llm", methods=["POST"])
+@login_required
+@check_admin_auth
+def save_user_llm(email):
+    try:
+        data = request.get_json() or {}
+        stats = DepartmentMgr.save_user_llm(email, data.get("models", []))
+        return success_response(stats, "Save user LLM config", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/chat-history/stats", methods=["GET"])
+@login_required
+@check_admin_auth
+def chat_history_stats():
+    try:
+        stats = ChatHistoryMgr.get_stats()
+        return success_response(stats, "Chat history stats", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/chat-history/overview", methods=["GET"])
+@login_required
+@check_admin_auth
+def chat_history_overview():
+    try:
+        start_ms = int(request.args.get("start", 0) or 0)
+        end_ms = int(request.args.get("end", 0) or 0) or None
+        tree = ChatHistoryMgr.get_overview(start_ms, end_ms)
+        return success_response(tree, "Chat history overview", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/chat-history/users/<user_id>/conversations", methods=["GET"])
+@login_required
+@check_admin_auth
+def chat_history_user_conversations(user_id):
+    try:
+        start_ms = int(request.args.get("start", 0) or 0)
+        end_ms = int(request.args.get("end", 0) or 0) or None
+        page = int(request.args.get("page", 1) or 1)
+        size = int(request.args.get("size", 20) or 20)
+        result = ChatHistoryMgr.list_user_conversations(user_id, start_ms, end_ms, page, size)
+        return success_response(result, "User conversations", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/chat-history/conversations/<conversation_id>", methods=["GET"])
+@login_required
+@check_admin_auth
+def chat_history_conversation_detail(conversation_id):
+    try:
+        source = request.args.get("source", "chat")
+        detail = ChatHistoryMgr.get_conversation_detail(conversation_id, source)
+        return success_response(detail, "Conversation detail", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/applications", methods=["GET"])
+@login_required
+@check_admin_auth
+def list_applications():
+    try:
+        apps = ApplicationMgr.list_applications()
+        return success_response(apps, "List applications", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/applications/<application_id>", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_application(application_id):
+    try:
+        app = ApplicationMgr.get_application(application_id)
+        return success_response(app, "Get application", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/applications", methods=["POST"])
+@login_required
+@check_admin_auth
+def create_application():
+    try:
+        data = request.get_json() or {}
+        app = ApplicationMgr.create_application(data)
+        return success_response(app, "Application created", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/applications/<application_id>", methods=["PUT"])
+@login_required
+@check_admin_auth
+def update_application(application_id):
+    try:
+        data = request.get_json() or {}
+        app = ApplicationMgr.update_application(application_id, data)
+        return success_response(app, "Application updated", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/applications/<application_id>", methods=["DELETE"])
+@login_required
+@check_admin_auth
+def delete_application(application_id):
+    try:
+        res = ApplicationMgr.delete_application(application_id)
+        return success_response(res, "Application deleted", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/applications/<application_id>/versions", methods=["POST"])
+@login_required
+@check_admin_auth
+def add_application_version(application_id):
+    try:
+        file = request.files.get("file")
+        if file is None:
+            return error_response("Installation package is required", 400)
+        version = request.form.get("version", "")
+        description = request.form.get("description", "")
+        binary = file.read()
+        app = ApplicationMgr.add_version(
+            application_id, version, description, file.filename, binary
+        )
+        return success_response(app, "Version added", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/applications/<application_id>/versions/<version_id>", methods=["DELETE"])
+@login_required
+@check_admin_auth
+def delete_application_version(application_id, version_id):
+    try:
+        app = ApplicationMgr.delete_version(application_id, version_id)
+        return success_response(app, "Version deleted", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/applications/<application_id>/versions/<version_id>/latest", methods=["PUT"])
+@login_required
+@check_admin_auth
+def set_latest_application_version(application_id, version_id):
+    try:
+        app = ApplicationMgr.set_latest_version(application_id, version_id)
+        return success_response(app, "Latest version set", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/es/knowledgebases", methods=["GET"])
+@login_required
+@check_admin_auth
+def es_list_knowledgebases():
+    try:
+        kbs = EsDataMgr.list_knowledgebases()
+        return success_response(kbs, "List knowledge bases", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/es/knowledgebases/<kb_id>/stats", methods=["GET"])
+@login_required
+@check_admin_auth
+def es_kb_stats(kb_id):
+    try:
+        stats = EsDataMgr.get_stats(kb_id)
+        return success_response(stats, "Knowledge base ES stats", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/es/knowledgebases/<kb_id>/documents", methods=["GET"])
+@login_required
+@check_admin_auth
+def es_kb_documents(kb_id):
+    try:
+        docs = EsDataMgr.list_documents(kb_id)
+        return success_response(docs, "Knowledge base documents", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/es/knowledgebases/<kb_id>/chunks", methods=["GET"])
+@login_required
+@check_admin_auth
+def es_kb_chunks(kb_id):
+    try:
+        question = request.args.get("q", "")
+        doc_id = request.args.get("doc_id", "")
+        page = int(request.args.get("page", 1) or 1)
+        size = int(request.args.get("size", 20) or 20)
+        available_arg = request.args.get("available")
+        available = None
+        if available_arg in ("0", "1"):
+            available = int(available_arg)
+        res = EsDataMgr.search_chunks(kb_id, question, doc_id, page, size, available)
+        return success_response(res, "Knowledge base chunks", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/es/knowledgebases/<kb_id>/chunks/<chunk_id>", methods=["GET"])
+@login_required
+@check_admin_auth
+def es_kb_chunk_detail(kb_id, chunk_id):
+    try:
+        chunk = EsDataMgr.get_chunk(kb_id, chunk_id)
+        return success_response(chunk, "Chunk detail", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/retrieval/test", methods=["POST"])
+@login_required
+@check_admin_auth
+def retrieval_test():
+    try:
+        body = request.json or {}
+        kb_id = body.get("kb_id", "")
+        if not kb_id:
+            return error_response("`kb_id` is required.", 400)
+        question = body.get("question", "")
+        doc_id = body.get("doc_id", "")
+        top_k = int(body.get("top_k", 1024) or 1024)
+        page_size = int(body.get("page_size", 20) or 20)
+        similarity_threshold = float(body.get("similarity_threshold", 0.0) or 0.0)
+        vector_similarity_weight = float(body.get("vector_similarity_weight", 0.3) or 0.0)
+        res = RetrievalMgr.run(
+            kb_id, question, doc_id, top_k, page_size,
+            similarity_threshold, vector_similarity_weight,
+        )
+        return success_response(res, "Retrieval test", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
     except Exception as e:
         return error_response(str(e), 500)
 

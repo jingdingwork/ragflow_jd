@@ -56,6 +56,8 @@ async def create():
     req["description"] = description
     req["tenant_id"] = current_user.id
     req["created_by"] = current_user.id
+    # Stamp the creator's department for department-visible searches
+    req["department_id"] = getattr(current_user, "department_id", None)
     with DB.atomic():
         try:
             if not SearchService.save(**req):
@@ -110,11 +112,7 @@ def list_searches():
 @login_required
 def detail(search_id):
     try:
-        tenants = UserTenantService.query(user_id=current_user.id)
-        for tenant in tenants:
-            if SearchService.query(tenant_id=tenant.tenant_id, id=search_id):
-                break
-        else:
+        if not SearchService.accessible(search_id, current_user.id):
             return get_json_result(data=False, message="Has no permission for this operation.", code=RetCode.OPERATING_ERROR)
 
         search = SearchService.get_detail(search_id)
@@ -146,11 +144,12 @@ async def update(search_id):
         return get_json_result(data=False, message="No authorization.", code=RetCode.AUTHENTICATION_ERROR)
 
     try:
-        search_app = SearchService.query(tenant_id=current_user.id, id=search_id)[0]
-        if not search_app:
+        search_rows = SearchService.query(id=search_id)
+        if not search_rows:
             return get_json_result(data=False, message=f"Cannot find search {search_id}", code=RetCode.DATA_ERROR)
+        search_app = search_rows[0]
 
-        if req["name"].lower() != search_app.name.lower() and len(SearchService.query(name=req["name"], tenant_id=current_user.id, status=StatusEnum.VALID.value)) >= 1:
+        if req["name"].lower() != search_app.name.lower() and len(SearchService.query(name=req["name"], tenant_id=search_app.tenant_id, status=StatusEnum.VALID.value)) >= 1:
             return get_data_error_result(message="Duplicated search name.")
 
         current_config = search_app.search_config or {}
@@ -158,6 +157,10 @@ async def update(search_id):
         if not isinstance(new_config, dict):
             return get_data_error_result(message="search_config must be a JSON object")
         req["search_config"] = {**current_config, **new_config}
+
+        # Stamp the actor's department when switching to department visibility
+        if req.get("permission") == "department":
+            req["department_id"] = getattr(current_user, "department_id", None)
 
         for field in ("search_id", "tenant_id", "created_by", "update_time", "id"):
             req.pop(field, None)

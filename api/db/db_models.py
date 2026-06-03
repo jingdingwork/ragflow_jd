@@ -721,6 +721,8 @@ class User(DataBaseModel, AuthUser):
     login_channel = CharField(null=True, help_text="from which user login", index=True)
     status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
     is_superuser = BooleanField(null=True, help_text="is root", default=False, index=True)
+    department_id = CharField(max_length=32, null=True, help_text="department id resolved from OIDC LDAP DN", index=True)
+    is_dept_admin = BooleanField(null=False, help_text="department admin: governs own department's department-visible resources", default=False, index=True)
 
     def __str__(self):
         return self.email
@@ -731,6 +733,85 @@ class User(DataBaseModel, AuthUser):
 
     class Meta:
         db_table = "user"
+
+
+class Department(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    name = CharField(max_length=255, null=False, help_text="OU name from LDAP DN", index=True)
+    parent_id = CharField(max_length=32, null=True, help_text="parent department id (self-reference), null for root", index=True)
+    path_key = CharField(max_length=255, null=False, help_text="full OU chain key used for dedup/upsert", unique=True, index=True)
+    status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
+
+    class Meta:
+        db_table = "department"
+
+
+class DepartmentLLM(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    department_id = CharField(max_length=32, null=False, help_text="department id", unique=True, index=True)
+    api_base = CharField(max_length=512, null=False, help_text="OpenAI-compatible base URL", default="")
+    api_key = TextField(null=True, help_text="API key for the department's model endpoint")
+    status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
+
+    class Meta:
+        db_table = "department_llm"
+
+
+class DepartmentLLMModel(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    department_id = CharField(max_length=32, null=False, help_text="department id", index=True)
+    llm_name = CharField(max_length=128, null=False, help_text="model name from the provider's /models", index=True)
+    enabled = BooleanField(null=False, help_text="whether department users may use this model", default=True, index=True)
+    status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
+
+    class Meta:
+        db_table = "department_llm_model"
+        indexes = (
+            (("department_id", "llm_name"), True),
+        )
+
+
+class Application(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    name = CharField(max_length=255, null=False, help_text="application display name", index=True)
+    description = TextField(null=True, help_text="application description")
+    icon = TextField(null=True, help_text="icon url or base64")
+    app_type = CharField(max_length=16, null=False, help_text="web | exe", default="web", index=True)
+    url = CharField(max_length=1024, null=True, help_text="access URL for web-type applications")
+    visibility = CharField(max_length=16, null=False, help_text="all | dept", default="dept", index=True)
+    sort = IntegerField(null=False, help_text="display order, ascending", default=0, index=True)
+    status = CharField(max_length=1, null=True, help_text="is it on-shelf(0: off, 1: on)", default="1", index=True)
+
+    class Meta:
+        db_table = "application"
+
+
+class ApplicationVersion(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    application_id = CharField(max_length=32, null=False, help_text="application id", index=True)
+    version = CharField(max_length=64, null=False, help_text="version label, e.g. 1.2.0")
+    description = TextField(null=True, help_text="release notes for this version")
+    file_key = CharField(max_length=512, null=True, help_text="object key in storage bucket")
+    file_name = CharField(max_length=255, null=True, help_text="original uploaded file name")
+    file_size = BigIntegerField(null=True, help_text="package size in bytes")
+    is_latest = BooleanField(null=False, help_text="whether this is the current/recommended version", default=False, index=True)
+    status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
+
+    class Meta:
+        db_table = "application_version"
+
+
+class ApplicationVisibility(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    application_id = CharField(max_length=32, null=False, help_text="application id", index=True)
+    department_id = CharField(max_length=32, null=False, help_text="authorized department id (subtree included)", index=True)
+    status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
+
+    class Meta:
+        db_table = "application_visibility"
+        indexes = (
+            (("application_id", "department_id"), True),
+        )
 
 
 class Tenant(DataBaseModel):
@@ -858,7 +939,8 @@ class Knowledgebase(DataBaseModel):
     description = TextField(null=True, help_text="KB description")
     embd_id = CharField(max_length=128, null=False, help_text="default embedding model ID", index=True)
     tenant_embd_id = IntegerField(null=True, help_text="id in tenant_llm", index=True)
-    permission = CharField(max_length=16, null=False, help_text="me|team", default="me", index=True)
+    permission = CharField(max_length=16, null=False, help_text="me|team|department", default="me", index=True)
+    department_id = CharField(max_length=32, null=True, help_text="creator's department id, for department-visible resources", index=True)
     created_by = CharField(max_length=32, null=False, index=True)
     doc_num = IntegerField(default=0, index=True)
     token_num = IntegerField(default=0, index=True)
@@ -927,6 +1009,8 @@ class File(DataBaseModel):
     size = BigIntegerField(default=0, index=True)
     type = CharField(max_length=32, null=False, help_text="file extension", index=True)
     source_type = CharField(max_length=128, null=False, default="", help_text="where dose this document come from", index=True)
+    permission = CharField(max_length=16, null=False, help_text="me|department", default="me", index=True)
+    department_id = CharField(max_length=32, null=True, help_text="creator's department id for department-visible files", index=True)
 
     class Meta:
         db_table = "file"
@@ -1046,7 +1130,8 @@ class UserCanvas(DataBaseModel):
     user_id = CharField(max_length=255, null=False, help_text="user_id", index=True)
     title = CharField(max_length=255, null=True, help_text="Canvas title")
 
-    permission = CharField(max_length=16, null=False, help_text="me|team", default="me", index=True)
+    permission = CharField(max_length=16, null=False, help_text="me|team|department", default="me", index=True)
+    department_id = CharField(max_length=32, null=True, help_text="creator's department id for department-visible agents", index=True)
     release = BooleanField(null=False, help_text="is released", default=False, index=True)
     description = TextField(null=True, help_text="Canvas description")
     canvas_type = CharField(max_length=32, null=True, help_text="Canvas type", index=True)
@@ -1106,6 +1191,8 @@ class Search(DataBaseModel):
     name = CharField(max_length=128, null=False, help_text="Search name", index=True)
     description = TextField(null=True, help_text="KB description")
     created_by = CharField(max_length=32, null=False, index=True)
+    permission = CharField(max_length=16, null=False, help_text="me|team|department", default="me", index=True)
+    department_id = CharField(max_length=32, null=True, help_text="creator's department id for department-visible searches", index=True)
     search_config = JSONField(
         null=False,
         default={
@@ -1316,7 +1403,8 @@ class Memory(DataBaseModel):
     tenant_embd_id = IntegerField(null=True, help_text="id in tenant_llm", index=True)
     llm_id = CharField(max_length=128, null=False, index=False, help_text="chat model ID")
     tenant_llm_id = IntegerField(null=True, help_text="id in tenant_llm", index=True)
-    permissions = CharField(max_length=16, null=False, index=True, help_text="me|team", default="me")
+    permissions = CharField(max_length=16, null=False, index=True, help_text="me|team|department", default="me")
+    department_id = CharField(max_length=32, null=True, help_text="creator's department id for department-visible memories", index=True)
     description = TextField(null=True, help_text="description")
     memory_size = IntegerField(default=5242880, null=False, index=False)
     forgetting_policy = CharField(max_length=32, null=False, default="FIFO", index=False, help_text="LRU|FIFO")
@@ -1652,6 +1740,15 @@ def migrate_db():
     alter_db_add_column(migrator, "api_4_conversation", "version_title", CharField(max_length=255, null=True, help_text="canvas version title when session created", index=False))
     alter_db_column_type(migrator, "document", "size", BigIntegerField(default=0, index=True))
     alter_db_column_type(migrator, "file", "size", BigIntegerField(default=0, index=True))
+    alter_db_add_column(migrator, "user", "department_id", CharField(max_length=32, null=True, help_text="department id resolved from OIDC LDAP DN", index=True))
+    alter_db_add_column(migrator, "user", "is_dept_admin", BooleanField(null=False, help_text="department admin flag", default=False, index=True))
+    alter_db_add_column(migrator, "knowledgebase", "department_id", CharField(max_length=32, null=True, help_text="creator's department id for department-visible resources", index=True))
+    alter_db_add_column(migrator, "user_canvas", "department_id", CharField(max_length=32, null=True, help_text="creator's department id for department-visible agents", index=True))
+    alter_db_add_column(migrator, "memory", "department_id", CharField(max_length=32, null=True, help_text="creator's department id for department-visible memories", index=True))
+    alter_db_add_column(migrator, "search", "permission", CharField(max_length=16, null=False, help_text="me|team|department", default="me", index=True))
+    alter_db_add_column(migrator, "search", "department_id", CharField(max_length=32, null=True, help_text="creator's department id for department-visible searches", index=True))
+    alter_db_add_column(migrator, "file", "permission", CharField(max_length=16, null=False, help_text="me|department", default="me", index=True))
+    alter_db_add_column(migrator, "file", "department_id", CharField(max_length=32, null=True, help_text="creator's department id for department-visible files", index=True))
     logging.disable(logging.NOTSET)
     # this is after re-enabling logging to allow logging changed user emails
     migrate_add_unique_email(migrator)

@@ -90,13 +90,21 @@ class MemoryService(CommonService):
             cls.model.create_date
         ]
         memories = cls.model.select(*fields).join(User, on=(cls.model.tenant_id == User.id))
-        if filter_dict.get("tenant_id"):
-            memories = memories.where(cls.model.tenant_id.in_(filter_dict["tenant_id"]))
-        if filter_dict.get("accessible_user_id"):
-            memories = memories.where(
-                (cls.model.tenant_id == filter_dict["accessible_user_id"]) |
-                (cls.model.permissions == "team")
-            )
+        allowed_ids = filter_dict.get("tenant_id")
+        accessible_uid = filter_dict.get("accessible_user_id")
+        accessible_dept = filter_dict.get("accessible_department_id")
+        if accessible_uid:
+            # own memories + team memories within joined tenants + department memories of own department
+            cond = cls.model.tenant_id == accessible_uid
+            if allowed_ids:
+                cond = cond | (cls.model.tenant_id.in_(allowed_ids) & (cls.model.permissions == "team"))
+            else:
+                cond = cond | (cls.model.permissions == "team")
+            if accessible_dept:
+                cond = cond | ((cls.model.department_id == accessible_dept) & (cls.model.permissions == "department"))
+            memories = memories.where(cond)
+        elif allowed_ids:
+            memories = memories.where(cls.model.tenant_id.in_(allowed_ids))
         if filter_dict.get("memory_type"):
             memory_type_int = calculate_memory_type(filter_dict["memory_type"])
             memories = memories.where(cls.model.memory_type.bin_and(memory_type_int) > 0)
@@ -112,7 +120,7 @@ class MemoryService(CommonService):
 
     @classmethod
     @DB.connection_context()
-    def create_memory(cls, tenant_id: str, name: str, memory_type: List[str], embd_id: str, tenant_embd_id: int, llm_id: str, tenant_llm_id: int):
+    def create_memory(cls, tenant_id: str, name: str, memory_type: List[str], embd_id: str, tenant_embd_id: int, llm_id: str, tenant_llm_id: int, department_id: str = None):
         # Deduplicate name within tenant
         memory_name = duplicate_name(
             cls.query,
@@ -130,6 +138,7 @@ class MemoryService(CommonService):
             "name": memory_name,
             "memory_type": calculate_memory_type(memory_type),
             "tenant_id": tenant_id,
+            "department_id": department_id,
             "embd_id": embd_id,
             "tenant_embd_id": tenant_embd_id,
             "llm_id": llm_id,

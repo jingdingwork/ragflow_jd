@@ -7,10 +7,15 @@ import { useTranslation } from 'react-i18next';
 export function PermissionFormField() {
   const { t } = useTranslation();
   const teamOptions = useMemo(() => {
-    return Object.values(PermissionRole).map((x) => ({
-      label: t('knowledgeConfiguration.' + x),
-      value: x,
-    }));
+    return (
+      Object.values(PermissionRole)
+        // "team" is hidden from the UI; only "me" / "department" are offered.
+        .filter((x) => x !== PermissionRole.Team)
+        .map((x) => ({
+          label: t('knowledgeConfiguration.' + x),
+          value: x,
+        }))
+    );
   }, [t]);
 
   return (

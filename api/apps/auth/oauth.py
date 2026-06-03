@@ -19,12 +19,15 @@ from common.http_client import async_request, sync_request
 
 
 class UserInfo:
-    def __init__(self, email, username, nickname, avatar_url):
+    def __init__(self, email, username, nickname, avatar_url, department_dn=None):
         self.email = email
         self.username = username
         self.nickname = nickname
         self.avatar_url = avatar_url
-    
+        # Raw LDAP distinguished name (e.g. from the OIDC `ldap_entry_dn` claim),
+        # used to resolve the user's department. None when the IdP doesn't provide it.
+        self.department_dn = department_dn
+
     def to_dict(self):
         return {key: value for key, value in self.__dict__.items()}
 
@@ -148,4 +151,5 @@ class OAuthClient:
         avatar_url = user_info.get("avatar_url", None)
         if avatar_url is None:
             avatar_url = user_info.get("picture", "")
-        return UserInfo(email=email, username=username, nickname=nickname, avatar_url=avatar_url)
+        department_dn = user_info.get("ldap_entry_dn")
+        return UserInfo(email=email, username=username, nickname=nickname, avatar_url=avatar_url, department_dn=department_dn)

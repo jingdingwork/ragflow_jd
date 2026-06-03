@@ -53,14 +53,40 @@ def _joined_tenant_ids(user_id: str) -> set[str]:
 def _memory_accessible(memory) -> bool:
     if memory.tenant_id == current_user.id:
         return True
+    if memory.permissions == TenantPermission.DEPARTMENT.value:
+        dept = getattr(current_user, "department_id", None)
+        return bool(dept and getattr(memory, "department_id", None) == dept)
     if memory.permissions != TenantPermission.TEAM.value:
         return False
     return memory.tenant_id in _joined_tenant_ids(current_user.id)
 
 
+def _memory_manageable(memory) -> bool:
+    """Owner, team member of joined tenant, or department admin of a department memory."""
+    if memory.tenant_id == current_user.id:
+        return True
+    if memory.permissions == TenantPermission.TEAM.value:
+        return memory.tenant_id in _joined_tenant_ids(current_user.id)
+    if memory.permissions == TenantPermission.DEPARTMENT.value:
+        dept = getattr(current_user, "department_id", None)
+        return bool(
+            getattr(current_user, "is_dept_admin", False)
+            and dept
+            and getattr(memory, "department_id", None) == dept
+        )
+    return False
+
+
 def _require_memory_access(memory_id: str):
     memory = MemoryService.get_by_memory_id(memory_id)
     if not memory or not _memory_accessible(memory):
+        raise NotFoundException(f"Memory '{memory_id}' not found.")
+    return memory
+
+
+def _require_memory_manage(memory_id: str):
+    memory = MemoryService.get_by_memory_id(memory_id)
+    if not memory or not _memory_manageable(memory):
         raise NotFoundException(f"Memory '{memory_id}' not found.")
     return memory
 
@@ -105,7 +131,8 @@ async def create_memory(memory_info: dict):
         embd_id=memory_info["embd_id"],
         llm_id=memory_info["llm_id"],
         tenant_llm_id=memory_info["tenant_llm_id"],
-        tenant_embd_id=memory_info["tenant_embd_id"]
+        tenant_embd_id=memory_info["tenant_embd_id"],
+        department_id=getattr(current_user, "department_id", None),
     )
     if success:
         return True, format_ret_data_from_memory(res)
@@ -146,6 +173,9 @@ async def update_memory(memory_id: str, new_memory_setting: dict):
         if new_memory_setting["permissions"] not in [e.value for e in TenantPermission]:
             raise ArgumentException(f"Unknown permission '{new_memory_setting['permissions']}'.")
         update_dict["permissions"] = new_memory_setting["permissions"]
+        # Stamp the actor's department when switching a memory to department visibility
+        if new_memory_setting["permissions"] == TenantPermission.DEPARTMENT.value:
+            update_dict["department_id"] = getattr(current_user, "department_id", None)
     if new_memory_setting.get("llm_id"):
         update_dict["llm_id"] = new_memory_setting["llm_id"]
     if new_memory_setting.get("embd_id"):
@@ -180,7 +210,7 @@ async def update_memory(memory_id: str, new_memory_setting: dict):
     for field in ["avatar", "description", "system_prompt", "user_prompt"]:
         if field in new_memory_setting:
             update_dict[field] = new_memory_setting[field]
-    current_memory = _require_memory_access(memory_id)
+    current_memory = _require_memory_manage(memory_id)
 
     memory_dict = current_memory.to_dict()
     memory_dict.update({"memory_type": get_memory_type_human(current_memory.memory_type)})
@@ -209,7 +239,7 @@ async def update_memory(memory_id: str, new_memory_setting: dict):
 
 
 async def delete_memory(memory_id):
-    memory = _require_memory_access(memory_id)
+    memory = _require_memory_manage(memory_id)
     MemoryService.delete_memory(memory_id)
     if MessageService.has_index(memory.tenant_id, memory_id):
         MessageService.delete_message({"memory_id": memory_id}, memory.tenant_id, memory_id)
@@ -227,7 +257,11 @@ async def list_memory(filter_params: dict, keywords: str, page: int=1, page_size
     :param page: int
     :param page_size: int
     """
-    filter_dict: dict = {"storage_type": filter_params.get("storage_type"), "accessible_user_id": current_user.id}
+    filter_dict: dict = {
+        "storage_type": filter_params.get("storage_type"),
+        "accessible_user_id": current_user.id,
+        "accessible_department_id": getattr(current_user, "department_id", None),
+    }
     allowed_tenant_ids = _joined_tenant_ids(current_user.id)
     tenant_ids = _split_filter_values(filter_params.get("tenant_id") or filter_params.get("owner_ids"))
     if tenant_ids:

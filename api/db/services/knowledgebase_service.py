@@ -49,6 +49,12 @@ class KnowledgebaseService(CommonService):
     model = Knowledgebase
 
     @classmethod
+    def _user_department_id(cls, user_id):
+        """Return the user's department id, or None."""
+        u = User.get_or_none(User.id == user_id)
+        return u.department_id if u else None
+
+    @classmethod
     def _visibility_and_status_filter(cls, joined_tenant_ids, user_id):
         """
         Build a Peewee filter expression representing knowledgebase visibility
@@ -56,50 +62,52 @@ class KnowledgebaseService(CommonService):
 
         Visibility rules:
         - Team KBs (`permission == TenantPermission.TEAM`) owned by any tenant in `joined_tenant_ids`
+        - Department KBs (`permission == TenantPermission.DEPARTMENT`) of the user's own department
         - KBs owned by the current user (`tenant_id == user_id`)
         Always constrained to `StatusEnum.VALID`.
         """
-        return (
-            (
-                (cls.model.tenant_id.in_(joined_tenant_ids) & (cls.model.permission == TenantPermission.TEAM.value))
-                | (cls.model.tenant_id == user_id)
-            )
-            & (cls.model.status == StatusEnum.VALID.value)
+        visibility = (
+            (cls.model.tenant_id.in_(joined_tenant_ids) & (cls.model.permission == TenantPermission.TEAM.value))
+            | (cls.model.tenant_id == user_id)
         )
+        user_dept_id = cls._user_department_id(user_id)
+        if user_dept_id:
+            visibility = visibility | (
+                (cls.model.department_id == user_dept_id)
+                & (cls.model.permission == TenantPermission.DEPARTMENT.value)
+            )
+        return visibility & (cls.model.status == StatusEnum.VALID.value)
 
     @classmethod
     @DB.connection_context()
     def accessible4deletion(cls, kb_id, user_id):
-        """Check if a dataset can be deleted by a specific user.
+        """Check whether a user may edit/delete (govern) a dataset.
 
-        This method verifies whether a user has permission to delete a dataset
-        by checking if they are the creator of that dataset.
+        Allowed when the user is the creator, OR is a department admin and the
+        dataset is department-visible within that admin's own department.
 
         Args:
-            kb_id (str): The unique identifier of the dataset to check.
-            user_id (str): The unique identifier of the user attempting the deletion.
+            kb_id (str): The dataset id to check.
+            user_id (str): The acting user id.
 
         Returns:
-            bool: True if the user has permission to delete the dataset,
-                  False if the user doesn't have permission or the dataset doesn't exist.
-
-        Example:
-            >>> KnowledgebaseService.accessible4deletion("kb123", "user456")
-            True
-
-        Note:
-            - This method only checks creator permissions
-            - A return value of False can mean either:
-                1. The dataset doesn't exist
-                2. The user is not the creator of the dataset
+            bool: True if the user may govern the dataset, else False.
         """
-        # Check if a dataset can be deleted by a user
-        docs = cls.model.select(
-            cls.model.id).where(cls.model.id == kb_id, cls.model.created_by == user_id).paginate(0, 1)
-        docs = docs.dicts()
-        if not docs:
+        kbs = cls.model.select(
+            cls.model.created_by, cls.model.permission, cls.model.department_id
+        ).where(cls.model.id == kb_id).paginate(0, 1)
+        kbs = list(kbs.dicts())
+        if not kbs:
             return False
-        return True
+        kb = kbs[0]
+        if kb["created_by"] == user_id:
+            return True
+        # Department admin governance over department-visible datasets in their department
+        if kb["permission"] == TenantPermission.DEPARTMENT.value:
+            u = User.get_or_none(User.id == user_id)
+            if u and getattr(u, "is_dept_admin", False) and u.department_id and kb["department_id"] == u.department_id:
+                return True
+        return False
 
     @classmethod
     @DB.connection_context()
@@ -498,6 +506,11 @@ class KnowledgebaseService(CommonService):
 
         if kb.tenant_id == user_id:
             return True
+
+        # Department-visible KB: accessible to users of the same department
+        if kb.permission == TenantPermission.DEPARTMENT.value:
+            user_dept_id = cls._user_department_id(user_id)
+            return bool(user_dept_id and kb.department_id == user_dept_id)
 
         if kb.permission != TenantPermission.TEAM.value:
             return False

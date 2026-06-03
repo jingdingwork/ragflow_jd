@@ -162,6 +162,7 @@ export interface ISearchAppDetailProps {
   description: string;
   id: string;
   name: string;
+  permission?: string;
   search_config: {
     cross_languages: string[];
     doc_ids: string[];

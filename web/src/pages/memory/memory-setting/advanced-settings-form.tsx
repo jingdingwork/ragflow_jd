@@ -66,9 +66,14 @@ export const AdvancedSettingsForm = () => {
                     <RadioGroupItem value="me" id="r1" />
                     <Label htmlFor="r1">{t('memory.config.onlyMe')}</Label>
                   </div>
-                  <div className="flex items-center gap-3">
+                  {/* "team" option hidden from UI (backend logic retained) */}
+                  {/* <div className="flex items-center gap-3">
                     <RadioGroupItem value="team" id="r2" />
                     <Label htmlFor="r2">{t('memory.config.team')}</Label>
+                  </div> */}
+                  <div className="flex items-center gap-3">
+                    <RadioGroupItem value="department" id="r3" />
+                    <Label htmlFor="r3">{t('memory.config.department')}</Label>
                   </div>
                 </RadioGroup>
               ),

@@ -32,6 +32,7 @@ import {
   EmbeddingModelItem,
   ParseTypeItem,
 } from '../dataset/dataset-setting/configuration/common-item';
+import { PermissionFormField } from '../dataset/dataset-setting/permission-form-field';
 
 const FormId = 'dataset-creating-form';
 
@@ -58,6 +59,7 @@ export function InputForm({ onOk }: IModalProps<any>) {
         .trim(),
       [ChunkMethodName]: z.string().optional(),
       pipeline_id: z.string().optional(),
+      permission: z.string().optional(),
     })
     .superRefine((data, ctx) => {
       // When parseType === BuiltIn, chunk_method is required
@@ -88,6 +90,7 @@ export function InputForm({ onOk }: IModalProps<any>) {
       parseType: ParseType.BuiltIn,
       [ChunkMethodName]: '',
       embedding_model: tenantInfo?.embd_id,
+      permission: 'me',
     },
   });
 
@@ -141,6 +144,7 @@ export function InputForm({ onOk }: IModalProps<any>) {
         />
 
         <EmbeddingModelItem line={2} isEdit={false} />
+        <PermissionFormField />
         <ParseTypeItem />
         {parseType === ParseType.BuiltIn && (
           <ChunkMethodItem name={ChunkMethodName}></ChunkMethodItem>

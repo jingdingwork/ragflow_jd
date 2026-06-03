@@ -69,6 +69,14 @@ export const downloadFile = (data: { docId: string; ext: string }) => {
   });
 };
 
+export const listDepartmentFiles = (params?: Record<string, any>) => {
+  return request.get(api.listDepartmentFiles, { params });
+};
+
+export const setFilePermission = (fileId: string, permission: string) => {
+  return request.post(api.setFilePermission(fileId), { permission });
+};
+
 export const downloadDatasetDocument = (data: {
   datasetId: string;
   docId: string;

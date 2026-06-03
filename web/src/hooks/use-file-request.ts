@@ -5,7 +5,9 @@ import {
   IFolder,
 } from '@/interfaces/database/file-manager';
 import { IConnectRequestBody } from '@/interfaces/request/file-manager';
-import fileManagerService from '@/services/file-manager-service';
+import fileManagerService, {
+  setFilePermission,
+} from '@/services/file-manager-service';
 import { downloadFileFromBlob } from '@/utils/file-util';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useDebounce } from 'ahooks';
@@ -239,6 +241,34 @@ export const useDeleteFile = () => {
   });
 
   return { data, loading, deleteFile: mutateAsync };
+};
+
+export const useSetFilePermission = () => {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  const {
+    data,
+    isPending: loading,
+    mutateAsync,
+  } = useMutation({
+    mutationKey: ['setFilePermission'],
+    mutationFn: async (params: { fileId: string; permission: string }) => {
+      const { data } = await setFilePermission(
+        params.fileId,
+        params.permission,
+      );
+      if (data.code === 0) {
+        message.success(t('message.operated'));
+        queryClient.invalidateQueries({
+          queryKey: [FileApiAction.FetchFileList],
+        });
+      }
+      return data.code;
+    },
+  });
+
+  return { data, loading, setFilePermission: mutateAsync };
 };
 
 export const useDownloadFile = () => {

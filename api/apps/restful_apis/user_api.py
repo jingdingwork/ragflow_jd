@@ -32,6 +32,8 @@ from api.db.services.file_service import FileService
 from api.db.services.llm_service import get_init_tenant_llm
 from api.db.services.tenant_llm_service import TenantLLMService
 from api.db.services.user_service import TenantService, UserService, UserTenantService
+from api.db.services.department_service import DepartmentService
+from api.db.services.department_llm_service import apply_department_models_to_user
 from common.time_utils import current_timestamp, datetime_format, get_format_time
 from common.misc_utils import download_img, get_uuid
 from common.constants import RetCode
@@ -213,6 +215,13 @@ async def oauth_callback(channel):
         if not user_info.email:
             return redirect("/?error=email_missing")
 
+        # Resolve the user's department from the LDAP DN claim (refreshed on every login)
+        department_id = None
+        try:
+            department_id = DepartmentService.upsert_from_dn(getattr(user_info, "department_dn", None))
+        except Exception as e:
+            logging.exception(e)
+
         # Login or register
         users = UserService.query(email=user_info.email)
         user_id = get_uuid()
@@ -235,6 +244,7 @@ async def oauth_callback(channel):
                         "login_channel": channel,
                         "last_login_time": get_format_time(),
                         "is_superuser": False,
+                        "department_id": department_id,
                     },
                 )
 
@@ -245,6 +255,11 @@ async def oauth_callback(channel):
 
                 # Try to log in
                 user = users[0]
+                if department_id:
+                    try:
+                        apply_department_models_to_user(user.id, department_id)
+                    except Exception as e:
+                        logging.exception(e)
                 login_user(user)
                 return redirect(f"/?auth={user.get_id()}")
 
@@ -258,6 +273,14 @@ async def oauth_callback(channel):
         user.access_token = get_uuid()
         if user and hasattr(user, 'is_active') and user.is_active == "0":
             return redirect("/?error=user_inactive")
+
+        # Refresh the latest department on every login
+        if department_id:
+            user.department_id = department_id
+            try:
+                apply_department_models_to_user(user.id, department_id)
+            except Exception as e:
+                logging.exception(e)
 
         login_user(user)
         user.save()

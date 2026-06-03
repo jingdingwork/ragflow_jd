@@ -45,6 +45,59 @@ class UserCanvasService(CommonService):
     model = UserCanvas
 
     @classmethod
+    def _user_department_id(cls, user_id):
+        u = User.get_or_none(User.id == user_id)
+        return u.department_id if u else None
+
+    @classmethod
+    def _is_dept_admin_for(cls, permission, department_id, user_id):
+        """True if user is a department admin governing a department-visible resource in their dept."""
+        if permission != TenantPermission.DEPARTMENT.value:
+            return False
+        u = User.get_or_none(User.id == user_id)
+        return bool(u and getattr(u, "is_dept_admin", False) and u.department_id and department_id == u.department_id)
+
+    @classmethod
+    @DB.connection_context()
+    def manageable(cls, canvas_id, user_id):
+        """UPDATE-level: owner, team member of the joined tenant, or dept admin of a department agent."""
+        from api.db.services.user_service import UserTenantService
+        e, c = cls.get_by_canvas_id(canvas_id)
+        if not e:
+            return False
+        if c["user_id"] == user_id:
+            return True
+        if c["permission"] == TenantPermission.TEAM.value:
+            tids = [t.tenant_id for t in UserTenantService.query(user_id=user_id)]
+            return c["user_id"] in tids
+        return cls._is_dept_admin_for(c["permission"], c.get("department_id"), user_id)
+
+    @classmethod
+    @DB.connection_context()
+    def deletable(cls, canvas_id, user_id):
+        """DELETE-level: owner, or dept admin of a department agent."""
+        e, c = cls.get_by_canvas_id(canvas_id)
+        if not e:
+            return False
+        if c["user_id"] == user_id:
+            return True
+        return cls._is_dept_admin_for(c["permission"], c.get("department_id"), user_id)
+
+    @classmethod
+    def _visibility_expr(cls, joined_tenant_ids, user_id):
+        """Owned agents + team agents of joined tenants + department-visible agents of own department."""
+        visibility = (
+            ((cls.model.user_id.in_(joined_tenant_ids)) & (cls.model.permission == TenantPermission.TEAM.value))
+            | (cls.model.user_id == user_id)
+        )
+        dept_id = cls._user_department_id(user_id)
+        if dept_id:
+            visibility = visibility | (
+                (cls.model.department_id == dept_id) & (cls.model.permission == TenantPermission.DEPARTMENT.value)
+            )
+        return visibility
+
+    @classmethod
     @DB.connection_context()
     def get_list(cls, tenant_id,
                  page_number, items_per_page, orderby, desc, id, title, canvas_category=CanvasCategory.Agent):
@@ -76,12 +129,8 @@ class UserCanvasService(CommonService):
             cls.model.canvas_type,
             cls.model.canvas_category
         ]
-        # find team agents and owned agents
-        agents = cls.model.select(*fields).where(
-            (cls.model.user_id.in_(tenant_ids) & (cls.model.permission == TenantPermission.TEAM.value)) | (
-                cls.model.user_id == user_id
-            )
-        )
+        # find team agents, owned agents, and department-visible agents
+        agents = cls.model.select(*fields).where(cls._visibility_expr(tenant_ids, user_id))
         # sort by create_time, asc
         agents.order_by(cls.model.create_time.asc())
         # maybe cause slow query by deep paginate, optimize later
@@ -108,6 +157,7 @@ class UserCanvasService(CommonService):
                 cls.model.dsl,
                 cls.model.description,
                 cls.model.permission,
+                cls.model.department_id,
                 cls.model.update_time,
                 cls.model.user_id,
                 cls.model.create_time,
@@ -166,14 +216,15 @@ class UserCanvasService(CommonService):
             cls.model.canvas_category,
             cls.model.tags,
         ]
+        visibility = cls._visibility_expr(joined_tenant_ids, user_id)
         if keywords:
             agents = cls.model.select(*fields).join(User, on=(cls.model.user_id == User.id)).where(
-                (((cls.model.user_id.in_(joined_tenant_ids)) & (cls.model.permission == TenantPermission.TEAM.value)) | (cls.model.user_id == user_id)),
+                visibility,
                 (fn.LOWER(cls.model.title).contains(keywords.lower()))
             )
         else:
             agents = cls.model.select(*fields).join(User, on=(cls.model.user_id == User.id)).where(
-                (((cls.model.user_id.in_(joined_tenant_ids)) & (cls.model.permission == TenantPermission.TEAM.value)) | (cls.model.user_id == user_id))
+                visibility
             )
         if canvas_category:
             agents = agents.where(cls.model.canvas_category == canvas_category)
@@ -284,6 +335,10 @@ class UserCanvasService(CommonService):
         tids = [t.tenant_id for t in UserTenantService.query(user_id=tenant_id)]
         if c["user_id"] == tenant_id:
             return True
+        # Department-visible agent: accessible to users of the same department
+        if c["permission"] == TenantPermission.DEPARTMENT.value:
+            dept_id = cls._user_department_id(tenant_id)
+            return bool(dept_id and c.get("department_id") == dept_id)
         if c["user_id"] not in tids:
             return False
         if c["permission"] != TenantPermission.TEAM.value:

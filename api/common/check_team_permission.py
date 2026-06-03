@@ -16,10 +16,37 @@
 
 
 from api.db import TenantPermission
-from api.db.db_models import File, Knowledgebase
+from api.db.db_models import File, Knowledgebase, User
 from api.db.services.file_service import FileService
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.services.user_service import TenantService
+
+
+def _user_department_id(user_id: str):
+    u = User.get_or_none(User.id == user_id)
+    return u.department_id if u else None
+
+
+def check_file_department_permission(file: dict | File, other: str) -> bool:
+    """True if the file is department-visible and `other` is in the same department."""
+    file = file.to_dict() if isinstance(file, File) else file
+    if file.get("permission") != TenantPermission.DEPARTMENT.value:
+        return False
+    dept = _user_department_id(other)
+    return bool(dept and file.get("department_id") == dept)
+
+
+def check_file_department_manageable(file: dict | File, other: str) -> bool:
+    """True if `other` may govern the department-visible file: owner or department admin."""
+    file = file.to_dict() if isinstance(file, File) else file
+    if file.get("created_by") == other or file.get("tenant_id") == other:
+        return True
+    if file.get("permission") != TenantPermission.DEPARTMENT.value:
+        return False
+    u = User.get_or_none(User.id == other)
+    return bool(
+        u and getattr(u, "is_dept_admin", False) and u.department_id and file.get("department_id") == u.department_id
+    )
 
 
 def check_kb_team_permission(kb: dict | Knowledgebase, other: str) -> bool:
@@ -42,6 +69,10 @@ def check_file_team_permission(file: dict | File, other: str) -> bool:
 
     file_tenant_id = file["tenant_id"]
     if file_tenant_id == other:
+        return True
+
+    # Department-visible file: accessible to members of the same department
+    if check_file_department_permission(file, other):
         return True
 
     file_id = file["id"]

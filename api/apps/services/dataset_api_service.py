@@ -108,15 +108,17 @@ async def create_dataset(tenant_id: str, req: dict):
     return True, response_data
 
 
-async def delete_datasets(tenant_id: str, ids: list = None, delete_all: bool = False):
+async def delete_datasets(tenant_id: str, ids: list = None, delete_all: bool = False, acting_user_id: str = None):
     """
     Delete datasets.
 
     :param tenant_id: tenant ID
     :param ids: list of dataset IDs
     :param delete_all: whether to delete all datasets of the tenant (if ids is not provided)
+    :param acting_user_id: the user performing the deletion (enables department-admin governance)
     :return: (success, result) or (success, error_message)
     """
+    actor = acting_user_id or tenant_id
     kb_id_instance_pairs = []
     if not ids:
         if not delete_all:
@@ -126,8 +128,9 @@ async def delete_datasets(tenant_id: str, ids: list = None, delete_all: bool = F
 
     error_kb_ids = []
     for kb_id in ids:
-        kb = KnowledgebaseService.get_or_none(id=kb_id, tenant_id=tenant_id)
-        if kb is None:
+        kb = KnowledgebaseService.get_or_none(id=kb_id)
+        # Owner of the dataset's tenant, the creator, or a governing department admin may delete it
+        if kb is None or not (kb.tenant_id == tenant_id or KnowledgebaseService.accessible4deletion(kb_id, actor)):
             error_kb_ids.append(kb_id)
             continue
         kb_id_instance_pairs.append((kb_id, kb))
@@ -226,20 +229,23 @@ def get_ingestion_summary(dataset_id: str, tenant_id: str):
     }
 
 
-async def update_dataset(tenant_id: str, dataset_id: str, req: dict):
+async def update_dataset(tenant_id: str, dataset_id: str, req: dict, acting_user_id: str = None):
     """
     Update a dataset.
 
     :param tenant_id: tenant ID
     :param dataset_id: dataset ID
     :param req: dataset update request
+    :param acting_user_id: the user performing the update (enables department-admin governance)
     :return: (success, result) or (success, error_message)
     """
     if not req:
         return False, "No properties were modified"
 
-    kb = KnowledgebaseService.get_or_none(id=dataset_id, tenant_id=tenant_id)
-    if kb is None:
+    actor = acting_user_id or tenant_id
+    kb = KnowledgebaseService.get_or_none(id=dataset_id)
+    # Owner of the dataset's tenant, the creator, or a governing department admin may update it
+    if kb is None or not (kb.tenant_id == tenant_id or KnowledgebaseService.accessible4deletion(dataset_id, actor)):
         return False, f"User '{tenant_id}' lacks permission for dataset '{dataset_id}'"
 
     # Extract ext field for additional parameters
@@ -300,7 +306,7 @@ async def update_dataset(tenant_id: str, dataset_id: str, req: dict):
         req["pipeline_id"] = ""
 
     if "name" in req and req["name"].lower() != kb.name.lower():
-        exists = KnowledgebaseService.get_or_none(name=req["name"], tenant_id=tenant_id, status=StatusEnum.VALID.value)
+        exists = KnowledgebaseService.get_or_none(name=req["name"], tenant_id=kb.tenant_id, status=StatusEnum.VALID.value)
         if exists:
             return False, f"Dataset name '{req['name']}' already exists"
 
