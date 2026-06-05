@@ -6,6 +6,7 @@ import { useFetchChatList } from '@/hooks/use-chat-request';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChatDropdown } from '../next-chats/chat-dropdown';
+import { CreateChatDialog } from '../next-chats/components/create-chat-dialog';
 import { useRenameChat } from '../next-chats/hooks/use-rename-chat';
 
 export function ChatList({
@@ -21,6 +22,7 @@ export function ChatList({
 
   const {
     initialChatName,
+    isCreatingChat,
     chatRenameVisible,
     showChatRenameModal,
     hideChatRenameModal,
@@ -48,15 +50,22 @@ export function ChatList({
           }
         ></HomeCard>
       ))}
-      {chatRenameVisible && (
-        <RenameDialog
-          hideModal={hideChatRenameModal}
-          onOk={onChatRenameOk}
-          initialName={initialChatName}
-          loading={chatRenameLoading}
-          title={initialChatName || t('chat.createChat')}
-        ></RenameDialog>
-      )}
+      {chatRenameVisible &&
+        (isCreatingChat ? (
+          <CreateChatDialog
+            hideModal={hideChatRenameModal}
+            onOk={onChatRenameOk}
+            loading={chatRenameLoading}
+          />
+        ) : (
+          <RenameDialog
+            hideModal={hideChatRenameModal}
+            onOk={onChatRenameOk}
+            initialName={initialChatName}
+            loading={chatRenameLoading}
+            title={initialChatName || t('chat.createChat')}
+          ></RenameDialog>
+        ))}
     </>
   );
 }

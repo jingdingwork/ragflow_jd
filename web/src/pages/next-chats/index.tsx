@@ -12,6 +12,7 @@ import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import { ChatCard } from './chat-card';
+import { CreateChatDialog } from './components/create-chat-dialog';
 import { useRenameChat } from './hooks/use-rename-chat';
 
 export default function ChatList() {
@@ -20,6 +21,7 @@ export default function ChatList() {
   const { t } = useTranslation();
   const {
     initialChatName,
+    isCreatingChat,
     chatRenameVisible,
     showChatRenameModal,
     hideChatRenameModal,
@@ -115,15 +117,22 @@ export default function ChatList() {
         </article>
       )}
 
-      {chatRenameVisible && (
-        <RenameDialog
-          hideModal={hideChatRenameModal}
-          onOk={onChatRenameOk}
-          initialName={initialChatName}
-          loading={chatRenameLoading}
-          title={initialChatName || t('chat.createChat')}
-        ></RenameDialog>
-      )}
+      {chatRenameVisible &&
+        (isCreatingChat ? (
+          <CreateChatDialog
+            hideModal={hideChatRenameModal}
+            onOk={onChatRenameOk}
+            loading={chatRenameLoading}
+          />
+        ) : (
+          <RenameDialog
+            hideModal={hideChatRenameModal}
+            onOk={onChatRenameOk}
+            initialName={initialChatName}
+            loading={chatRenameLoading}
+            title={initialChatName || t('chat.createChat')}
+          ></RenameDialog>
+        ))}
     </>
   );
 }

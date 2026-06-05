@@ -81,6 +81,7 @@ class UserMgr:
                     "create_date": user.create_date,
                     "is_active": user.is_active,
                     "is_superuser": user.is_superuser,
+                    "is_departed": getattr(user, "is_departed", False),
                 }
             )
         return result
@@ -102,6 +103,7 @@ class UserMgr:
                     "login_channel": user.login_channel,
                     "status": user.status,
                     "is_superuser": user.is_superuser,
+                    "is_departed": getattr(user, "is_departed", False),
                     "create_date": user.create_date,
                     "update_date": user.update_date,
                 }
@@ -201,6 +203,8 @@ class UserMgr:
             raise AdminException(f"Exist more than 1 user: {username}!")
         # check activate status different from new
         usr = user_list[0]
+        if getattr(usr, "is_departed", False):
+            raise AdminException(f"User {username} has departed and cannot change activation status.", 400)
         # format activate_status before handle
         _activate_status = activate_status.lower()
         target_status = {
@@ -329,6 +333,8 @@ class DepartmentMgr:
                         "is_active": user.is_active,
                         "is_superuser": user.is_superuser,
                         "is_dept_admin": getattr(user, "is_dept_admin", False),
+                        "username": getattr(user, "username", None),
+                        "is_departed": getattr(user, "is_departed", False),
                         "last_login_time": user.last_login_time,
                         "models": models_by_tenant.get(user.id, []),
                     }
@@ -375,7 +381,7 @@ class DepartmentMgr:
 
         Matching is by email (case-insensitive). Covers users who never logged in.
         """
-        directory = fetch_keycloak_users()
+        directory, all_emails = fetch_keycloak_users()
 
         users = UserService.get_all_users()
         existing = {(u.email or "").strip().lower(): u for u in users}
@@ -388,44 +394,86 @@ class DepartmentMgr:
             "unchanged": 0,
             "no_ou": 0,
             "failed": 0,
+            "departed": 0,
+            "rejoined": 0,
         }
 
         for email_lower, info in directory.items():
-            dept_id = DepartmentService.upsert_from_dn(info["dn"])
-            if not dept_id:
-                stats["no_ou"] += 1
-                continue
+            # Isolate each user so one failure can't abort the whole sync run
+            # (which would silently leave every later user un-synced).
+            try:
+                dept_id = DepartmentService.upsert_from_dn(info["dn"])
+                if not dept_id:
+                    stats["no_ou"] += 1
+                    continue
 
-            user = existing.get(email_lower)
-            if user is None:
-                try:
-                    res = create_new_user(
-                        {
-                            "email": info["email"],
-                            "nickname": info["nickname"],
-                            "login_channel": "oidc",
-                            "is_superuser": False,
-                            "department_id": dept_id,
-                        }
-                    )
-                    if res.get("success"):
-                        stats["created"] += 1
-                        new_id = (res.get("user_info") or {}).get("id")
-                        if new_id:
-                            apply_department_models_to_user(new_id, dept_id)
-                    else:
+                user = existing.get(email_lower)
+                if user is None:
+                    try:
+                        res = create_new_user(
+                            {
+                                "email": info["email"],
+                                "nickname": info["nickname"],
+                                "username": info.get("username"),
+                                "login_channel": "oidc",
+                                "is_superuser": False,
+                                "department_id": dept_id,
+                            }
+                        )
+                        if res.get("success"):
+                            stats["created"] += 1
+                            new_id = (res.get("user_info") or {}).get("id")
+                            if new_id:
+                                apply_department_models_to_user(new_id, dept_id)
+                        else:
+                            stats["failed"] += 1
+                    except Exception:
+                        logging.exception(f"Failed to create account for {info['email']}")
                         stats["failed"] += 1
-                except Exception:
-                    logging.exception(f"Failed to create account for {info['email']}")
-                    stats["failed"] += 1
-                continue
+                    continue
 
-            if getattr(user, "department_id", None) == dept_id:
-                stats["unchanged"] += 1
-            else:
-                UserService.update_user(user.id, {"department_id": dept_id})
-                stats["updated"] += 1
-            apply_department_models_to_user(user.id, dept_id)
+                new_username = info.get("username")
+                patch = {}
+                if getattr(user, "department_id", None) != dept_id:
+                    patch["department_id"] = dept_id
+                if new_username and getattr(user, "username", None) != new_username:
+                    patch["username"] = new_username
+                # Rejoin: a previously departed user is back in the directory
+                if getattr(user, "is_departed", False):
+                    patch["is_departed"] = False
+                    patch["is_active"] = ActiveEnum.ACTIVE.value
+                    stats["rejoined"] += 1
+                if patch:
+                    UserService.update_user(user.id, patch)
+                    stats["updated"] += 1
+                else:
+                    stats["unchanged"] += 1
+                apply_department_models_to_user(user.id, dept_id)
+            except Exception:
+                logging.exception(f"Failed to sync user {info.get('email')}")
+                stats["failed"] += 1
+
+        # Departed reconciliation: OIDC accounts that no longer exist anywhere in
+        # Keycloak are marked departed (terminal: also deactivated). Password
+        # accounts and superusers are never auto-departed.
+        for user in users:
+            try:
+                if getattr(user, "login_channel", None) != "oidc":
+                    continue
+                if getattr(user, "is_superuser", False):
+                    continue
+                if getattr(user, "is_departed", False):
+                    continue
+                if (user.email or "").strip().lower() in all_emails:
+                    continue
+                UserService.update_user(
+                    user.id,
+                    {"is_departed": True, "is_active": ActiveEnum.INACTIVE.value},
+                )
+                stats["departed"] += 1
+            except Exception:
+                logging.exception(f"Failed to mark departed user {getattr(user, 'email', None)}")
+                stats["failed"] += 1
 
         return stats
 
@@ -456,6 +504,44 @@ class DepartmentMgr:
     @staticmethod
     def resync_all_llm_models():
         return resync_all_department_models()
+
+    @staticmethod
+    def export_members():
+        """
+        Export all department members as an .xlsx workbook (bytes), sorted by
+        department. Columns: 工号 (username) | 邮箱 (email) | 姓名 (nickname) |
+        部门名称 (full OU path). Only users with a resolved department are included.
+        """
+        import io
+        from openpyxl import Workbook
+
+        path_by_id = {d.id: d.path_key for d in DepartmentService.get_all()}
+        rows = []
+        for user in UserService.get_all_users():
+            dept_id = getattr(user, "department_id", None)
+            if not dept_id or dept_id not in path_by_id:
+                continue
+            dept_name = path_by_id[dept_id]
+            rows.append(
+                {
+                    "username": getattr(user, "username", None) or "",
+                    "email": user.email or "",
+                    "nickname": user.nickname or "",
+                    "department": dept_name or "",
+                }
+            )
+        rows.sort(key=lambda r: (r["department"], r["nickname"] or r["email"]))
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Departments"
+        ws.append(["工号", "邮箱", "姓名", "部门名称"])
+        for r in rows:
+            ws.append([r["username"], r["email"], r["nickname"], r["department"]])
+
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        return buffer.getvalue()
 
 
 class ChatHistoryMgr:
@@ -1048,11 +1134,12 @@ class EsDataMgr:
 
     @staticmethod
     def list_knowledgebases():
-        """List every valid knowledge base in the system for the picker."""
+        """List every valid knowledge base in the system, with owner/department info for grouping."""
         model = KnowledgebaseService.model
         rows = (
             model.select(
                 model.id, model.name, model.tenant_id, model.created_by,
+                model.department_id, model.permission,
                 model.doc_num, model.chunk_num, model.token_num,
                 model.language, model.parser_id, model.create_date,
             )
@@ -1073,8 +1160,20 @@ class EsDataMgr:
             except Exception as e:
                 logging.warning(f"EsDataMgr.list_knowledgebases resolve nickname failed: {e}")
 
+        # Best-effort resolve department name (batch).
+        dept_ids = {k["department_id"] for k in kbs if k.get("department_id")}
+        dept_map = {}
+        if dept_ids:
+            try:
+                dmodel = DepartmentService.model
+                for d in dmodel.select(dmodel.id, dmodel.name).where(dmodel.id.in_(list(dept_ids))):
+                    dept_map[d.id] = d.name
+            except Exception as e:
+                logging.warning(f"EsDataMgr.list_knowledgebases resolve department failed: {e}")
+
         for k in kbs:
             k["creator_name"] = nick_map.get(k.get("created_by"), k.get("created_by"))
+            k["department_name"] = dept_map.get(k.get("department_id")) if k.get("department_id") else None
             k["create_date"] = str(k["create_date"]) if k.get("create_date") else None
         return kbs
 
@@ -1297,6 +1396,271 @@ class RetrievalMgr:
             "base": base,
             "reranked": reranked,
         }
+
+
+class PromptMgr:
+    """Admin CRUD over the chat prompt template library (default + per-department)."""
+
+    @staticmethod
+    def list_all():
+        from api.db.services.prompt_template_service import PromptTemplateService
+        return PromptTemplateService.list_all()
+
+    @staticmethod
+    def create(data):
+        from api.db.services.prompt_template_service import PromptTemplateService
+        tid = PromptTemplateService.create_template(
+            name=data.get("name", ""),
+            scope=data.get("scope", "department"),
+            department_id=data.get("department_id") or None,
+            system=data.get("system", ""),
+            prologue=data.get("prologue", ""),
+            is_default=bool(data.get("is_default", False)),
+            sort=data.get("sort", 0),
+        )
+        return {"id": tid}
+
+    @staticmethod
+    def update(template_id, data):
+        from api.db.services.prompt_template_service import PromptTemplateService
+        PromptTemplateService.update_template(template_id, **data)
+        return {"id": template_id}
+
+    @staticmethod
+    def delete(template_id):
+        from api.db.services.prompt_template_service import PromptTemplateService
+        PromptTemplateService.delete_template(template_id)
+        return {"id": template_id}
+
+
+class FolderMgr:
+    """Admin management of department shared-folder data sources (mounted SMB/NFS).
+
+    Each binding is a department-scoped ``local_folder`` Connector linked to one
+    KB via Connector2Kb. The sync worker (rag/svr/sync_data_source.py) performs
+    the incremental + delete-reconciling sync; here we only do CRUD and trigger
+    manual syncs.
+    """
+
+    SOURCE = "local_folder"
+
+    @staticmethod
+    def _conn_services():
+        from api.db.services.connector_service import (
+            ConnectorService,
+            Connector2KbService,
+            SyncLogsService,
+        )
+        return ConnectorService, Connector2KbService, SyncLogsService
+
+    @staticmethod
+    def _build_config(data):
+        root_path = (data.get("root_path") or "").strip()
+        if not root_path:
+            raise ValueError("root_path is required.")
+        exclude = data.get("exclude_dirs")
+        if isinstance(exclude, str):
+            exclude = [x.strip() for x in exclude.split(",") if x.strip()]
+        return {
+            "root_path": root_path,
+            "recursive": bool(data.get("recursive", True)),
+            "allow_images": bool(data.get("allow_images", False)),
+            "sync_deleted_files": bool(data.get("sync_deleted_files", True)),
+            "exclude_dirs": exclude or [],
+        }
+
+    @staticmethod
+    def test(data):
+        """Detection button: check the mounted folder is reachable (no persistence)."""
+        from common.data_source.local_folder_connector import LocalFolderConnector
+
+        cfg = FolderMgr._build_config(data)
+        connector = LocalFolderConnector(
+            root_path=cfg["root_path"],
+            recursive=cfg["recursive"],
+            exclude_dirs=cfg["exclude_dirs"],
+        )
+        connector.set_allow_images(cfg["allow_images"])
+        connector.validate_connector_settings()
+        return {"accessible": True, "file_count": connector.count_supported_files()}
+
+    @staticmethod
+    def list_all():
+        ConnectorService, Connector2KbService, SyncLogsService = FolderMgr._conn_services()
+        model = ConnectorService.model
+        conns = list(model.select().where(model.source == FolderMgr.SOURCE))
+
+        dept_ids = {c.department_id for c in conns if c.department_id}
+        dept_map = {}
+        if dept_ids:
+            dmodel = DepartmentService.model
+            for d in dmodel.select(dmodel.id, dmodel.name).where(dmodel.id.in_(list(dept_ids))):
+                dept_map[d.id] = d.name
+
+        items = []
+        for c in conns:
+            links = Connector2KbService.query(connector_id=c.id)
+            kb_id = links[0].kb_id if links else None
+            kb_name, kb_doc_num = None, None
+            if kb_id:
+                ok, kb = KnowledgebaseService.get_by_id(kb_id)
+                if ok:
+                    kb_name, kb_doc_num = kb.name, kb.doc_num
+
+            latest = SyncLogsService.get_latest_task(c.id, kb_id) if kb_id else None
+            cfg = c.config or {}
+            items.append({
+                "id": c.id,
+                "name": c.name,
+                "department_id": c.department_id,
+                "department_name": dept_map.get(c.department_id),
+                "kb_id": kb_id,
+                "kb_name": kb_name,
+                "kb_doc_num": kb_doc_num,
+                "root_path": cfg.get("root_path", ""),
+                "recursive": cfg.get("recursive", True),
+                "sync_deleted_files": cfg.get("sync_deleted_files", True),
+                "exclude_dirs": cfg.get("exclude_dirs", []),
+                "refresh_freq": c.refresh_freq,
+                "status": c.status,
+                "last_sync": {
+                    "status": latest.status,
+                    "total_docs_indexed": latest.total_docs_indexed,
+                    "docs_removed": latest.docs_removed_from_index,
+                    "update_date": str(latest.update_date) if latest.update_date else None,
+                    "error_msg": latest.error_msg,
+                } if latest else None,
+            })
+        items.sort(key=lambda x: (x.get("department_name") or "", x.get("name") or ""))
+        return items
+
+    @staticmethod
+    def create(data):
+        from api.db import InputType
+        from common.constants import TaskStatus
+
+        ConnectorService, Connector2KbService, SyncLogsService = FolderMgr._conn_services()
+        kb_id = data.get("kb_id")
+        if not kb_id:
+            raise ValueError("kb_id is required.")
+        ok, kb = KnowledgebaseService.get_by_id(kb_id)
+        if not ok:
+            raise ValueError(f"Knowledge base not found: {kb_id}")
+
+        cfg = FolderMgr._build_config(data)
+        refresh_freq = int(data.get("refresh_freq", 1440))
+        cid = get_uuid()
+        ConnectorService.save(
+            id=cid,
+            tenant_id=kb.tenant_id,
+            department_id=data.get("department_id") or kb.department_id,
+            name=(data.get("name") or "").strip() or cfg["root_path"],
+            source=FolderMgr.SOURCE,
+            input_type=InputType.POLL,
+            config=cfg,
+            refresh_freq=refresh_freq,
+            prune_freq=int(data.get("prune_freq", 1440)),
+            timeout_secs=int(data.get("timeout_secs", 60 * 29)),
+            status=TaskStatus.SCHEDULE,
+        )
+        # Linking schedules the first full reindex (reindex=True) for this KB.
+        Connector2KbService.link_connectors(kb_id, [{"id": cid, "auto_parse": "1"}], kb.tenant_id)
+        # Run the first reindex immediately instead of waiting out the refresh_freq window.
+        SyncLogsService.mark_due_now(cid, refresh_freq)
+        return {"id": cid}
+
+    @staticmethod
+    def update(connector_id, data):
+        ConnectorService, _, _ = FolderMgr._conn_services()
+        ok, conn = ConnectorService.get_by_id(connector_id)
+        if not ok:
+            raise ValueError(f"Connector not found: {connector_id}")
+
+        patch = {}
+        cfg_keys = ("root_path", "recursive", "allow_images", "sync_deleted_files", "exclude_dirs")
+        if any(k in data for k in cfg_keys):
+            merged = dict(conn.config or {})
+            merged.update({k: data[k] for k in cfg_keys if k in data})
+            patch["config"] = FolderMgr._build_config(merged)
+        if data.get("name"):
+            patch["name"] = data["name"].strip()
+        if "refresh_freq" in data:
+            patch["refresh_freq"] = int(data["refresh_freq"])
+        if "department_id" in data:
+            patch["department_id"] = data["department_id"] or None
+        if patch:
+            ConnectorService.update_by_id(connector_id, patch)
+        return {"id": connector_id}
+
+    @staticmethod
+    def delete(connector_id):
+        from common.constants import TaskStatus
+
+        ConnectorService, Connector2KbService, _ = FolderMgr._conn_services()
+        ok, _conn = ConnectorService.get_by_id(connector_id)
+        if not ok:
+            raise ValueError(f"Connector not found: {connector_id}")
+        # Cancel scheduled syncs and unlink from KBs. Already-indexed documents
+        # are intentionally left in place (mirrors connector unlink semantics).
+        ConnectorService.resume(connector_id, TaskStatus.CANCEL)
+        c2k = Connector2KbService.model
+        Connector2KbService.filter_delete([c2k.connector_id == connector_id])
+        ConnectorService.delete_by_id(connector_id)
+        return {"id": connector_id}
+
+    @staticmethod
+    def sync(connector_id):
+        """Manual incremental update: schedule a sync using the last poll window."""
+        from common.constants import TaskStatus
+
+        ConnectorService, _, SyncLogsService = FolderMgr._conn_services()
+        ok, conn = ConnectorService.get_by_id(connector_id)
+        if not ok:
+            raise ValueError(f"Connector not found: {connector_id}")
+        # resume(SCHEDULE) re-queues each linked KB from its last poll_range_end
+        # (incremental) and is a no-op if a sync is already scheduled/running.
+        ConnectorService.resume(connector_id, TaskStatus.SCHEDULE)
+        # Bypass the refresh_freq wait window so the manual sync runs right away.
+        SyncLogsService.mark_due_now(connector_id, conn.refresh_freq)
+        return {"id": connector_id}
+
+    @staticmethod
+    def rebuild(connector_id):
+        """Manual full rebuild: drop indexed docs and re-pull everything."""
+        ConnectorService, Connector2KbService, _ = FolderMgr._conn_services()
+        ok, conn = ConnectorService.get_by_id(connector_id)
+        if not ok:
+            raise ValueError(f"Connector not found: {connector_id}")
+        errors = []
+        for link in Connector2KbService.query(connector_id=connector_id):
+            err = ConnectorService.rebuild(link.kb_id, connector_id, conn.tenant_id)
+            if err:
+                errors.append(err)
+        return {"id": connector_id, "errors": errors}
+
+    @staticmethod
+    def files(connector_id):
+        ConnectorService, Connector2KbService, _ = FolderMgr._conn_services()
+        ok, _conn = ConnectorService.get_by_id(connector_id)
+        if not ok:
+            raise ValueError(f"Connector not found: {connector_id}")
+        source_type = f"{FolderMgr.SOURCE}/{connector_id}"
+        model = DocumentService.model
+        out = []
+        for link in Connector2KbService.query(connector_id=connector_id):
+            rows = (
+                model.select(
+                    model.id, model.name, model.size, model.type,
+                    model.progress, model.run, model.create_date,
+                )
+                .where(model.kb_id == link.kb_id, model.source_type == source_type)
+                .order_by(model.create_time.desc())
+            )
+            for d in rows.dicts():
+                d["kb_id"] = link.kb_id
+                d["create_date"] = str(d["create_date"]) if d.get("create_date") else None
+                out.append(d)
+        return out
 
 
 class UserServiceMgr:

@@ -7,6 +7,7 @@ import {
   LucideBuilding2,
   LucideChevronDown,
   LucideChevronRight,
+  LucideDownload,
   LucideFolderSync,
   LucideLogIn,
   LucidePackageSearch,
@@ -36,6 +37,7 @@ import { cn } from '@/lib/utils';
 
 import {
   DepartmentNode,
+  exportDepartmentMembers,
   impersonateUser,
   listDepartmentTree,
   resyncAllDepartmentModels,
@@ -276,6 +278,26 @@ function AdminDepartments() {
     retry: false,
   });
 
+  const exportMutation = useMutation({
+    mutationKey: ['admin/departments/export'],
+    mutationFn: async () => {
+      const res = await exportDepartmentMembers();
+      return res?.data as Blob;
+    },
+    onSuccess: (blob) => {
+      if (!blob) return;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'departments.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    },
+    retry: false,
+  });
+
   const tree = useMemo(() => data ?? [], [data]);
 
   const selectedNode = useMemo(
@@ -319,6 +341,15 @@ function AdminDepartments() {
             >
               <LucidePackageSearch className="size-4 mr-1" />
               {t('admin.syncModels')}
+            </ButtonLoading>
+            <ButtonLoading
+              size="sm"
+              variant="outline"
+              loading={exportMutation.isPending}
+              onClick={() => exportMutation.mutate()}
+            >
+              <LucideDownload className="size-4 mr-1" />
+              {t('admin.exportExcel')}
             </ButtonLoading>
             <Button size="sm" variant="outline" onClick={expandAll}>
               {t('admin.expandAll')}
@@ -380,6 +411,7 @@ function AdminDepartments() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t('admin.nickname')}</TableHead>
+                    <TableHead>{t('admin.employeeId')}</TableHead>
                     <TableHead>{t('admin.email')}</TableHead>
                     <TableHead>{t('admin.status')}</TableHead>
                     <TableHead>{t('admin.models')}</TableHead>
@@ -408,17 +440,28 @@ function AdminDepartments() {
                             </Badge>
                           )}
                         </TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {member.username || '-'}
+                        </TableCell>
                         <TableCell>{member.email}</TableCell>
                         <TableCell>
-                          <Badge
-                            variant={
-                              member.is_active === '1' ? 'default' : 'secondary'
-                            }
-                          >
-                            {member.is_active === '1'
-                              ? t('admin.active')
-                              : t('admin.inactive')}
-                          </Badge>
+                          {member.is_departed ? (
+                            <Badge variant="destructive">
+                              {t('admin.departed')}
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant={
+                                member.is_active === '1'
+                                  ? 'default'
+                                  : 'secondary'
+                              }
+                            >
+                              {member.is_active === '1'
+                                ? t('admin.active')
+                                : t('admin.inactive')}
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell>
                           {member.models && member.models.length > 0 ? (
@@ -485,7 +528,7 @@ function AdminDepartments() {
                       </TableRow>
                     ))
                   ) : (
-                    <TableEmpty columnsLength={5} />
+                    <TableEmpty columnsLength={6} />
                   )}
                 </TableBody>
               </Table>

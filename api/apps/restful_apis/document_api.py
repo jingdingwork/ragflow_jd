@@ -45,13 +45,25 @@ from api.utils.validation_utils import (
 )
 
 from common import settings
-from common.constants import ParserType, RetCode, TaskStatus, SANDBOX_ARTIFACT_BUCKET
+from common.constants import FileSource, ParserType, RetCode, TaskStatus, SANDBOX_ARTIFACT_BUCKET
 from common.metadata_utils import convert_conditions, meta_filter, turn2jsonschema
 from common.misc_utils import get_uuid, thread_pool_exec
 from api.utils.file_utils import filename_type, thumbnail
 from api.utils.web_utils import CONTENT_TYPE_MAP, html2pdf, is_valid_url, apply_safe_file_response_headers
 from common.ssrf_guard import assert_url_is_safe
 from rag.nlp import search
+
+# Documents synced from a mounted shared folder are read-only on the user side:
+# their source of truth is the share, and the nightly sync reconciles changes.
+FOLDER_SOURCE_PREFIX = f"{FileSource.LOCAL_FOLDER}/"
+FOLDER_READONLY_MSG = (
+    "This document is synced from a shared folder and is read-only here. "
+    "Please add, modify, or remove it in the shared folder instead."
+)
+
+
+def _is_folder_sourced(doc) -> bool:
+    return (getattr(doc, "source_type", "") or "").startswith(FOLDER_SOURCE_PREFIX)
 
 
 @manager.route("/documents/upload", methods=["POST"])  # noqa: F821
@@ -190,6 +202,10 @@ async def update_document(tenant_id, dataset_id, document_id):
         return get_error_data_result(message=format_validation_error_message(e), code=RetCode.DATA_ERROR)
 
     doc = docs[0]
+
+    # Shared-folder documents are read-only on the user side.
+    if _is_folder_sourced(doc):
+        return get_error_data_result(message=FOLDER_READONLY_MSG)
 
     # further check with inner status (from DB)
     error_msg, error_code = validate_document_update_fields(update_doc_req, doc, req)
@@ -1070,6 +1086,16 @@ async def delete_documents(tenant_id, dataset_id):
             return get_error_data_result(
                 message=f"These documents do not belong to dataset {dataset_id} or Document not found: {', '.join(invalid_ids)}"
             )
+
+        # Shared-folder documents are read-only on the user side; they are
+        # managed by the scheduled sync from the mounted folder.
+        doc_id_set = set(doc_ids)
+        if any(
+            _is_folder_sourced(doc)
+            for doc in DocumentService.query(kb_id=dataset_id)
+            if doc.id in doc_id_set
+        ):
+            return get_error_data_result(message=FOLDER_READONLY_MSG)
 
         # make sure each id is unique
         unique_doc_ids, duplicate_messages = check_duplicate_ids(doc_ids, "document")

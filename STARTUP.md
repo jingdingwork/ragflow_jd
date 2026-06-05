@@ -4,13 +4,13 @@
 
 `Ctrl+Shift+X` → 搜索 `Task Buttons` → 安装 **spencerwmiles.vscode-task-buttons**
 
-安装后**重载窗口**（`Ctrl+Shift+P` → `Reload Window`），底部状态栏会出现 6 个按钮：
+安装后**重载窗口**（`Ctrl+Shift+P` → `Reload Window`），底部状态栏会出现 7 个按钮：
 
 ```
-[🔄 重启]  [🖥 API]  [⚙ Task]  [🛡 Admin]  [🌐 Web]  [⏹ 停止]
+[🔄 重启]  [🖥 API]  [⚙ Task]  [🛡 Admin]  [🔁 Sync]  [🌐 Web]  [⏹ 停止]
 ```
 
-点击即跑，对应任务定义在 [.vscode/tasks.json](.vscode/tasks.json)，按钮配置在 [.vscode/settings.json](.vscode/settings.json)。
+点击即跑，对应任务定义在 [.vscode/tasks.json](.vscode/tasks.json)，按钮配置在 [.vscode/settings.json](.vscode/settings.json)。「重启」「停止」已覆盖全部 5 个进程（含 Sync worker）。
 
 ## 访问
 
@@ -19,6 +19,10 @@
 - Admin Server：http://localhost:9381（处理 `/api/v1/admin/*`，登录必需）
 
 > 三个后端服务必须**全部启动**，缺 Admin Server 会导致登录报 `404 Not Found: /api/v1/admin/login`。nginx 已按 `/api/v1/admin → 9381`、其余 `/api|/v1 → 9380` 分流，详见 nginx 配置。
+
+### Sync worker（共享盘 / 数据源同步）
+
+[🔁 Sync] 启动 `rag/svr/sync_data_source.py`——拉外部数据源（部门共享盘、WebDAV、S3…）增量入库的独立轮询进程。**不启动它，文件管理里的同步任务会一直停在「排队中」、task 队列也不会有任务进来**。它只负责扫目录、下文件、推解析任务；真正的解析/embedding 仍由 Task Executor 跑。日志在 `logs/data_sync_0.log`。
 
 ## OIDC 配置（[conf/service_conf.yaml](conf/service_conf.yaml)）
 

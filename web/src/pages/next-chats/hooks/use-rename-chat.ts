@@ -49,10 +49,14 @@ export const useRenameChat = () => {
   );
 
   const onChatRenameOk = useCallback(
-    async (name: string) => {
+    async (name: string, promptTemplateId?: string) => {
       let ret: number | undefined;
       if (isEmpty(chat)) {
-        ret = await createChat({ ...InitialData, name });
+        ret = await createChat({
+          ...InitialData,
+          name,
+          prompt_template_id: promptTemplateId,
+        });
       } else {
         ret = await patchChat({
           chatId: chat.id,
@@ -87,6 +91,7 @@ export const useRenameChat = () => {
   return {
     chatRenameLoading: createLoading || patchLoading,
     initialChatName: chat?.name,
+    isCreatingChat: isEmpty(chat),
     onChatRenameOk,
     chatRenameVisible,
     hideChatRenameModal: handleHideModal,

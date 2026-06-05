@@ -3,6 +3,7 @@ import { registerNextServer } from '@/utils/register-server';
 
 const {
   createChat,
+  listPromptTemplates,
   listChats,
   getChat,
   updateChat,
@@ -27,6 +28,10 @@ const methods = {
   createChat: {
     url: createChat,
     method: 'post',
+  },
+  listPromptTemplates: {
+    url: listPromptTemplates,
+    method: 'get',
   },
   listChats: {
     url: listChats,

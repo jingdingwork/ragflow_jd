@@ -240,11 +240,30 @@ async def _validate_dataset_ids(dataset_ids, tenant_id):
     return normalized_ids
 
 
-def _apply_prompt_defaults(req):
+def _apply_prompt_defaults(req, user=None):
     prompt_config = req.setdefault("prompt_config", {})
+
+    # Resolve the chat's base prompt (system + prologue) from the prompt-template
+    # library. An explicitly chosen `prompt_template_id` is authoritative; otherwise
+    # we only fill missing fields, falling back to the user's department/global
+    # default and finally the hard-coded default. This snapshots into the chat at
+    # creation time, so later edits to the template do not affect existing chats.
+    template_id = req.get("prompt_template_id")
+    need_system = not prompt_config.get("system")
+    need_prologue = "prologue" not in prompt_config
+    if template_id or need_system or need_prologue:
+        from api.db.services.prompt_template_service import PromptTemplateService
+        department_id = getattr(user, "department_id", None) if user else None
+        resolved = PromptTemplateService.resolve(template_id, department_id)
+        if template_id or need_system:
+            prompt_config["system"] = resolved["system"]
+        if template_id or need_prologue:
+            prompt_config["prologue"] = resolved["prologue"]
+
     for key, value in _DEFAULT_PROMPT_CONFIG.items():
-        temp = prompt_config.get(key)
-        if (key == "system" and not temp) or key not in prompt_config:
+        if key in ("system", "prologue"):
+            continue
+        if key not in prompt_config:
             prompt_config[key] = deepcopy(value)
 
     if req.get("kb_ids") and not prompt_config.get("parameters") and "{knowledge}" in prompt_config.get("system", ""):
@@ -306,7 +325,7 @@ async def create():
         req.setdefault("similarity_threshold", 0.1)
         req.setdefault("vector_similarity_weight", 0.3)
         req.setdefault("icon", "")
-        _apply_prompt_defaults(req)
+        _apply_prompt_defaults(req, current_user)
         # err = _validate_prompt_config(req["prompt_config"])
         # if err:
         #     return get_data_error_result(message=err)
@@ -332,6 +351,18 @@ async def create():
         if not ok:
             return get_data_error_result(message="Failed to retrieve created chat.")
         return get_json_result(data=_build_chat_response(chat))
+    except Exception as ex:
+        return server_error_response(ex)
+
+
+@manager.route("/chats/prompt-templates", methods=["GET"])  # noqa: F821
+@login_required
+async def list_prompt_templates():
+    try:
+        from api.db.services.prompt_template_service import PromptTemplateService
+        department_id = getattr(current_user, "department_id", None)
+        items = await thread_pool_exec(PromptTemplateService.list_for_user, department_id)
+        return get_json_result(data=items)
     except Exception as ex:
         return server_error_response(ex)
 

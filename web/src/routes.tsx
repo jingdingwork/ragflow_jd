@@ -75,7 +75,9 @@ export enum Routes {
   AdminDepartments = `${Admin}/departments`,
   AdminChatHistory = `${Admin}/chat-history`,
   AdminApplications = `${Admin}/applications`,
-  AdminEsData = `${Admin}/es-data`,
+  AdminPrompts = `${Admin}/prompts`,
+  AdminKbManagement = `${Admin}/kb-management`,
+  AdminDeptFolders = `${Admin}/dept-folders`,
   AdminRetrievalTest = `${Admin}/retrieval-test`,
   AdminSandboxSettings = `${Admin}/sandbox-settings`,
   AdminWhitelist = `${Admin}/whitelist`,
@@ -407,8 +409,16 @@ const routeConfigOptions = [
                 Component: () => import('@/pages/admin/applications'),
               },
               {
-                path: Routes.AdminEsData,
-                Component: () => import('@/pages/admin/es-data'),
+                path: Routes.AdminPrompts,
+                Component: () => import('@/pages/admin/prompts'),
+              },
+              {
+                path: Routes.AdminKbManagement,
+                Component: () => import('@/pages/admin/kb-management'),
+              },
+              {
+                path: Routes.AdminDeptFolders,
+                Component: () => import('@/pages/admin/dept-folders'),
               },
               {
                 path: Routes.AdminRetrievalTest,

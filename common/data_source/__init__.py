@@ -44,6 +44,7 @@ from .zendesk_connector import ZendeskConnector
 from .seafile_connector import SeaFileConnector
 from .rdbms_connector import RDBMSConnector
 from .webdav_connector import WebDAVConnector
+from .local_folder_connector import LocalFolderConnector
 from .rest_api_connector import RestAPIConnector
 from .config import BlobType, DocumentSource
 from .models import Document, TextSection, ImageSection, BasicExpertInfo
@@ -87,6 +88,7 @@ __all__ = [
     "SeaFileConnector",
     "RDBMSConnector",
     "WebDAVConnector",
+    "LocalFolderConnector",
     "DingTalkAITableConnector",
     "RestAPIConnector",
 ]

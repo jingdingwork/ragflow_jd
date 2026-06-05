@@ -45,6 +45,32 @@ RAGFlow is an open-source RAG (Retrieval-Augmented Generation) engine based on d
 - State management with Zustand
 - Tailwind CSS for styling
 
+### Admin Server (`/admin/`)
+
+A **separate Flask service** (distinct from the main API server), entry point `admin/server/admin_server.py`, listening on port **9381** and serving the `/api/v1/admin/*` endpoints used by the admin console.
+
+- **Routes**: `admin/server/routes.py` (the `admin_bp` blueprint) — all admin HTTP endpoints.
+- **Business logic**: `admin/server/services.py` — `XxxMgr` classes (e.g. `EsDataMgr` is a read-only document-store inspector for ES/Infinity: lists KBs, index stats, documents, chunk search/detail). Despite the `es*` naming, "es" denotes the document-store engine layer and is shared by retrieval-test, so do not blindly rename it.
+- **Auth/bootstrap**: `admin/server/auth.py` (`setup_auth`, `init_default_admin`); has its own Flask-Login session, independent of the main app.
+- **CLI client**: `admin/client/` (`ragflow_cli.py`).
+- **Frontend**: lives under `web/src/pages/admin/`, routed via `Routes.Admin*` in `web/src/routes.tsx`, nav in `web/src/pages/admin/layouts/navigation-layout.tsx`, API calls in `web/src/services/admin-service.ts`. Some pages are enterprise-only, gated by `IS_ENTERPRISE` from `web/src/pages/admin/utils`.
+
+### Data-source connectors & department shared-folder sync
+
+RAGFlow has an Onyx/Danswer-style **connector sync engine** that pulls external sources into a KB on a schedule, with incremental + delete reconciliation:
+
+- **Models** (`api/db/db_models.py`): `Connector` (source type, `config` JSON, `refresh_freq` minutes, `department_id`), `Connector2Kb` (connector↔KB link), `SyncLogs` (per-run status/counts).
+- **Connectors** live in `common/data_source/` (one class per source, e.g. `webdav_connector.py`), implementing `LoadConnector`/`PollConnector`/`SlimConnectorWithPermSync`. Each is registered in the `func_factory` of the **sync worker** `rag/svr/sync_data_source.py` (a separate long-running process, not the API server) and keyed by a `FileSource` enum value (`common/constants.py`) + a `DocumentSource` enum value (`common/data_source/config.py`).
+- **Sync semantics**: synced docs carry `source_type = "<source>/<connector_id>"`. A stable per-file id (reused between document yields and the slim snapshot) drives delete reconciliation. `content_hash` fingerprints skip unchanged files. `Connector2KbService.link_connectors` triggers the first full reindex.
+
+**Department shared-folder feature** (mounted SMB/CIFS/NFS → department KB): the `LocalFolderConnector` (`common/data_source/local_folder_connector.py`, `FileSource.LOCAL_FOLDER`) walks a host-mounted directory — no credentials, `validate_connector_settings()` checks path reachability for the "test" button, `exclude_dirs` skips recycle bins. The mount must be bind-mounted (`:ro`) into the **sync worker, admin server, and API server** containers. Admin CRUD is `FolderMgr` in `admin/server/services.py` (routes `/admin/dept-folders/*`); frontend page `web/src/pages/admin/dept-folders.tsx`. A daily trigger `nightly_folder_sync()` in the sync worker re-syncs all folder connectors at `FOLDER_SYNC_HOUR` (default 1 AM, server-local). Shared-folder docs are **read-only on the user side**: `api/apps/restful_apis/document_api.py` rejects delete/update for `source_type` starting with `local_folder/`, and the dataset document UI hides those actions via `isSharedFolderDocument` (`web/src/pages/dataset/dataset/utils.ts`).
+
+### Frontend conventions
+
+- `web/src/components/ui/` (shadcn primitives) is **locked** — compose/wrap these, never modify them. `RAGFlowSelect` (`ui/select.tsx`) has no search; use `SelectWithSearch` (`web/src/components/originui/select-with-search.tsx`) when a searchable dropdown is needed (drop-in: same `value`/`onChange(value)`/`options` API; auto-shows a search box when options > 5).
+- i18n: add keys to **both** `web/src/locales/zh.ts` and `web/src/locales/en.ts`; en.ts uses Sentence case.
+- Type-check with `cd web && npm run type-check`. The repo has many pre-existing unrelated type errors, so exit code 2 is expected — filter the output for the file(s) you edited to confirm your changes are clean.
+
 ## Common Development Commands
 
 ### Backend Development

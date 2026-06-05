@@ -15,7 +15,7 @@ import { downloadFileFromBlob } from '@/utils/file-util';
 import { Download, Eye, PenLine, Trash2 } from 'lucide-react';
 import { useCallback } from 'react';
 import { UseRenameDocumentShowType } from './use-rename-document';
-import { isParserRunning } from './utils';
+import { isParserRunning, isSharedFolderDocument } from './utils';
 
 const Fields = ['name', 'size', 'type', 'create_time', 'update_time'];
 
@@ -32,6 +32,8 @@ export function DatasetActionCell({
   const { id, run, type } = record;
   const isRunning = isParserRunning(run);
   const isVirtualDocument = type === DocumentType.Virtual;
+  // Shared-folder documents are read-only here; hide rename/delete (keep view/download).
+  const isReadOnly = isSharedFolderDocument(record.source_type);
 
   const { removeDocument } = useRemoveDocument();
 
@@ -66,14 +68,16 @@ export function DatasetActionCell({
       flex gap-2 items-center opacity-0
       transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
     >
-      <Button
-        size="icon-xs"
-        variant="ghost"
-        disabled={isRunning}
-        onClick={handleRename}
-      >
-        <PenLine className="size-[1em]" />
-      </Button>
+      {!isReadOnly && (
+        <Button
+          size="icon-xs"
+          variant="ghost"
+          disabled={isRunning}
+          onClick={handleRename}
+        >
+          <PenLine className="size-[1em]" />
+        </Button>
+      )}
       <HoverCard>
         <HoverCardTrigger>
           <Button size="icon-xs" variant="ghost" disabled={isRunning}>
@@ -111,16 +115,18 @@ export function DatasetActionCell({
           <Download className="size-[1em]" />
         </Button>
       )}
-      <ConfirmDeleteDialog onOk={handleRemove}>
-        <Button
-          data-testid="document-delete"
-          size="icon-xs"
-          variant="ghost"
-          disabled={isRunning}
-        >
-          <Trash2 className="size-[1em]" />
-        </Button>
-      </ConfirmDeleteDialog>
+      {!isReadOnly && (
+        <ConfirmDeleteDialog onOk={handleRemove}>
+          <Button
+            data-testid="document-delete"
+            size="icon-xs"
+            variant="ghost"
+            disabled={isRunning}
+          >
+            <Trash2 className="size-[1em]" />
+          </Button>
+        </ConfirmDeleteDialog>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   LucideArrowDown,
   LucideArrowUp,
+  LucideRotateCcw,
   LucideSearch,
   LucideSparkles,
 } from 'lucide-react';
@@ -17,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RAGFlowSelect } from '@/components/ui/select';
+import { FormSlider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 
 import {
@@ -30,11 +32,18 @@ import {
 // Radix <Select.Item> forbids an empty-string value, so use a sentinel for "all".
 const ALL_DOCS = '__all__';
 
+const DEFAULT_VECTOR_WEIGHT = 0.3;
+const DEFAULT_THRESHOLD = 0;
+const DEFAULT_TOP_K = 1024;
+
 function AdminRetrievalTest() {
   const { t } = useTranslation();
   const [kbId, setKbId] = useState<string>('');
   const [docId, setDocId] = useState<string>(ALL_DOCS);
   const [question, setQuestion] = useState('');
+  const [vectorWeight, setVectorWeight] = useState(DEFAULT_VECTOR_WEIGHT);
+  const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
+  const [topK, setTopK] = useState(DEFAULT_TOP_K);
 
   // KB list for the picker.
   const { data: kbs, isFetching: kbLoading } = useQuery({
@@ -79,6 +88,9 @@ function AdminRetrievalTest() {
         kb_id: kbId,
         question: question.trim(),
         doc_id: docId === ALL_DOCS ? '' : docId,
+        vector_similarity_weight: vectorWeight,
+        similarity_threshold: threshold,
+        top_k: topK,
       });
       return res?.data?.data ?? null;
     },
@@ -90,6 +102,12 @@ function AdminRetrievalTest() {
     setKbId(id);
     setDocId(ALL_DOCS);
     reset();
+  };
+
+  const resetParams = () => {
+    setVectorWeight(DEFAULT_VECTOR_WEIGHT);
+    setThreshold(DEFAULT_THRESHOLD);
+    setTopK(DEFAULT_TOP_K);
   };
 
   const onRun = () => {
@@ -168,6 +186,85 @@ function AdminRetrievalTest() {
                   <LucideSearch className="size-4 mr-1" />
                   {isPending ? t('admin.rtRunning') : t('admin.rtRun')}
                 </Button>
+              </div>
+
+              {/* Tunable parameters */}
+              <div className="rounded-lg border border-border-default p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    {t('admin.rtParams')}
+                  </span>
+                  <Button size="sm" variant="ghost" onClick={resetParams}>
+                    <LucideRotateCcw className="size-3.5 mr-1" />
+                    {t('admin.rtResetParams')}
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-text-secondary">
+                        {t('admin.rtVectorWeight')}
+                      </span>
+                      <span className="font-mono">
+                        {vectorWeight.toFixed(2)}
+                      </span>
+                    </div>
+                    <FormSlider
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={vectorWeight}
+                      onChange={setVectorWeight}
+                    />
+                    <p className="text-xs text-text-secondary">
+                      {t('admin.rtVectorWeightHint')}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-text-secondary">
+                        {t('admin.rtThreshold')}
+                      </span>
+                      <span className="font-mono">{threshold.toFixed(2)}</span>
+                    </div>
+                    <FormSlider
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={threshold}
+                      onChange={setThreshold}
+                    />
+                    <p className="text-xs text-text-secondary">
+                      {t('admin.rtThresholdHint')}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-text-secondary">
+                        {t('admin.rtTopK')}
+                      </span>
+                    </div>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={4096}
+                      value={topK}
+                      onChange={(e) =>
+                        setTopK(
+                          Math.max(
+                            1,
+                            Math.min(4096, Number(e.target.value) || 1),
+                          ),
+                        )
+                      }
+                    />
+                    <p className="text-xs text-text-secondary">
+                      {t('admin.rtTopKHint')}
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* Model info */}

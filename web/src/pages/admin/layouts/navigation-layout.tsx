@@ -6,6 +6,8 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 
 import {
   LucideDatabase,
+  LucideFileText,
+  LucideFolderSync,
   LucideLayoutGrid,
   LucideMessagesSquare,
   LucideMonitor,
@@ -67,9 +69,19 @@ const AdminNavigationLayout = () => {
         icon: <LucideLayoutGrid className="size-[1em]" />,
       },
       {
-        path: Routes.AdminEsData,
-        name: t('admin.esData'),
+        path: Routes.AdminPrompts,
+        name: t('admin.promptManagement'),
+        icon: <LucideFileText className="size-[1em]" />,
+      },
+      {
+        path: Routes.AdminKbManagement,
+        name: t('admin.kbManagement'),
         icon: <LucideDatabase className="size-[1em]" />,
+      },
+      {
+        path: Routes.AdminDeptFolders,
+        name: t('admin.deptFolderManagement'),
+        icon: <LucideFolderSync className="size-[1em]" />,
       },
       {
         path: Routes.AdminRetrievalTest,

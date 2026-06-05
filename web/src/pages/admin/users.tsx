@@ -290,6 +290,17 @@ function AdminUserManagement() {
         cell: ({ cell, row }) => {
           const isMe = row.original.email === userInfo?.email;
 
+          // Departed users (removed from the OIDC directory) are a terminal
+          // state: show a non-editable badge, no activation toggle.
+          if (row.original.is_departed) {
+            return (
+              <Badge variant="destructive">
+                <LucideDot className="size-[1em] stroke-[8] mr-1" />
+                {t('admin.departed')}
+              </Badge>
+            );
+          }
+
           if (isMe) {
             return (
               <Badge

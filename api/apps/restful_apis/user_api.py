@@ -241,6 +241,7 @@ async def oauth_callback(channel):
                         "email": user_info.email,
                         "avatar": avatar,
                         "nickname": user_info.nickname,
+                        "username": getattr(user_info, "username", None),
                         "login_channel": channel,
                         "last_login_time": get_format_time(),
                         "is_superuser": False,
@@ -281,6 +282,11 @@ async def oauth_callback(channel):
                 apply_department_models_to_user(user.id, department_id)
             except Exception as e:
                 logging.exception(e)
+
+        # Refresh the employee id (Keycloak username) on every login
+        oidc_username = getattr(user_info, "username", None)
+        if oidc_username and getattr(user, "username", None) != oidc_username:
+            user.username = oidc_username
 
         login_user(user)
         user.save()

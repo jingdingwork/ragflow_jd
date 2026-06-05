@@ -129,6 +129,7 @@ const {
 
   adminDepartmentTree,
   adminSyncDepartments,
+  adminExportDepartments,
   adminFetchDepartmentModels,
   adminResyncAllDepartmentModels,
 
@@ -139,6 +140,10 @@ const {
   adminCreateApplication,
 
   adminEsListKnowledgebases,
+
+  adminListPrompts,
+  adminCreatePrompt,
+  adminPrompt,
 
   adminListWhitelist,
   adminCreateWhitelistEntry,
@@ -205,6 +210,8 @@ export type DepartmentMember = {
   is_active: string;
   is_superuser: boolean;
   is_dept_admin?: boolean;
+  username?: string | null;
+  is_departed?: boolean;
   last_login_time?: string | null;
   models: string[];
 };
@@ -232,6 +239,9 @@ export type DepartmentSyncStats = {
 
 export const listDepartmentTree = () =>
   request.get<ResponseData<DepartmentNode[]>>(adminDepartmentTree);
+
+export const exportDepartmentMembers = () =>
+  request.get<Blob>(adminExportDepartments, { responseType: 'blob' });
 
 export const syncDepartments = () =>
   request.post<ResponseData<DepartmentSyncStats>>(adminSyncDepartments);
@@ -505,6 +515,9 @@ export type EsKnowledgebase = {
   tenant_id: string;
   created_by: string;
   creator_name: string;
+  department_id: string | null;
+  department_name: string | null;
+  permission: string;
   doc_num: number;
   chunk_num: number;
   token_num: number;
@@ -756,3 +769,133 @@ export const testSandboxConnection = (params: {
     provider_type: params.providerType,
     config: params.config,
   });
+
+export type PromptScope = 'default' | 'department';
+
+export type PromptTemplate = {
+  id: string;
+  name: string;
+  scope: PromptScope;
+  department_id: string;
+  system: string;
+  prologue: string;
+  is_default: boolean;
+  sort: number;
+  create_time?: number;
+  update_time?: number;
+};
+
+export type PromptTemplatePayload = {
+  name: string;
+  scope: PromptScope;
+  department_id?: string;
+  system: string;
+  prologue: string;
+  is_default: boolean;
+  sort?: number;
+};
+
+export const listPrompts = () =>
+  request.get<ResponseData<PromptTemplate[]>>(adminListPrompts);
+
+export const createPrompt = (params: PromptTemplatePayload) =>
+  request.post<ResponseData<{ id: string }>>(adminCreatePrompt, params);
+
+export const updatePrompt = (
+  id: string,
+  params: Partial<PromptTemplatePayload>,
+) => request.put<ResponseData<{ id: string }>>(adminPrompt(id), params);
+
+export const deletePrompt = (id: string) =>
+  request.delete<ResponseData<{ id: string }>>(adminPrompt(id));
+
+// ---- Department shared-folder data sources ----
+
+export type DeptFolderLastSync = {
+  status: string | null;
+  total_docs_indexed: number | null;
+  docs_removed: number | null;
+  update_date: string | null;
+  error_msg: string | null;
+};
+
+export type DeptFolder = {
+  id: string;
+  name: string;
+  department_id: string | null;
+  department_name: string | null;
+  kb_id: string | null;
+  kb_name: string | null;
+  kb_doc_num: number | null;
+  root_path: string;
+  recursive: boolean;
+  sync_deleted_files: boolean;
+  exclude_dirs: string[];
+  refresh_freq: number;
+  status: string | null;
+  last_sync: DeptFolderLastSync | null;
+};
+
+export type DeptFolderPayload = {
+  name?: string;
+  department_id?: string;
+  kb_id?: string;
+  root_path: string;
+  recursive?: boolean;
+  allow_images?: boolean;
+  sync_deleted_files?: boolean;
+  exclude_dirs?: string[];
+  refresh_freq?: number;
+};
+
+export type DeptFolderTestResult = {
+  accessible: boolean;
+  file_count?: number;
+};
+
+export type DeptFolderFile = {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  progress: number;
+  run: string;
+  kb_id: string;
+  create_date: string | null;
+};
+
+export const listDeptFolders = () =>
+  request.get<ResponseData<DeptFolder[]>>(api.adminListDeptFolders);
+
+export const testDeptFolder = (params: {
+  root_path: string;
+  recursive?: boolean;
+  allow_images?: boolean;
+  exclude_dirs?: string[];
+}) =>
+  request.post<ResponseData<DeptFolderTestResult>>(
+    api.adminTestDeptFolder,
+    params,
+  );
+
+export const createDeptFolder = (params: DeptFolderPayload) =>
+  request.post<ResponseData<{ id: string }>>(api.adminCreateDeptFolder, params);
+
+export const updateDeptFolder = (
+  id: string,
+  params: Partial<DeptFolderPayload>,
+) => request.put<ResponseData<{ id: string }>>(api.adminDeptFolder(id), params);
+
+export const deleteDeptFolder = (id: string) =>
+  request.delete<ResponseData<{ id: string }>>(api.adminDeptFolder(id));
+
+export const syncDeptFolder = (id: string) =>
+  request.post<ResponseData<{ id: string }>>(api.adminSyncDeptFolder(id));
+
+export const rebuildDeptFolder = (id: string) =>
+  request.post<ResponseData<{ id: string; errors: string[] }>>(
+    api.adminRebuildDeptFolder(id),
+  );
+
+export const listDeptFolderFiles = (id: string) =>
+  request.get<ResponseData<DeptFolderFile[]>>(api.adminDeptFolderFiles(id));

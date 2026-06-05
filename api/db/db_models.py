@@ -723,6 +723,8 @@ class User(DataBaseModel, AuthUser):
     is_superuser = BooleanField(null=True, help_text="is root", default=False, index=True)
     department_id = CharField(max_length=32, null=True, help_text="department id resolved from OIDC LDAP DN", index=True)
     is_dept_admin = BooleanField(null=False, help_text="department admin: governs own department's department-visible resources", default=False, index=True)
+    username = CharField(max_length=255, null=True, help_text="OIDC/Keycloak username (employee id)", index=True)
+    is_departed = BooleanField(null=False, help_text="user no longer exists in the OIDC directory", default=False, index=True)
 
     def __str__(self):
         return self.email
@@ -769,6 +771,21 @@ class DepartmentLLMModel(DataBaseModel):
         indexes = (
             (("department_id", "llm_name"), True),
         )
+
+
+class PromptTemplate(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    name = CharField(max_length=255, null=False, help_text="prompt template display name", index=True)
+    scope = CharField(max_length=16, null=False, help_text="default | department", default="department", index=True)
+    department_id = CharField(max_length=32, null=True, help_text="department id; null when scope=default", index=True)
+    system = TextField(null=True, help_text="system prompt text")
+    prologue = TextField(null=True, help_text="assistant opener shown on entering a chat")
+    is_default = BooleanField(null=False, help_text="preselected template within its scope", default=False, index=True)
+    sort = IntegerField(null=False, help_text="display order, ascending", default=0, index=True)
+    status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
+
+    class Meta:
+        db_table = "prompt_template"
 
 
 class Application(DataBaseModel):
@@ -1260,6 +1277,7 @@ class PipelineOperationLog(DataBaseModel):
 class Connector(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     tenant_id = CharField(max_length=32, null=False, index=True)
+    department_id = CharField(max_length=32, null=True, help_text="department id for admin-managed department data sources", index=True)
     name = CharField(max_length=128, null=False, help_text="Search name", index=False)
     source = CharField(max_length=128, null=False, help_text="Data source", index=True)
     input_type = CharField(max_length=128, null=False, help_text="poll/event/..", index=True)
@@ -1742,6 +1760,8 @@ def migrate_db():
     alter_db_column_type(migrator, "file", "size", BigIntegerField(default=0, index=True))
     alter_db_add_column(migrator, "user", "department_id", CharField(max_length=32, null=True, help_text="department id resolved from OIDC LDAP DN", index=True))
     alter_db_add_column(migrator, "user", "is_dept_admin", BooleanField(null=False, help_text="department admin flag", default=False, index=True))
+    alter_db_add_column(migrator, "user", "username", CharField(max_length=255, null=True, help_text="OIDC/Keycloak username (employee id)", index=True))
+    alter_db_add_column(migrator, "user", "is_departed", BooleanField(null=False, help_text="departed flag", default=False, index=True))
     alter_db_add_column(migrator, "knowledgebase", "department_id", CharField(max_length=32, null=True, help_text="creator's department id for department-visible resources", index=True))
     alter_db_add_column(migrator, "user_canvas", "department_id", CharField(max_length=32, null=True, help_text="creator's department id for department-visible agents", index=True))
     alter_db_add_column(migrator, "memory", "department_id", CharField(max_length=32, null=True, help_text="creator's department id for department-visible memories", index=True))
@@ -1749,6 +1769,7 @@ def migrate_db():
     alter_db_add_column(migrator, "search", "department_id", CharField(max_length=32, null=True, help_text="creator's department id for department-visible searches", index=True))
     alter_db_add_column(migrator, "file", "permission", CharField(max_length=16, null=False, help_text="me|department", default="me", index=True))
     alter_db_add_column(migrator, "file", "department_id", CharField(max_length=32, null=True, help_text="creator's department id for department-visible files", index=True))
+    alter_db_add_column(migrator, "connector", "department_id", CharField(max_length=32, null=True, help_text="department id for admin-managed department data sources", index=True))
     logging.disable(logging.NOTSET)
     # this is after re-enabling logging to allow logging changed user emails
     migrate_add_unique_email(migrator)

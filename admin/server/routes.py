@@ -25,7 +25,7 @@ from flask_login import current_user, login_required, logout_user
 
 from auth import login_verify, login_admin, check_admin_auth
 from responses import success_response, error_response
-from services import UserMgr, DepartmentMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, RetrievalMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr
+from services import UserMgr, DepartmentMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, RetrievalMgr, PromptMgr, FolderMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr
 from roles import RoleMgr
 from api.common.exceptions import AdminException
 from common.versions import get_ragflow_version
@@ -106,6 +106,21 @@ def sync_departments():
         return error_response(str(e), 500)
 
 
+@admin_bp.route("/departments/export", methods=["GET"])
+@login_required
+@check_admin_auth
+def export_departments():
+    try:
+        data = DepartmentMgr.export_members()
+        return Response(
+            data,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=departments.xlsx"},
+        )
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
 @admin_bp.route("/departments/llm/fetch-models", methods=["POST"])
 @login_required
 @check_admin_auth
@@ -164,6 +179,153 @@ def resync_department_llm(department_id):
     try:
         stats = DepartmentMgr.resync_llm_models(department_id)
         return success_response(stats, "Resync department models", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/prompts", methods=["GET"])
+@login_required
+@check_admin_auth
+def list_prompts():
+    try:
+        items = PromptMgr.list_all()
+        return success_response(items, "List prompt templates", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/prompts", methods=["POST"])
+@login_required
+@check_admin_auth
+def create_prompt():
+    try:
+        data = request.get_json() or {}
+        res = PromptMgr.create(data)
+        return success_response(res, "Create prompt template", 0)
+    except ValueError as e:
+        return error_response(str(e), 400)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/prompts/<template_id>", methods=["PUT"])
+@login_required
+@check_admin_auth
+def update_prompt(template_id):
+    try:
+        data = request.get_json() or {}
+        res = PromptMgr.update(template_id, data)
+        return success_response(res, "Update prompt template", 0)
+    except ValueError as e:
+        return error_response(str(e), 400)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/prompts/<template_id>", methods=["DELETE"])
+@login_required
+@check_admin_auth
+def delete_prompt(template_id):
+    try:
+        res = PromptMgr.delete(template_id)
+        return success_response(res, "Delete prompt template", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/dept-folders", methods=["GET"])
+@login_required
+@check_admin_auth
+def list_dept_folders():
+    try:
+        return success_response(FolderMgr.list_all(), "List department folders", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/dept-folders/test", methods=["POST"])
+@login_required
+@check_admin_auth
+def test_dept_folder():
+    try:
+        data = request.get_json() or {}
+        return success_response(FolderMgr.test(data), "Test department folder", 0)
+    except ValueError as e:
+        return error_response(str(e), 400)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/dept-folders", methods=["POST"])
+@login_required
+@check_admin_auth
+def create_dept_folder():
+    try:
+        data = request.get_json() or {}
+        return success_response(FolderMgr.create(data), "Create department folder", 0)
+    except ValueError as e:
+        return error_response(str(e), 400)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/dept-folders/<connector_id>", methods=["PUT"])
+@login_required
+@check_admin_auth
+def update_dept_folder(connector_id):
+    try:
+        data = request.get_json() or {}
+        return success_response(FolderMgr.update(connector_id, data), "Update department folder", 0)
+    except ValueError as e:
+        return error_response(str(e), 400)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/dept-folders/<connector_id>", methods=["DELETE"])
+@login_required
+@check_admin_auth
+def delete_dept_folder(connector_id):
+    try:
+        return success_response(FolderMgr.delete(connector_id), "Delete department folder", 0)
+    except ValueError as e:
+        return error_response(str(e), 400)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/dept-folders/<connector_id>/sync", methods=["POST"])
+@login_required
+@check_admin_auth
+def sync_dept_folder(connector_id):
+    try:
+        return success_response(FolderMgr.sync(connector_id), "Sync department folder", 0)
+    except ValueError as e:
+        return error_response(str(e), 400)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/dept-folders/<connector_id>/rebuild", methods=["POST"])
+@login_required
+@check_admin_auth
+def rebuild_dept_folder(connector_id):
+    try:
+        return success_response(FolderMgr.rebuild(connector_id), "Rebuild department folder", 0)
+    except ValueError as e:
+        return error_response(str(e), 400)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/dept-folders/<connector_id>/files", methods=["GET"])
+@login_required
+@check_admin_auth
+def list_dept_folder_files(connector_id):
+    try:
+        return success_response(FolderMgr.files(connector_id), "List department folder files", 0)
+    except ValueError as e:
+        return error_response(str(e), 400)
     except Exception as e:
         return error_response(str(e), 500)
 

@@ -143,6 +143,7 @@ export default {
 
   // chat
   createChat: `${restAPIv1}/chats`,
+  listPromptTemplates: `${restAPIv1}/chats/prompt-templates`,
   listChats: `${restAPIv1}/chats`,
   getChat: (chatId: string) => `${restAPIv1}/chats/${chatId}`,
   updateChat: (chatId: string) => `${restAPIv1}/chats/${chatId}`,
@@ -301,6 +302,7 @@ export default {
 
   adminDepartmentTree: `${restAPIv1}/admin/departments/tree`,
   adminSyncDepartments: `${restAPIv1}/admin/departments/sync`,
+  adminExportDepartments: `${restAPIv1}/admin/departments/export`,
   adminFetchDepartmentModels: `${restAPIv1}/admin/departments/llm/fetch-models`,
   adminDepartmentLlm: (departmentId: string) =>
     `${restAPIv1}/admin/departments/${departmentId}/llm`,
@@ -350,6 +352,21 @@ export default {
   adminEsKbChunkDetail: (kbId: string, chunkId: string) =>
     `${restAPIv1}/admin/es/knowledgebases/${kbId}/chunks/${chunkId}`,
   adminRetrievalTest: `${restAPIv1}/admin/retrieval/test`,
+
+  adminListPrompts: `${restAPIv1}/admin/prompts`,
+  adminCreatePrompt: `${restAPIv1}/admin/prompts`,
+  adminPrompt: (id: string) => `${restAPIv1}/admin/prompts/${id}`,
+
+  adminListDeptFolders: `${restAPIv1}/admin/dept-folders`,
+  adminCreateDeptFolder: `${restAPIv1}/admin/dept-folders`,
+  adminTestDeptFolder: `${restAPIv1}/admin/dept-folders/test`,
+  adminDeptFolder: (id: string) => `${restAPIv1}/admin/dept-folders/${id}`,
+  adminSyncDeptFolder: (id: string) =>
+    `${restAPIv1}/admin/dept-folders/${id}/sync`,
+  adminRebuildDeptFolder: (id: string) =>
+    `${restAPIv1}/admin/dept-folders/${id}/rebuild`,
+  adminDeptFolderFiles: (id: string) =>
+    `${restAPIv1}/admin/dept-folders/${id}/files`,
 
   adminListServices: `${restAPIv1}/admin/services`,
   adminShowServiceDetails: (serviceId: string) =>

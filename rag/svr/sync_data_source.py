@@ -64,6 +64,7 @@ from common.data_source import (
 )
 from common.data_source.models import ConnectorFailure, SeafileSyncScope
 from common.data_source.webdav_connector import WebDAVConnector
+from common.data_source.local_folder_connector import LocalFolderConnector
 from common.data_source.confluence_connector import ConfluenceConnector
 from common.data_source.gmail_connector import GmailConnector
 from common.data_source.box_connector import BoxConnector
@@ -1041,6 +1042,64 @@ class WebDAV(SyncBase):
         return wrapper(), file_list
 
 
+class LocalFolder(SyncBase):
+    SOURCE_NAME: str = FileSource.LOCAL_FOLDER
+
+    async def _generate(self, task: dict):
+        raw_batch_size = self.conf.get("batch_size", INDEX_BATCH_SIZE)
+        try:
+            batch_size = int(raw_batch_size)
+        except (TypeError, ValueError):
+            batch_size = INDEX_BATCH_SIZE
+        if batch_size <= 0:
+            batch_size = INDEX_BATCH_SIZE
+
+        self.connector = LocalFolderConnector(
+            root_path=self.conf["root_path"],
+            recursive=self.conf.get("recursive", True),
+            batch_size=batch_size,
+            exclude_dirs=self.conf.get("exclude_dirs"),
+        )
+        self.connector.set_allow_images(self.conf.get("allow_images", False))
+        self.connector.load_credentials({})
+        # Fail fast if the mount disappeared, instead of silently deleting every
+        # document as "stale" when the folder reads back empty.
+        self.connector.validate_connector_settings()
+
+        file_list = None
+        if task["reindex"] == "1" or not task["poll_range_start"]:
+            document_batch_generator = self.connector.load_from_state()
+            _begin_info = "totally"
+        else:
+            end_ts = datetime.now(timezone.utc).timestamp()
+            if self.conf.get("sync_deleted_files"):
+                file_list = []
+                try:
+                    for slim_batch in self.connector.retrieve_all_slim_docs_perm_sync():
+                        file_list.extend(slim_batch)
+                except Exception:
+                    logging.exception(
+                        "LocalFolder slim snapshot failed; continuing without stale-document cleanup "
+                        "(connector_id=%s, kb_id=%s)",
+                        task["connector_id"],
+                        task["kb_id"],
+                    )
+                    file_list = None
+            document_batch_generator = self.connector.poll_source(
+                task["poll_range_start"].timestamp(),
+                end_ts,
+            )
+            _begin_info = "from {}".format(task["poll_range_start"])
+
+        self.log_connection("LocalFolder", f"{self.conf['root_path']}", task)
+
+        def wrapper():
+            for document_batch in document_batch_generator:
+                yield document_batch
+
+        return wrapper(), file_list
+
+
 class Moodle(SyncBase):
     SOURCE_NAME: str = FileSource.MOODLE
 
@@ -1866,6 +1925,7 @@ func_factory = {
     FileSource.MOODLE: Moodle,
     FileSource.DROPBOX: Dropbox,
     FileSource.WEBDAV: WebDAV,
+    FileSource.LOCAL_FOLDER: LocalFolder,
     FileSource.BOX: BOX,
     FileSource.AIRTABLE: Airtable,
     FileSource.ASANA: Asana,
@@ -1926,6 +1986,47 @@ def signal_handler(sig, frame):
 CONSUMER_NO = "0" if len(sys.argv) < 2 else sys.argv[1]
 CONSUMER_NAME = "data_sync_" + CONSUMER_NO
 
+# Hour of day (server local time, 0-23) at which shared-folder connectors are
+# synced once daily. Defaults to 1 AM; override with FOLDER_SYNC_HOUR.
+FOLDER_SYNC_HOUR = int(os.environ.get("FOLDER_SYNC_HOUR", "1"))
+
+
+async def nightly_folder_sync():
+    """Trigger a daily incremental sync of every shared-folder connector.
+
+    Connector refresh_freq is interval-based (re-fires N minutes after the last
+    run); this gives the pinned "every night at a fixed hour" behavior the
+    deployment requires. Each run is incremental and reconciles deletions, so
+    the KB document count stays aligned with the folder. SyncLogsService.schedule
+    de-duplicates, so this never conflicts with a manual sync already queued.
+    """
+    last_fired = None
+    while not stop_event.is_set():
+        try:
+            now = datetime.now()
+            if now.hour == FOLDER_SYNC_HOUR and last_fired != now.date():
+                last_fired = now.date()
+                conns = list(
+                    ConnectorService.model.select(
+                        ConnectorService.model.id,
+                        ConnectorService.model.refresh_freq,
+                    ).where(
+                        ConnectorService.model.source == FileSource.LOCAL_FOLDER
+                    )
+                )
+                logging.info("[nightly-folder-sync] firing for %d folder connector(s)", len(conns))
+                for c in conns:
+                    try:
+                        ConnectorService.resume(c.id, TaskStatus.SCHEDULE)
+                        # Force the nightly run past the refresh_freq window so it
+                        # always fires at FOLDER_SYNC_HOUR regardless of last sync.
+                        SyncLogsService.mark_due_now(c.id, c.refresh_freq)
+                    except Exception:
+                        logging.exception("[nightly-folder-sync] failed to schedule connector %s", c.id)
+        except Exception:
+            logging.exception("[nightly-folder-sync] scheduler tick failed")
+        await asyncio.sleep(180)
+
 
 async def main():
     """Entry point for the RAGFlow data synchronization worker process."""
@@ -1949,8 +2050,12 @@ async def main():
     signal.signal(signal.SIGTERM, signal_handler)
 
     logging.info(f"RAGFlow data sync is ready after {time.perf_counter() - start_ts}s initialization.")
-    while not stop_event.is_set():
-        await dispatch_tasks()
+    folder_scheduler = asyncio.create_task(nightly_folder_sync())
+    try:
+        while not stop_event.is_set():
+            await dispatch_tasks()
+    finally:
+        folder_scheduler.cancel()
     logging.error("BUG!!! You should not reach here!!!")
 
 

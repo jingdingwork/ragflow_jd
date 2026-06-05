@@ -21,6 +21,7 @@ import { DatasetActionCell } from './dataset-action-cell';
 import { ParseDropdownButton, ParsingStatusCell } from './parsing-status-cell';
 import { UseChangeDocumentParserShowType } from './use-change-document-parser';
 import { UseRenameDocumentShowType } from './use-rename-document';
+import { isSharedFolderDocument } from './utils';
 
 type UseDatasetTableColumnsType = UseChangeDocumentParserShowType &
   UseRenameDocumentShowType & {
@@ -170,6 +171,7 @@ export function useDatasetTableColumns({
         return (
           <Switch
             checked={row.getValue('status') === '1'}
+            disabled={isSharedFolderDocument(row.original.source_type)}
             onCheckedChange={(e) => {
               setDocumentStatus({ status: e, documentId: id, datasetId });
             }}

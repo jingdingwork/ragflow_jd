@@ -14,7 +14,7 @@
 #  limitations under the License.
 #
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from typing import Optional, Tuple, List
 
@@ -314,6 +314,28 @@ class SyncLogsService(CommonService):
             cls.model.connector_id==connector_id,
             cls.model.kb_id == kb_id
         ).order_by(cls.model.update_time.desc()).first()
+
+    @classmethod
+    def mark_due_now(cls, connector_id, refresh_freq):
+        """Make a connector's queued (SCHEDULE) sync tasks eligible for immediate dispatch.
+
+        The dispatcher (``list_sync_tasks``) only picks up a scheduled task once
+        ``update_date`` is older than ``refresh_freq`` minutes. Manual and nightly
+        folder syncs must run right away, so we backdate ``update_date`` just past
+        that window. ``update_time`` is intentionally left at "now" so the row stays
+        the connector's latest task for ``get_latest_task`` / UI ordering; the worker
+        resets both fields when it starts the task (see ``SyncLogsService.start``).
+        Returns the number of rows updated.
+        """
+        try:
+            minutes = int(refresh_freq)
+        except (TypeError, ValueError):
+            minutes = 1440
+        backdated = datetime.now() - timedelta(minutes=minutes + 5)
+        return cls.model.update(update_date=backdated).where(
+            cls.model.connector_id == connector_id,
+            cls.model.status == TaskStatus.SCHEDULE,
+        ).execute()
 
 
 class Connector2KbService(CommonService):

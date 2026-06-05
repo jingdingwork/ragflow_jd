@@ -30,6 +30,7 @@ import { useHandleSearchStrChange } from './logic-hooks/use-change-search';
 
 export const enum ChatApiAction {
   FetchChatList = 'fetchChatList',
+  FetchPromptTemplates = 'fetchPromptTemplates',
   DeleteChat = 'deleteChat',
   CreateChat = 'createChat',
   UpdateChat = 'updateChat',
@@ -114,6 +115,30 @@ export const useFetchChatList = () => {
     pagination: { ...pagination, total: data?.total },
     setPagination,
   };
+};
+
+export interface IPromptTemplate {
+  id: string;
+  name: string;
+  scope: 'default' | 'department';
+  system: string;
+  prologue: string;
+  is_default: boolean;
+}
+
+export const useFetchPromptTemplates = () => {
+  const { data, isFetching: loading } = useQuery<IPromptTemplate[]>({
+    queryKey: [ChatApiAction.FetchPromptTemplates],
+    initialData: [],
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const { data } = await chatService.listPromptTemplates();
+      return data?.data ?? [];
+    },
+  });
+
+  return { data, loading };
 };
 
 export const useDeleteChat = () => {

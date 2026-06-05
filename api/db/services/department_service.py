@@ -89,9 +89,15 @@ def _get_oidc_admin_config():
 
 def fetch_keycloak_users(page_size=100):
     """
-    Pull every realm user from the Keycloak Admin API and return a mapping of
-    ``{lowercased_email: {"email": <original>, "dn": <ldap dn>, "nickname": <name>}}``
-    for users that have both an email and an ``LDAP_ENTRY_DN``.
+    Pull every realm user from the Keycloak Admin API and return a tuple
+    ``(directory, all_emails)``:
+
+    - ``directory``: ``{lowercased_email: {"email", "dn", "nickname", "username"}}``
+      for users that have both an email and an ``LDAP_ENTRY_DN`` and are not in an
+      excluded department (used for department/account sync).
+    - ``all_emails``: the set of every lowercased email present in Keycloak,
+      regardless of DN / excluded department. Used to detect departed users
+      (local accounts whose email is in NO Keycloak user) without false positives.
 
     Nickname is taken from the DN's ``CN=`` (the AD display name), falling back to
     the Keycloak first/last name, username, then the email local part.
@@ -129,6 +135,7 @@ def fetch_keycloak_users(page_size=100):
 
     headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
     directory = {}
+    all_emails = set()
     first = 0
     while True:
         resp = sync_request(
@@ -144,6 +151,10 @@ def fetch_keycloak_users(page_size=100):
             break
         for user in batch:
             email = (user.get("email") or "").strip()
+            # Record every Keycloak email up front (no DN/exclusion filter) so
+            # departed-user detection never false-positives on filtered users.
+            if email:
+                all_emails.add(email.lower())
             attrs = user.get("attributes") or {}
             dn_val = attrs.get("LDAP_ENTRY_DN") or attrs.get("ldap_entry_dn")
             if isinstance(dn_val, list):
@@ -161,11 +172,12 @@ def fetch_keycloak_users(page_size=100):
                 or user.get("username")
                 or email.split("@")[0]
             )
-            directory[email.lower()] = {"email": email, "dn": dn_val, "nickname": nickname}
-        if len(batch) < page_size:
-            break
-        first += page_size
-    return directory
+            directory[email.lower()] = {"email": email, "dn": dn_val, "nickname": nickname, "username": user.get("username")}
+        # Keycloak may return fewer than `max` on a page even when more users
+        # remain, so advance by the actual batch size and keep paging until an
+        # empty batch. (Breaking on a short page silently drops trailing users.)
+        first += len(batch)
+    return directory, all_emails
 
 
 class DepartmentService(CommonService):

@@ -27,6 +27,7 @@ declare namespace AdminService {
     email: string;
     is_active: '0' | '1';
     is_superuser: boolean;
+    is_departed?: boolean;
     role: string;
     nickname: string;
   };

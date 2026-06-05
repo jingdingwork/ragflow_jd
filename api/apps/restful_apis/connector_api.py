@@ -181,6 +181,42 @@ async def test_connector(connector_id):
     return get_json_result(data=True)
 
 
+@manager.route("/connectors/local-folder/validate", methods=["POST"])  # noqa: F821
+@login_required
+@validate_request("root_path")
+async def validate_local_folder():
+    """Detection button: check a mounted folder is reachable before binding it.
+
+    Runs in the API server process, so the same mount must be visible here
+    (bind-mount the share into this container too). Does not persist anything.
+    """
+    from common.data_source.local_folder_connector import LocalFolderConnector
+    from common.data_source.exceptions import ConnectorValidationError, InsufficientPermissionsError
+
+    req = await get_request_json()
+    connector = LocalFolderConnector(
+        root_path=req["root_path"],
+        recursive=req.get("recursive", True),
+        exclude_dirs=req.get("exclude_dirs"),
+    )
+    connector.set_allow_images(req.get("allow_images", False))
+
+    try:
+        await asyncio.to_thread(connector.validate_connector_settings)
+        file_count = await asyncio.to_thread(connector.count_supported_files)
+    except (ConnectorValidationError, InsufficientPermissionsError) as exc:
+        return get_json_result(code=RetCode.DATA_ERROR, message=str(exc), data={"accessible": False})
+    except Exception as exc:
+        logging.exception("Local folder validation failed: %s", exc)
+        return get_json_result(
+            code=RetCode.SERVER_ERROR,
+            message="Local folder validation failed, please check logs.",
+            data={"accessible": False},
+        )
+
+    return get_json_result(data={"accessible": True, "file_count": file_count})
+
+
 WEB_FLOW_TTL_SECS = 15 * 60
 
 
