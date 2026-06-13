@@ -330,7 +330,7 @@ async def metadata_batch_update(dataset_id, tenant_id):
       200:
         description: Metadata updated successfully.
     """
-    if not KnowledgebaseService.accessible(kb_id=dataset_id, user_id=tenant_id):
+    if not KnowledgebaseService.manageable(kb_id=dataset_id, user_id=tenant_id):
         return get_error_data_result(message=f"You don't own the dataset {dataset_id}. ")
 
     req = await get_request_json()
@@ -456,6 +456,10 @@ async def upload_document(dataset_id, tenant_id):
 
     if not check_kb_team_permission(kb, tenant_id):
         logging.error("No authorization.")
+        return get_error_data_result(message="No authorization.", code=RetCode.AUTHENTICATION_ERROR)
+
+    # Only dataset owners / department admins may upload (operate) documents.
+    if not KnowledgebaseService.manageable(kb_id=dataset_id, user_id=tenant_id):
         return get_error_data_result(message="No authorization.", code=RetCode.AUTHENTICATION_ERROR)
 
     if upload_type == "web":
@@ -1066,7 +1070,7 @@ async def delete_documents(tenant_id, dataset_id):
 
     try:
         # Validate dataset exists and user has permission
-        if not KnowledgebaseService.accessible(kb_id=dataset_id, user_id=tenant_id):
+        if not KnowledgebaseService.manageable(kb_id=dataset_id, user_id=tenant_id):
             return get_error_data_result(message=f"You don't own the dataset {dataset_id}. ")
 
         # Get documents to delete
@@ -1159,6 +1163,10 @@ async def update_metadata_config(tenant_id, dataset_id, document_id):
     # Verify ownership and existence of dataset
     if not KnowledgebaseService.query(id=dataset_id, tenant_id=tenant_id):
         return get_error_data_result(message="You don't own the dataset.")
+
+    # Only dataset owners / department admins may edit document metadata config.
+    if not KnowledgebaseService.manageable(kb_id=dataset_id, user_id=tenant_id):
+        return get_error_data_result(message=f"You don't own the dataset {dataset_id}.")
 
     # Verify document exists in the dataset
     doc = DocumentService.query(id=document_id, kb_id=dataset_id)
@@ -1292,7 +1300,7 @@ async def update_metadata(tenant_id, dataset_id):
         description: Metadata updated successfully.
     """
     # Verify ownership of dataset
-    if not KnowledgebaseService.accessible(kb_id=dataset_id, user_id=tenant_id):
+    if not KnowledgebaseService.manageable(kb_id=dataset_id, user_id=tenant_id):
         return get_error_data_result(message=f"You don't own the dataset {dataset_id}.")
 
     # Get request body
@@ -1377,7 +1385,7 @@ async def ingest(tenant_id):
 
 def _run_sync(user_id:str, req):
     for doc_id in req["doc_ids"]:
-        if not DocumentService.accessible(doc_id, user_id):
+        if not DocumentService.manageable(doc_id, user_id):
             return RetCode.AUTHENTICATION_ERROR, "No authorization."
 
     kb_table_num_map = {}
@@ -1465,7 +1473,7 @@ async def parse_documents(tenant_id, dataset_id):
       200:
         description: Successful operation.
     """
-    if not KnowledgebaseService.accessible(kb_id=dataset_id, user_id=tenant_id):
+    if not KnowledgebaseService.manageable(kb_id=dataset_id, user_id=tenant_id):
         return get_error_data_result(message=f"You don't own the dataset {dataset_id}.")
 
     req = await get_request_json()
@@ -1577,7 +1585,7 @@ async def stop_parse_documents(tenant_id, dataset_id):
       200:
         description: Successful operation.
     """
-    if not KnowledgebaseService.accessible(kb_id=dataset_id, user_id=tenant_id):
+    if not KnowledgebaseService.manageable(kb_id=dataset_id, user_id=tenant_id):
         return get_error_data_result(message=f"You don't own the dataset {dataset_id}.")
 
     req = await get_request_json()

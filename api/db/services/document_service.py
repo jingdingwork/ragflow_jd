@@ -771,6 +771,20 @@ class DocumentService(CommonService):
 
     @classmethod
     @DB.connection_context()
+    def manageable(cls, doc_id, user_id):
+        """Whether a user may OPERATE on the document (re-ingest, edit, …).
+
+        Routes through ``KnowledgebaseService.manageable`` so only the owning
+        dataset's creator or a department admin of its department can mutate;
+        plain readers cannot. See ``KnowledgebaseService.manageable``.
+        """
+        e, doc = cls.get_by_id(doc_id)
+        if not e:
+            return False
+        return KnowledgebaseService.manageable(doc.kb_id, user_id)
+
+    @classmethod
+    @DB.connection_context()
     def accessible4deletion(cls, doc_id, user_id):
         docs = (
             cls.model.select(cls.model.id)

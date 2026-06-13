@@ -225,3 +225,68 @@ class DepartmentService(CommonService):
             parent_id = node_id
             leaf_id = node_id
         return leaf_id
+
+    @classmethod
+    @DB.connection_context()
+    def collect_subtree_ids(cls, department_id):
+        """
+        Return the set of department ids covering ``department_id`` and all of its
+        descendants (the full subtree), or an empty set when the id is unknown.
+        """
+        if not department_id:
+            return set()
+        children_by_parent = {}
+        for d in cls.get_all():
+            children_by_parent.setdefault(d.parent_id, []).append(d.id)
+        subtree = set()
+        stack = [department_id]
+        while stack:
+            cur = stack.pop()
+            if cur in subtree:
+                continue
+            subtree.add(cur)
+            stack.extend(children_by_parent.get(cur, []))
+        return subtree
+
+    @classmethod
+    @DB.connection_context()
+    def list_subtree_members(cls, department_id):
+        """
+        List every user belonging to ``department_id`` or any of its descendant
+        departments, with department-admins flagged. Returns a dict:
+        ``{"department": {...}|None, "members": [...]}`` sorted admins-first then
+        by display name. Read-only; used by the user-side "my department" view.
+        """
+        from api.db.services.user_service import UserService
+
+        dept = cls.get_or_none(id=department_id) if department_id else None
+        if dept is None:
+            return {"department": None, "members": []}
+
+        subtree_ids = cls.collect_subtree_ids(department_id)
+        name_by_id = {d.id: d.name for d in cls.get_all() if d.id in subtree_ids}
+
+        members = []
+        for user in UserService.get_all_users():
+            uid_dept = getattr(user, "department_id", None)
+            if not uid_dept or uid_dept not in subtree_ids:
+                continue
+            last_login = getattr(user, "last_login_time", None)
+            members.append(
+                {
+                    "email": user.email,
+                    "nickname": user.nickname,
+                    "avatar": user.avatar,
+                    "is_dept_admin": bool(getattr(user, "is_dept_admin", False)),
+                    "is_active": getattr(user, "is_active", True),
+                    "department_id": uid_dept,
+                    "department_name": name_by_id.get(uid_dept),
+                    "last_login_time": last_login.isoformat() if last_login else None,
+                }
+            )
+
+        members.sort(key=lambda m: (not m["is_dept_admin"], (m["nickname"] or m["email"] or "").lower()))
+        return {
+            "department": {"id": dept.id, "name": dept.name, "path_key": dept.path_key},
+            "members": members,
+        }

@@ -6,6 +6,7 @@ import {
   IConversation,
   IDialog,
   IExternalChatInfo,
+  Message,
 } from '@/interfaces/database/chat';
 import {
   IAskRequestBody,
@@ -49,6 +50,15 @@ export const enum ChatApiAction {
   FetchExternalChatInfo = 'fetchExternalChatInfo',
   Feedback = 'feedback',
   CreateSharedConversation = 'createSharedConversation',
+  ShareSession = 'shareSession',
+  FetchSharedConversations = 'fetchSharedConversations',
+  FetchSharedConversationDetail = 'fetchSharedConversationDetail',
+  PublishSharedConversation = 'publishSharedConversation',
+  HideSharedConversation = 'hideSharedConversation',
+  DeleteSharedConversation = 'deleteSharedConversation',
+  ForkSharedConversation = 'forkSharedConversation',
+  RenameSharedConversation = 'renameSharedConversation',
+  ReorderSharedConversations = 'reorderSharedConversations',
 }
 
 export const useGetChatSearchParams = () => {
@@ -60,6 +70,25 @@ export const useGetChatSearchParams = () => {
       currentQueryParameters.get(ChatSearchParams.ConversationId) || '',
     isNew: currentQueryParameters.get(ChatSearchParams.isNew) || '',
   };
+};
+
+/**
+ * Get-or-create the current user's personal default chat (named
+ * '<department> <employee-id>', bound to their visible knowledge bases). Used to
+ * land the user straight into a conversation instead of the chat app list.
+ */
+export const useGetOrCreateDefaultChat = () => {
+  return useQuery<IDialog | undefined>({
+    queryKey: ['getDefaultChat'],
+    gcTime: 0,
+    staleTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const { data } = await chatService.getDefaultChat();
+      return data?.data;
+    },
+  });
 };
 
 export const useFetchChatList = () => {
@@ -487,6 +516,299 @@ export const useFeedback = () => {
 
   return { data, loading, feedback: mutateAsync };
 };
+
+//#region Shared conversations (department share zone)
+
+export interface ISharedConversation {
+  id: string;
+  name: string;
+  owner_id: string;
+  owner_name: string;
+  visibility: 'pending' | 'department';
+  hidden: boolean;
+  sort: number;
+  create_time: number;
+  is_mine: boolean;
+  is_pending: boolean;
+  is_hidden: boolean;
+  can_publish: boolean;
+  can_hide: boolean;
+  can_delete: boolean;
+  can_rename: boolean;
+  can_reorder: boolean;
+}
+
+export const useShareSession = () => {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  const {
+    data,
+    isPending: loading,
+    mutateAsync,
+  } = useMutation({
+    mutationKey: [ChatApiAction.ShareSession],
+    mutationFn: async ({
+      chatId,
+      sessionId,
+      messageIds,
+      name,
+    }: {
+      chatId: string;
+      sessionId: string;
+      messageIds: string[];
+      name?: string;
+    }) => {
+      const { data } = await chatService.shareSession(
+        {
+          url: api.shareSession(chatId, sessionId),
+          data: { message_ids: messageIds, name },
+        },
+        true,
+      );
+      if (data.code === 0) {
+        queryClient.invalidateQueries({
+          queryKey: [ChatApiAction.FetchSharedConversations],
+        });
+        message.success(t('chat.shareSuccess'));
+      }
+      return data.code;
+    },
+  });
+
+  return { data, loading, shareSession: mutateAsync };
+};
+
+export const useFetchSharedConversations = () => {
+  const {
+    data,
+    isFetching: loading,
+    refetch,
+  } = useQuery<{
+    items: ISharedConversation[];
+    is_dept_admin: boolean;
+  }>({
+    queryKey: [ChatApiAction.FetchSharedConversations],
+    initialData: { items: [], is_dept_admin: false },
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const { data } = await chatService.listSharedConversations();
+      return data?.data ?? { items: [], is_dept_admin: false };
+    },
+  });
+
+  return { data, loading, refetch };
+};
+
+export interface ISharedConversationDetail extends ISharedConversation {
+  messages: Message[];
+  reference: any[];
+}
+
+export const useFetchSharedConversationDetail = (sharedId?: string) => {
+  const { data, isFetching: loading } =
+    useQuery<ISharedConversationDetail | null>({
+      queryKey: [ChatApiAction.FetchSharedConversationDetail, sharedId],
+      enabled: !!sharedId,
+      gcTime: 0,
+      staleTime: 0,
+      refetchOnWindowFocus: false,
+      queryFn: async () => {
+        const { data } = await chatService.getSharedConversation(sharedId);
+        return data?.data ?? null;
+      },
+    });
+
+  return { data, loading };
+};
+
+export const usePublishSharedConversation = () => {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  const {
+    data,
+    isPending: loading,
+    mutateAsync,
+  } = useMutation({
+    mutationKey: [ChatApiAction.PublishSharedConversation],
+    mutationFn: async (sharedId: string) => {
+      const { data } = await chatService.publishSharedConversation(
+        { url: api.publishSharedConversation(sharedId) },
+        true,
+      );
+      if (data.code === 0) {
+        queryClient.invalidateQueries({
+          queryKey: [ChatApiAction.FetchSharedConversations],
+        });
+        message.success(t('chat.syncedToAll'));
+      }
+      return data.code;
+    },
+  });
+
+  return { data, loading, publishSharedConversation: mutateAsync };
+};
+
+export const useHideSharedConversation = () => {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  const {
+    data,
+    isPending: loading,
+    mutateAsync,
+  } = useMutation({
+    mutationKey: [ChatApiAction.HideSharedConversation],
+    mutationFn: async ({
+      sharedId,
+      hidden,
+    }: {
+      sharedId: string;
+      hidden: boolean;
+    }) => {
+      const { data } = await chatService.hideSharedConversation(
+        { url: api.hideSharedConversation(sharedId), data: { hidden } },
+        true,
+      );
+      if (data.code === 0) {
+        queryClient.invalidateQueries({
+          queryKey: [ChatApiAction.FetchSharedConversations],
+        });
+        message.success(t('message.operated'));
+      }
+      return data.code;
+    },
+  });
+
+  return { data, loading, hideSharedConversation: mutateAsync };
+};
+
+export const useDeleteSharedConversation = () => {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  const {
+    data,
+    isPending: loading,
+    mutateAsync,
+  } = useMutation({
+    mutationKey: [ChatApiAction.DeleteSharedConversation],
+    mutationFn: async (sharedId: string) => {
+      const { data } = await chatService.deleteSharedConversation(
+        { url: api.deleteSharedConversation(sharedId) },
+        true,
+      );
+      if (data.code === 0) {
+        queryClient.invalidateQueries({
+          queryKey: [ChatApiAction.FetchSharedConversations],
+        });
+        message.success(t('message.deleted'));
+      }
+      return data.code;
+    },
+  });
+
+  return { data, loading, deleteSharedConversation: mutateAsync };
+};
+
+export const useForkSharedConversation = () => {
+  const queryClient = useQueryClient();
+
+  const {
+    data,
+    isPending: loading,
+    mutateAsync,
+  } = useMutation({
+    mutationKey: [ChatApiAction.ForkSharedConversation],
+    mutationFn: async ({
+      sharedId,
+      targetChatId,
+    }: {
+      sharedId: string;
+      targetChatId: string;
+    }) => {
+      const { data } = await chatService.forkSharedConversation(
+        {
+          url: api.forkSharedConversation(sharedId),
+          data: { target_chat_id: targetChatId },
+        },
+        true,
+      );
+      if (data.code === 0) {
+        queryClient.invalidateQueries({
+          queryKey: [ChatApiAction.FetchSessionList],
+        });
+      }
+      return data?.data;
+    },
+  });
+
+  return { data, loading, forkSharedConversation: mutateAsync };
+};
+
+export const useRenameSharedConversation = () => {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  const {
+    data,
+    isPending: loading,
+    mutateAsync,
+  } = useMutation({
+    mutationKey: [ChatApiAction.RenameSharedConversation],
+    mutationFn: async ({
+      sharedId,
+      name,
+    }: {
+      sharedId: string;
+      name: string;
+    }) => {
+      const { data } = await chatService.renameSharedConversation(
+        { url: api.renameSharedConversation(sharedId), data: { name } },
+        true,
+      );
+      if (data.code === 0) {
+        queryClient.invalidateQueries({
+          queryKey: [ChatApiAction.FetchSharedConversations],
+        });
+        message.success(t('message.modified'));
+      }
+      return data.code;
+    },
+  });
+
+  return { data, loading, renameSharedConversation: mutateAsync };
+};
+
+export const useReorderSharedConversations = () => {
+  const queryClient = useQueryClient();
+
+  const {
+    data,
+    isPending: loading,
+    mutateAsync,
+  } = useMutation({
+    mutationKey: [ChatApiAction.ReorderSharedConversations],
+    mutationFn: async (ids: string[]) => {
+      const { data } = await chatService.reorderSharedConversations(
+        { url: api.reorderSharedConversations, data: { ids } },
+        true,
+      );
+      if (data.code === 0) {
+        queryClient.invalidateQueries({
+          queryKey: [ChatApiAction.FetchSharedConversations],
+        });
+      }
+      return data.code;
+    },
+  });
+
+  return { data, loading, reorderSharedConversations: mutateAsync };
+};
+
+//#endregion Shared conversations
 
 type UploadParameters = Parameters<NonNullable<FileUploadProps['onUpload']>>;
 

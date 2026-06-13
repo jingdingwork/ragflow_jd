@@ -1,15 +1,15 @@
-import { LlmItem, useSelectLlmList } from '@/hooks/use-llm-request';
+import { useSelectLlmList } from '@/hooks/use-llm-request';
 import { t } from 'i18next';
 import { ModelProviderCard } from './modal-card';
 
-export const UsedModel = ({
-  handleAddModel,
-  handleEditModel,
-}: {
-  handleAddModel: (factory: string) => void;
-  handleEditModel: (model: any, factory: LlmItem) => void;
-}) => {
-  const { myLlmList: llmList } = useSelectLlmList();
+// Admin-managed models (department chat models + global aux models) are all
+// provisioned under this factory. Models from other factories are not managed
+// here, so the user-side list only shows this one.
+const MANAGED_FACTORY = 'OpenAI-API-Compatible';
+
+export const UsedModel = () => {
+  const { myLlmList } = useSelectLlmList();
+  const llmList = myLlmList.filter((llm) => llm.name === MANAGED_FACTORY);
   return (
     <div
       className="flex flex-col w-full gap-5 mb-4"
@@ -19,14 +19,7 @@ export const UsedModel = ({
         {t('setting.addedModels')}
       </div>
       {llmList.map((llm) => {
-        return (
-          <ModelProviderCard
-            key={llm.name}
-            item={llm}
-            clickApiKey={handleAddModel}
-            handleEditModel={handleEditModel}
-          />
-        );
+        return <ModelProviderCard key={llm.name} item={llm} />;
       })}
     </div>
   );

@@ -415,6 +415,39 @@ async def user_profile():
     return get_json_result(data=current_user.to_dict())
 
 
+@manager.route("/users/me/department", methods=["GET"])  # noqa: F821
+@login_required
+async def my_department():
+    """
+    Get the current user's department and its members (subtree included).
+    ---
+    tags:
+      - User
+    security:
+      - ApiKeyAuth: []
+    responses:
+      200:
+        description: Department and members retrieved successfully.
+        schema:
+          type: object
+          properties:
+            department:
+              type: object
+              description: The current user's department (id, name, path_key) or null.
+            members:
+              type: array
+              description: Members of the department and all descendant departments.
+    """
+    try:
+        department_id = getattr(current_user, "department_id", None)
+        if not department_id:
+            return get_json_result(data={"department": None, "members": []})
+        data = DepartmentService.list_subtree_members(department_id)
+        return get_json_result(data=data)
+    except Exception as e:
+        return server_error_response(e)
+
+
 def rollback_user_registration(user_id):
     try:
         UserService.delete_by_id(user_id)

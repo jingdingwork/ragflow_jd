@@ -65,6 +65,17 @@ RAGFlow has an Onyx/Danswer-style **connector sync engine** that pulls external 
 
 **Department shared-folder feature** (mounted SMB/CIFS/NFS → department KB): the `LocalFolderConnector` (`common/data_source/local_folder_connector.py`, `FileSource.LOCAL_FOLDER`) walks a host-mounted directory — no credentials, `validate_connector_settings()` checks path reachability for the "test" button, `exclude_dirs` skips recycle bins. The mount must be bind-mounted (`:ro`) into the **sync worker, admin server, and API server** containers. Admin CRUD is `FolderMgr` in `admin/server/services.py` (routes `/admin/dept-folders/*`); frontend page `web/src/pages/admin/dept-folders.tsx`. A daily trigger `nightly_folder_sync()` in the sync worker re-syncs all folder connectors at `FOLDER_SYNC_HOUR` (default 1 AM, server-local). Shared-folder docs are **read-only on the user side**: `api/apps/restful_apis/document_api.py` rejects delete/update for `source_type` starting with `local_folder/`, and the dataset document UI hides those actions via `isSharedFolderDocument` (`web/src/pages/dataset/dataset/utils.ts`).
 
+### Brand & UI style (京鼎 / CTCI)
+
+This fork is rebranded from RAGFlow to **京鼎工程 / CTCI**. All new/edited frontend pages must follow this style — **UI only, never change functionality to fit styling**:
+
+- **Brand color = orange `#F39800`** (rgb `243 152 0`), gradient `#F39800 → #FF8C00 → #FFC373`. It is the global token `--accent-primary` in `web/tailwind.css` (plus `--brand-from/--brand-via/--brand-to`). **Use tokens** (`accent-primary`, `bg-base`/`bg-component`/`bg-card`, `text-primary`/`text-secondary`) — never hardcode the old RAGFlow teal/cyan/blue (`#00BEB4`, `#40EBE3`, `#4A51FF`, `rgba(76,164,231,…)`); the orange cascades automatically.
+- **Brand lockup**: use `CtciLogo` / `CtciBrand` from `web/src/components/ctci-logo.tsx` for any logo/header/sidebar block. Never reintroduce `/logo.svg` or a visible "RAGFlow" wordmark in chrome (internal "RAGFlow" strings in agent/model/system code are not chrome — leave them).
+- **Operation pages**: keep dark default + light/dark toggle; only the accent is orange.
+- **Premium/login-style surfaces**: reference `web/src/pages/login-next/index.tsx` (scoped light palette: concrete-gray gradient + faint grid + orange radial glow, orange gradient button with shimmer, footer "© 京鼎工程股份有限公司 · CTCI CORPORATION"); admin login `web/src/pages/admin/login.tsx` mirrors it.
+- **No external community links** (Discord/GitHub) in chrome — corporate intranet product.
+- Brand i18n keys: `header.brand` / `header.brandTagline`, admin `admin.title`.
+
 ### Frontend conventions
 
 - `web/src/components/ui/` (shadcn primitives) is **locked** — compose/wrap these, never modify them. `RAGFlowSelect` (`ui/select.tsx`) has no search; use `SelectWithSearch` (`web/src/components/originui/select-with-search.tsx`) when a searchable dropdown is needed (drop-in: same `value`/`onChange(value)`/`options` API; auto-shows a search box when options > 5).

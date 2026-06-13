@@ -20,6 +20,7 @@ import {
 } from '@/hooks/logic-hooks/use-row-selection';
 import { useFetchDocumentList } from '@/hooks/use-document-request';
 import { useFetchKnowledgeBaseConfiguration } from '@/hooks/use-knowledge-request';
+import { useCanManageKnowledge } from '@/hooks/use-user-setting-request';
 import { LucidePlus } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -45,6 +46,7 @@ export default function Dataset() {
     documentUploadLoading,
   } = useHandleUploadDocument();
   const { knowledgeBase } = useKnowledgeBaseContext();
+  const canManage = useCanManageKnowledge();
   const {
     searchString,
     documents,
@@ -164,7 +166,11 @@ export default function Dataset() {
               </p>
             </div>
           }
-          preChildren={<Generate disabled={!(dataSetData.chunk_count > 0)} />}
+          preChildren={
+            canManage ? (
+              <Generate disabled={!(dataSetData.chunk_count > 0)} />
+            ) : undefined
+          }
           // preChildren={
           //   <Button
           //     variant={'ghost'}
@@ -197,23 +203,25 @@ export default function Dataset() {
           //   </Button>
           // }
         >
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="default">
-                <LucidePlus />
-                {t('knowledgeDetails.addFile')}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-auto min-w-40" align="end">
-              <DropdownMenuItem onClick={showDocumentUploadModal}>
-                {t('fileManager.uploadFile')}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={showCreateModal}>
-                {t('knowledgeDetails.emptyFiles')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {canManage && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="default">
+                  <LucidePlus />
+                  {t('knowledgeDetails.addFile')}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-auto min-w-40" align="end">
+                <DropdownMenuItem onClick={showDocumentUploadModal}>
+                  {t('fileManager.uploadFile')}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={showCreateModal}>
+                  {t('knowledgeDetails.emptyFiles')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </ListFilterBar>
 
         {rowSelectionIsEmpty || (

@@ -15,15 +15,19 @@ import { SharedFrom } from '@/constants/chat';
 import { useSetModalState } from '@/hooks/common-hooks';
 import {
   useFetchChat,
+  useFetchSharedConversations,
   useGetChatSearchParams,
   useRemoveSessions,
 } from '@/hooks/use-chat-request';
+import { cn } from '@/lib/utils';
 import {
   LucideCopyX,
   LucideListChecks,
+  LucideMessageSquare,
   LucidePanelLeftClose,
   LucidePlus,
   LucideSend,
+  LucideShare2,
   LucideTrash2,
   LucideUndo2,
 } from 'lucide-react';
@@ -34,6 +38,7 @@ import { useChatUrlParams } from '../hooks/use-chat-url';
 import { useHandleClickConversationCard } from '../hooks/use-click-card';
 import { useSelectDerivedConversationList } from '../hooks/use-select-conversation-list';
 import { ConversationDropdown } from './conversation-dropdown';
+import { SharedZone } from './shared-zone';
 
 type SessionProps = Pick<
   ReturnType<typeof useHandleClickConversationCard>,
@@ -53,6 +58,13 @@ export function Sessions({ handleConversationCardClick }: SessionProps) {
   const { removeSessions } = useRemoveSessions();
   const { setConversationBoth } = useChatUrlParams();
   const { conversationId } = useGetChatSearchParams();
+
+  // Active sidebar tab: own conversations vs department share zone
+  const [activeTab, setActiveTab] = useState<'conversations' | 'shared'>(
+    'conversations',
+  );
+  const { data: sharedData } = useFetchSharedConversations();
+  const sharedCount = sharedData?.items?.length ?? 0;
 
   // Selection mode state
   const [selectionMode, setSelectionMode] = useState(false);
@@ -216,147 +228,240 @@ export function Sessions({ handleConversationCardClick }: SessionProps) {
         </Button>
       </header>
 
-      <div className="flex justify-between items-center mb-4 pt-10">
-        <div className="flex items-center gap-3">
-          <span className="text-base font-bold">{t('chat.conversations')}</span>
-          <data
-            className="text-text-secondary text-xs"
-            value={conversationList.length}
-          >
-            {conversationList.length}
-          </data>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {selectionMode ? (
-            // Exit selection mode
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={exitSelectionMode}
-              data-testid="chat-detail-session-selection-exit"
-            >
-              <LucideUndo2 size={16} />
-            </Button>
-          ) : (
-            // New conversation
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={addTemporaryConversation}
-              data-testid="chat-detail-session-new"
-            >
-              <LucidePlus className="h-4 w-4" />
-            </Button>
-          )}
-
-          {selectionMode && selectedCount > 0 ? (
-            // Delete selected items
-            <ConfirmDeleteDialog
-              onOk={handleBatchDelete}
-              title={t('chat.batchDeleteSessions')}
-              content={{
-                title: t('chat.deleteSelectedConfirm', {
-                  count: selectedCount,
-                }),
-              }}
-              testId="chat-detail-session-batch-delete-dialog"
-              confirmButtonTestId="chat-detail-session-batch-delete-confirm"
-              cancelButtonTestId="chat-detail-session-batch-delete-cancel"
-            >
-              <Button
-                variant="delete"
-                size="icon-xs"
-                data-testid="chat-detail-session-batch-delete"
-              >
-                <LucideTrash2 />
-              </Button>
-            </ConfirmDeleteDialog>
-          ) : (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={selectionMode ? toggleSelectAll : toggleSelectionMode}
-              data-testid={
-                selectionMode
-                  ? 'chat-detail-session-select-all'
-                  : 'chat-detail-session-selection-enable'
-              }
-            >
-              {selectionMode ? <LucideListChecks /> : <LucideCopyX />}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="pb-4" role="search">
-        <SearchInput
-          onChange={handleInputChange}
-          value={searchString}
-          data-testid="chat-detail-session-search"
-        ></SearchInput>
-      </div>
-
-      <div className="flex-1 overflow-auto">
-        {selectionMode ? (
-          <ul className="space-y-2" role="listbox" aria-multiselectable>
-            {conversationList.map((x) => (
-              <li
-                key={x.id}
-                className="py-2"
-                role="option"
-                aria-selected={selectedIds.has(x.id)}
-                data-session-id={x.id}
-              >
-                <label className="flex items-center gap-2">
-                  <Checkbox
-                    checked={selectedIds.has(x.id)}
-                    onCheckedChange={() => toggleSelection(x.id)}
-                    data-testid="chat-detail-session-checkbox"
-                    data-session-id={x.id}
-                  />
-
-                  <span className="truncate">{x.name}</span>
-                </label>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <nav aria-label={t('chat.conversations')}>
-            <ul className="space-y-2">
-              {conversationList.map((x) => (
-                <li
-                  key={x.id}
-                  className="
-                      group pr-3 flex items-center gap-1 rounded-lg
-                      aria-selected:bg-bg-card has-[>button:focus-visible]:bg-bg-card
-                    "
-                  aria-selected={conversationId === x.id}
-                >
+      {/* Segmented icon switcher: own conversations vs department share zone */}
+      <div className="pt-8 pb-4">
+        <div className="relative flex p-1 rounded-xl bg-bg-card border-0.5 border-border-button select-none">
+          <span
+            aria-hidden
+            className="absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg bg-accent-primary/15 ring-1 ring-accent-primary/30 shadow-sm transition-transform duration-300 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]"
+            style={{
+              transform:
+                activeTab === 'shared' ? 'translateX(100%)' : 'translateX(0)',
+            }}
+          />
+          {(
+            [
+              {
+                key: 'conversations',
+                Icon: LucideMessageSquare,
+                label: t('chat.conversations'),
+                count: conversationList.length,
+              },
+              {
+                key: 'shared',
+                Icon: LucideShare2,
+                label: t('chat.shareZone'),
+                count: sharedCount,
+              },
+            ] as const
+          ).map(({ key, Icon, label, count }) => {
+            const active = activeTab === key;
+            return (
+              <Tooltip key={key}>
+                <TooltipTrigger asChild>
                   <button
                     type="button"
-                    className="focus-visible:outline-none px-3 py-2 text-left flex-1 truncate"
-                    onClick={() => handleConversationCardClick(x.id, x.is_new)}
-                    data-testid="chat-detail-session-item"
-                    data-session-id={x.id}
+                    aria-label={label}
+                    aria-pressed={active}
+                    onClick={() => {
+                      setActiveTab(key);
+                      if (key === 'shared') exitSelectionMode();
+                    }}
+                    className={cn(
+                      'relative z-10 flex-1 min-w-0 flex items-center justify-center gap-1.5 py-2 rounded-lg transition-colors duration-200',
+                      active
+                        ? 'text-accent-primary'
+                        : 'text-text-secondary hover:text-text-primary',
+                    )}
+                    data-testid={`chat-detail-tab-${key}`}
                   >
-                    {x.name}
+                    <Icon size={16} className="shrink-0" />
+                    <span
+                      className={cn(
+                        'shrink-0 min-w-[18px] text-center text-[11px] leading-none px-1.5 py-0.5 rounded-full tabular-nums transition-colors',
+                        active
+                          ? 'bg-accent-primary/20 text-accent-primary'
+                          : 'bg-bg-base text-text-secondary',
+                      )}
+                    >
+                      {count}
+                    </span>
                   </button>
+                </TooltipTrigger>
+                <TooltipContent>{label}</TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
+      </div>
 
-                  <ConversationDropdown
-                    conversation={x}
-                    removeTemporaryConversation={removeTemporaryConversation}
+      {/* Sliding panels */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <div
+          className="flex h-full w-[200%] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]"
+          style={{
+            transform:
+              activeTab === 'shared' ? 'translateX(-50%)' : 'translateX(0)',
+          }}
+        >
+          {/* Conversations panel */}
+          <div
+            className={cn(
+              'w-1/2 h-full flex flex-col min-h-0 pr-0.5 transition-opacity duration-300',
+              activeTab === 'conversations' ? 'opacity-100' : 'opacity-0',
+            )}
+            aria-hidden={activeTab !== 'conversations'}
+          >
+            <div className="flex items-center justify-end gap-2 mb-2 h-7">
+              {selectionMode ? (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={exitSelectionMode}
+                  data-testid="chat-detail-session-selection-exit"
+                >
+                  <LucideUndo2 size={16} />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={addTemporaryConversation}
+                  data-testid="chat-detail-session-new"
+                >
+                  <LucidePlus className="h-4 w-4" />
+                </Button>
+              )}
+
+              {selectionMode && selectedCount > 0 ? (
+                <ConfirmDeleteDialog
+                  onOk={handleBatchDelete}
+                  title={t('chat.batchDeleteSessions')}
+                  content={{
+                    title: t('chat.deleteSelectedConfirm', {
+                      count: selectedCount,
+                    }),
+                  }}
+                  testId="chat-detail-session-batch-delete-dialog"
+                  confirmButtonTestId="chat-detail-session-batch-delete-confirm"
+                  cancelButtonTestId="chat-detail-session-batch-delete-cancel"
+                >
+                  <Button
+                    variant="delete"
+                    size="icon-xs"
+                    data-testid="chat-detail-session-batch-delete"
                   >
-                    <MoreButton
-                      data-testid="chat-detail-session-actions"
+                    <LucideTrash2 />
+                  </Button>
+                </ConfirmDeleteDialog>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={
+                    selectionMode ? toggleSelectAll : toggleSelectionMode
+                  }
+                  data-testid={
+                    selectionMode
+                      ? 'chat-detail-session-select-all'
+                      : 'chat-detail-session-selection-enable'
+                  }
+                >
+                  {selectionMode ? <LucideListChecks /> : <LucideCopyX />}
+                </Button>
+              )}
+            </div>
+
+            <div className="pb-3" role="search">
+              <SearchInput
+                onChange={handleInputChange}
+                value={searchString}
+                data-testid="chat-detail-session-search"
+              ></SearchInput>
+            </div>
+
+            <div className="flex-1 overflow-auto">
+              {selectionMode ? (
+                <ul className="space-y-2" role="listbox" aria-multiselectable>
+                  {conversationList.map((x) => (
+                    <li
+                      key={x.id}
+                      className="py-2"
+                      role="option"
+                      aria-selected={selectedIds.has(x.id)}
                       data-session-id={x.id}
-                    ></MoreButton>
-                  </ConversationDropdown>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
+                    >
+                      <label className="flex items-center gap-2">
+                        <Checkbox
+                          checked={selectedIds.has(x.id)}
+                          onCheckedChange={() => toggleSelection(x.id)}
+                          data-testid="chat-detail-session-checkbox"
+                          data-session-id={x.id}
+                        />
+
+                        <span className="truncate">{x.name}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <nav aria-label={t('chat.conversations')}>
+                  <ul className="space-y-2">
+                    {conversationList.map((x) => (
+                      <li
+                        key={x.id}
+                        className="
+                            group pr-3 flex items-center gap-1 rounded-lg
+                            aria-selected:bg-bg-card has-[>button:focus-visible]:bg-bg-card
+                          "
+                        aria-selected={conversationId === x.id}
+                      >
+                        <button
+                          type="button"
+                          className="focus-visible:outline-none px-3 py-2 text-left flex-1 truncate"
+                          onClick={() =>
+                            handleConversationCardClick(x.id, x.is_new)
+                          }
+                          data-testid="chat-detail-session-item"
+                          data-session-id={x.id}
+                        >
+                          {x.name}
+                        </button>
+
+                        <ConversationDropdown
+                          conversation={x}
+                          removeTemporaryConversation={
+                            removeTemporaryConversation
+                          }
+                        >
+                          <MoreButton
+                            data-testid="chat-detail-session-actions"
+                            data-session-id={x.id}
+                          ></MoreButton>
+                        </ConversationDropdown>
+                      </li>
+                    ))}
+                  </ul>
+                </nav>
+              )}
+            </div>
+          </div>
+
+          {/* Share zone panel */}
+          <div
+            className={cn(
+              'w-1/2 h-full overflow-auto pl-0.5 transition-opacity duration-300',
+              activeTab === 'shared' ? 'opacity-100' : 'opacity-0',
+            )}
+            aria-hidden={activeTab !== 'shared'}
+          >
+            <SharedZone
+              onForked={(sessionId) =>
+                handleConversationCardClick(sessionId, false)
+              }
+            />
+          </div>
+        </div>
       </div>
     </aside>
   );

@@ -8,6 +8,7 @@ const {
   register,
   setting,
   userInfo,
+  myDepartment,
   tenantInfo,
   factoriesList,
   llmList,
@@ -45,6 +46,10 @@ const methods = {
   },
   userInfo: {
     url: userInfo,
+    method: 'get',
+  },
+  myDepartment: {
+    url: myDepartment,
     method: 'get',
   },
   getTenantInfo: {

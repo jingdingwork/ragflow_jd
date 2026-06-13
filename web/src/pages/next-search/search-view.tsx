@@ -34,6 +34,30 @@ const formatMetadataValue = (value: unknown) => {
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
 };
+
+// Wrap occurrences of the query terms in <em> on the FULL chunk content, so the
+// result keeps its complete text (the engine's `highlight` field returns only a
+// truncated, match-only excerpt). The <em> is rendered by HighLightMarkdown's
+// rehype-raw and styled via the `.searchResultHighlight` rule in index.less.
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const highlightKeywords = (content: string, query?: string) => {
+  if (!content || !query) return content;
+  const terms = Array.from(
+    new Set(
+      query
+        .split(/\s+/)
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0),
+    ),
+  )
+    // Longer terms first so a term that contains another still matches fully.
+    .sort((a, b) => b.length - a.length)
+    .map(escapeRegExp);
+  if (terms.length === 0) return content;
+  const re = new RegExp(`(${terms.join('|')})`, 'gi');
+  return content.replace(re, '<em>$1</em>');
+};
 export default function SearchingView({
   setIsSearching,
   searchData,
@@ -210,9 +234,14 @@ export default function SearchingView({
                                 id={chunk.image_id || chunk.img_id}
                               ></ImageWithPopover>
                             )}
-                            <HighLightMarkdown>
-                              {chunk.content_with_weight}
-                            </HighLightMarkdown>
+                            <div className="searchResultHighlight">
+                              <HighLightMarkdown>
+                                {highlightKeywords(
+                                  chunk.content_with_weight,
+                                  searchStr,
+                                )}
+                              </HighLightMarkdown>
+                            </div>
                           </div>
                           {chunk.document_metadata &&
                             Object.keys(chunk.document_metadata).length > 0 && (

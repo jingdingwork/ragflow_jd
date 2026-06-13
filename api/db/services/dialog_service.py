@@ -246,6 +246,21 @@ class DialogService(CommonService):
         return list(objs)
 
 
+def _strip_rag_system_prompt(system: str) -> str:
+    """Neutralize a RAG-style system prompt for a no-knowledge-base chat.
+
+    RAG templates carry a "{knowledge}" placeholder plus instructions to answer
+    only from the dataset (and to reply that the answer "is not found in the
+    dataset" otherwise). On the solo path no knowledge is retrieved, so those
+    instructions make the model refuse every question. When the prompt is
+    RAG-style we drop it entirely and let the model answer as a general
+    assistant; prompts without "{knowledge}" are returned unchanged.
+    """
+    if not system or "{knowledge}" not in system:
+        return system or ""
+    return ""
+
+
 async def async_chat_solo(dialog, messages, stream=True):
     llm_type = TenantLLMService.llm_id2llm_type(dialog.llm_id)
     attachments = ""
@@ -269,6 +284,14 @@ async def async_chat_solo(dialog, messages, stream=True):
     factory = model_config.get("llm_factory", "") if model_config else ""
 
     prompt_config = dialog.prompt_config
+    # This path runs only when no knowledge base is attached. The chat's system
+    # prompt is typically a RAG template (with a "{knowledge}" placeholder and an
+    # "answer only from the dataset, otherwise say it's not found" instruction).
+    # Sent verbatim with no retrieved knowledge, that makes the model reply
+    # "not found in the dataset" to every question — i.e. it never actually
+    # answers. Drop the knowledge scaffolding so it behaves as a general
+    # assistant. Non-RAG custom prompts (without "{knowledge}") are left intact.
+    system_content = _strip_rag_system_prompt(prompt_config.get("system", ""))
     tts_mdl = None
     if prompt_config.get("tts"):
         default_tts_model = get_tenant_default_model_by_type(dialog.tenant_id, LLMType.TTS)
@@ -280,9 +303,9 @@ async def async_chat_solo(dialog, messages, stream=True):
         convert_last_user_msg_to_multimodal(msg, image_attachments, factory)
     if stream:
         if llm_type == "chat":
-            stream_iter = chat_mdl.async_chat_streamly_delta(prompt_config.get("system", ""), msg, dialog.llm_setting)
+            stream_iter = chat_mdl.async_chat_streamly_delta(system_content, msg, dialog.llm_setting)
         else:
-            stream_iter = chat_mdl.async_chat_streamly_delta(prompt_config.get("system", ""), msg, dialog.llm_setting, images=image_files)
+            stream_iter = chat_mdl.async_chat_streamly_delta(system_content, msg, dialog.llm_setting, images=image_files)
         async for kind, value, state in _stream_with_think_delta(stream_iter):
             if kind == "marker":
                 flags = {"start_to_think": True} if value == "<think>" else {"end_to_think": True}
@@ -291,9 +314,9 @@ async def async_chat_solo(dialog, messages, stream=True):
             yield {"answer": value, "reference": {}, "audio_binary": tts(tts_mdl, value), "prompt": "", "created_at": time.time(), "final": False}
     else:
         if llm_type == "chat":
-            answer = await chat_mdl.async_chat(prompt_config.get("system", ""), msg, dialog.llm_setting)
+            answer = await chat_mdl.async_chat(system_content, msg, dialog.llm_setting)
         else:
-            answer = await chat_mdl.async_chat(prompt_config.get("system", ""), msg, dialog.llm_setting, images=image_files)
+            answer = await chat_mdl.async_chat(system_content, msg, dialog.llm_setting, images=image_files)
         user_content = msg[-1].get("content", "[content not available]")
         logging.debug("User: {}|Assistant: {}".format(user_content, answer))
         yield {"answer": answer, "reference": {}, "audio_binary": tts(tts_mdl, answer), "prompt": "", "created_at": time.time()}

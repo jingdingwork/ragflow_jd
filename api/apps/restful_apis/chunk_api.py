@@ -214,7 +214,7 @@ async def get_chunk(tenant_id, dataset_id, document_id, chunk_id):
 @login_required
 @add_tenant_id_to_kwargs
 async def add_chunk(tenant_id, dataset_id, document_id):
-    if not KnowledgebaseService.accessible(kb_id=dataset_id, user_id=tenant_id):
+    if not KnowledgebaseService.manageable(kb_id=dataset_id, user_id=tenant_id):
         return get_error_data_result(message=f"You don't own the dataset {dataset_id}.")
     dataset_tenant_id = _get_dataset_tenant_id(dataset_id)
     if not dataset_tenant_id:
@@ -303,7 +303,7 @@ async def add_chunk(tenant_id, dataset_id, document_id):
 @login_required
 @add_tenant_id_to_kwargs
 async def rm_chunk(tenant_id, dataset_id, document_id):
-    if not KnowledgebaseService.accessible(kb_id=dataset_id, user_id=tenant_id):
+    if not KnowledgebaseService.manageable(kb_id=dataset_id, user_id=tenant_id):
         return get_error_data_result(message=f"You don't own the dataset {dataset_id}.")
     dataset_tenant_id = _get_dataset_tenant_id(dataset_id)
     if not dataset_tenant_id:
@@ -350,7 +350,7 @@ async def rm_chunk(tenant_id, dataset_id, document_id):
 @login_required
 @add_tenant_id_to_kwargs
 async def update_chunk(tenant_id, dataset_id, document_id, chunk_id):
-    if not KnowledgebaseService.accessible(kb_id=dataset_id, user_id=tenant_id):
+    if not KnowledgebaseService.manageable(kb_id=dataset_id, user_id=tenant_id):
         return get_error_data_result(message=f"You don't own the dataset {dataset_id}.")
     dataset_tenant_id = _get_dataset_tenant_id(dataset_id)
     if not dataset_tenant_id:
@@ -436,7 +436,7 @@ async def update_chunk(tenant_id, dataset_id, document_id, chunk_id):
 @login_required
 @add_tenant_id_to_kwargs
 async def switch_chunks(tenant_id, dataset_id, document_id):
-    if not KnowledgebaseService.accessible(kb_id=dataset_id, user_id=tenant_id):
+    if not KnowledgebaseService.manageable(kb_id=dataset_id, user_id=tenant_id):
         return get_error_data_result(message=f"You don't own the dataset {dataset_id}.")
     dataset_tenant_id = _get_dataset_tenant_id(dataset_id)
     if not dataset_tenant_id:

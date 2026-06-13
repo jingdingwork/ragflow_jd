@@ -7,7 +7,8 @@
       "PowerShell($out = npm run type-check 2>&1 | Out-String; \\($out -split \"`n\" | Select-String -Pattern \"users\\\\.tsx|departments\\\\.tsx|admin-service\\\\.ts|admin\\\\.service\\\\.d\\\\.ts\"\\).Line; \"----done----\")",
       "PowerShell($out = npm run type-check 2>&1 | Out-String; \"LINES: \" + \\($out -split \"`n\"\\).Count; \"MYFILES:\"; \\($out -split \"`n\" | Select-String -Pattern \"users\\\\.tsx|departments\\\\.tsx|admin-service\\\\.ts|admin\\\\.service\\\\.d\\\\.ts\"\\).Line; \"SAMPLE TS ERRORS:\"; \\($out -split \"`n\" | Select-String -Pattern \"error TS\"\\).Line | Select-Object -First 3)",
       "PowerShell(npm run type-check 2>&1)",
-      "PowerShell(Set-Location -Path \"D:\\\\project\\\\ragflow_jd\\\\web\"; $out = npm run type-check 2>&1 | Out-String; \"MYFILES:\"; \\($out -split \"`n\" | Select-String -Pattern \"users\\\\.tsx|departments\\\\.tsx|admin-service\\\\.ts|admin\\\\.service\\\\.d\\\\.ts\"\\).Line; \"TOTAL TS ERRORS: \" + \\(\\($out -split \"`n\" | Select-String -Pattern \"error TS\"\\).Count\\))"
+      "PowerShell(Set-Location -Path \"D:\\\\project\\\\ragflow_jd\\\\web\"; $out = npm run type-check 2>&1 | Out-String; \"MYFILES:\"; \\($out -split \"`n\" | Select-String -Pattern \"users\\\\.tsx|departments\\\\.tsx|admin-service\\\\.ts|admin\\\\.service\\\\.d\\\\.ts\"\\).Line; \"TOTAL TS ERRORS: \" + \\(\\($out -split \"`n\" | Select-String -Pattern \"error TS\"\\).Count\\))",
+      "Bash(npx tsc *)"
     ],
     "additionalDirectories": [
       "\\tmp"

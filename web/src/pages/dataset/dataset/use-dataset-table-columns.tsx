@@ -28,6 +28,8 @@ type UseDatasetTableColumnsType = UseChangeDocumentParserShowType &
     showLog: (record: IDocumentInfo) => void;
     showManageMetadataModal: (config: ShowManageMetadataModalProps) => void;
     datasetId?: string;
+    // When false, the user may only view: hide selection/parse/edit actions.
+    canManage?: boolean;
   };
 
 export function useDatasetTableColumns({
@@ -36,6 +38,7 @@ export function useDatasetTableColumns({
   showManageMetadataModal,
   showLog,
   datasetId,
+  canManage = true,
 }: UseDatasetTableColumnsType) {
   const { t } = useTranslation('translation', {
     keyPrefix: 'knowledgeDetails',
@@ -171,7 +174,9 @@ export function useDatasetTableColumns({
         return (
           <Switch
             checked={row.getValue('status') === '1'}
-            disabled={isSharedFolderDocument(row.original.source_type)}
+            disabled={
+              !canManage || isSharedFolderDocument(row.original.source_type)
+            }
             onCheckedChange={(e) => {
               setDocumentStatus({ status: e, documentId: id, datasetId });
             }}
@@ -195,6 +200,7 @@ export function useDatasetTableColumns({
           <Button
             variant="static"
             size="auto"
+            disabled={!canManage}
             onClick={() => {
               showManageMetadataModal({
                 // metadata: util.JSONToMetaDataTableData(
@@ -269,11 +275,21 @@ export function useDatasetTableColumns({
           <DatasetActionCell
             record={record}
             showRenameModal={showRenameModal}
+            canManage={canManage}
           />
         );
       },
     },
   ];
 
-  return columns;
+  if (canManage) {
+    return columns;
+  }
+  // Read-only users: drop the bulk-select checkbox column and the Parse
+  // (trigger parsing) column. They keep view/download and the run-status display.
+  return columns.filter(
+    (c) =>
+      c.id !== 'select' &&
+      (c as { accessorKey?: string }).accessorKey !== 'run',
+  );
 }

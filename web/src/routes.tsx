@@ -214,8 +214,11 @@ const routeConfigOptions = [
         ],
       },
       {
+        // Land directly in the user's personal default chat instead of the
+        // chat-app list. The list component (`@/pages/next-chats`) is kept for
+        // structure / admin use but is no longer the user-facing landing.
         path: Routes.Chats,
-        Component: () => import('@/pages/next-chats'),
+        Component: () => import('@/pages/next-chats/chat-home'),
       },
       {
         path: Routes.Searches,

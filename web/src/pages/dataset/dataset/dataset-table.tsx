@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/table';
 import { UseRowSelectionType } from '@/hooks/logic-hooks/use-row-selection';
 import { useFetchDocumentList } from '@/hooks/use-document-request';
+import { useCanManageKnowledge } from '@/hooks/use-user-setting-request';
 import { useKnowledgeBaseContext } from '@/pages/dataset/contexts/knowledge-base-context';
 import { getExtension } from '@/utils/document-util';
 import { t } from 'i18next';
@@ -90,6 +91,7 @@ export function DatasetTable({
   // } = useSaveMeta();
   const { showLog, logInfo, logVisible, hideLog } = useShowLog(documents);
   const { knowledgeBase } = useKnowledgeBaseContext();
+  const canManage = useCanManageKnowledge();
 
   const columns = useDatasetTableColumns({
     showChangeParserModal,
@@ -97,6 +99,7 @@ export function DatasetTable({
     showManageMetadataModal,
     showLog,
     datasetId: knowledgeBase?.id,
+    canManage,
   });
 
   const currentPagination = useMemo(() => {

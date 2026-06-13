@@ -14,6 +14,7 @@
 #  limitations under the License.
 #
 
+import hashlib
 import json
 import logging
 import os
@@ -31,10 +32,12 @@ from api.db.joint_services.tenant_model_service import (
 )
 from api.db.services.chunk_feedback_service import ChunkFeedbackService
 from api.db.services.conversation_service import ConversationService, structure_answer
+from api.db.services.department_service import DepartmentService
 from api.db.services.dialog_service import DialogService, async_chat, gen_mindmap
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.services.llm_service import LLMBundle
 from api.db.services.search_service import SearchService
+from api.db.services.shared_conversation_service import SharedConversationService
 from api.db.services.tenant_llm_service import TenantLLMService
 from api.db.services.user_service import TenantService, UserTenantService
 from api.utils.api_utils import (
@@ -350,6 +353,106 @@ async def create():
         ok, chat = DialogService.get_by_id(req["id"])
         if not ok:
             return get_data_error_result(message="Failed to retrieve created chat.")
+        return get_json_result(data=_build_chat_response(chat))
+    except Exception as ex:
+        return server_error_response(ex)
+
+
+def _default_chat_id(user_id: str) -> str:
+    """Deterministic, rename-proof id for a user's personal default chat."""
+    return hashlib.md5(f"default-chat:{user_id}".encode("utf-8")).hexdigest()
+
+
+def _default_chat_name(user) -> str:
+    """Display name '<department>.<employee-id>.<name>'. Employee id is the OIDC
+    username (falls back to the email local part); name is the nickname. Empty
+    parts are skipped so it degrades gracefully (e.g. '<employee-id>.<name>')."""
+    dept_name = ""
+    department_id = getattr(user, "department_id", None)
+    if department_id:
+        dept = DepartmentService.get_or_none(id=department_id)
+        if dept is not None:
+            dept_name = dept.name or ""
+    employee_id = getattr(user, "username", None) or (getattr(user, "email", "") or "").split("@")[0]
+    nickname = getattr(user, "nickname", "") or ""
+    parts = [p for p in (dept_name, employee_id, nickname) if p]
+    return ".".join(parts) if parts else "assistant"
+
+
+def _resolve_user_default_kb_ids(user_id: str) -> list:
+    """Visible knowledge bases (owned / team / department) that have parsed
+    chunks, restricted to a single embedding model (a dialog can only retrieve
+    across KBs sharing one embedding model). Picks the largest such group."""
+    tenants = TenantService.get_joined_tenants_by_user_id(user_id)
+    tenant_ids = [m["tenant_id"] for m in tenants]
+    kbs, _ = KnowledgebaseService.get_list(tenant_ids, user_id, 1, 1000, "create_time", True, None, None, "", None)
+    groups: dict = {}
+    for kb in kbs:
+        if (kb.get("chunk_num") or 0) <= 0:
+            continue
+        embd = TenantLLMService.split_model_name_and_factory(kb.get("embd_id") or "")[0]
+        groups.setdefault(embd, []).append(kb["id"])
+    if not groups:
+        return []
+    return max(groups.values(), key=len)
+
+
+@manager.route("/chats/default", methods=["GET"])  # noqa: F821
+@login_required
+async def get_default_chat():
+    """Get-or-create the current user's personal default chat.
+
+    Named '<department> <employee-id>', bound to the user's visible knowledge
+    bases (so it's a department RAG assistant) and using the default prompt. It
+    is created silently on first access and its name / bound KBs are refreshed
+    on every call (so newly shared department KBs appear automatically). The UI
+    uses this to drop the user straight into a conversation, skipping the chat
+    app list and any visible creation step.
+    """
+    try:
+        user = current_user
+        default_id = _default_chat_id(user.id)
+        name = _default_chat_name(user)
+        kb_ids = _resolve_user_default_kb_ids(user.id)
+
+        ok, existing = await thread_pool_exec(DialogService.get_by_id, default_id)
+        if ok and existing and existing.status == StatusEnum.VALID.value:
+            updates = {}
+            if existing.name != name:
+                updates["name"] = name
+            if set(existing.kb_ids or []) != set(kb_ids):
+                updates["kb_ids"] = kb_ids
+            if updates:
+                await thread_pool_exec(DialogService.update_by_id, default_id, updates)
+                ok, existing = await thread_pool_exec(DialogService.get_by_id, default_id)
+            return get_json_result(data=_build_chat_response(existing))
+
+        ok, tenant = TenantService.get_by_id(user.id)
+        req = {
+            "name": name,
+            "description": "Personal assistant",
+            "kb_ids": kb_ids,
+            "llm_id": tenant.llm_id if ok and tenant else "",
+            "llm_setting": {},
+            "top_n": 6,
+            "top_k": 1024,
+            "rerank_id": "",
+            "similarity_threshold": 0.1,
+            "vector_similarity_weight": 0.3,
+            "icon": "",
+        }
+        _apply_prompt_defaults(req, user)
+        req = ensure_tenant_model_id_for_params(user.id, req)
+        req = {field: value for field, value in req.items() if field in _PERSISTED_FIELDS}
+        for field in _READONLY_FIELDS:
+            req.pop(field, None)
+        req["id"] = default_id
+        req["tenant_id"] = user.id
+        if not await thread_pool_exec(DialogService.save, **req):
+            return get_data_error_result(message="Failed to create default chat.")
+        ok, chat = await thread_pool_exec(DialogService.get_by_id, default_id)
+        if not ok:
+            return get_data_error_result(message="Failed to retrieve default chat.")
         return get_json_result(data=_build_chat_response(chat))
     except Exception as ex:
         return server_error_response(ex)
@@ -927,6 +1030,164 @@ async def update_message_feedback(chat_id, session_id, msg_id):
 
         await thread_pool_exec(ConversationService.update_by_id, conv_dict["id"], conv_dict)
         return get_json_result(data=_build_session_response(conv_dict))
+    except Exception as ex:
+        return server_error_response(ex)
+
+
+@manager.route("/chats/<chat_id>/sessions/<session_id>/share", methods=["POST"])  # noqa: F821
+@login_required
+async def share_session(chat_id, session_id):
+    if not await _ensure_owned_chat(chat_id):
+        return get_json_result(data=False, message="No authorization.", code=RetCode.AUTHENTICATION_ERROR)
+    try:
+        req = await get_request_json()
+        message_ids = req.get("message_ids")
+        if not message_ids or not isinstance(message_ids, list):
+            return get_data_error_result(message="`message_ids` can not be empty.")
+        ok, conv = await thread_pool_exec(ConversationService.get_by_id, session_id)
+        if not ok or conv.dialog_id != chat_id:
+            return get_data_error_result(message="Session not found!")
+        user = current_user._get_current_object()
+        shared = await thread_pool_exec(
+            SharedConversationService.create_from_session,
+            user, conv, message_ids, req.get("name"),
+        )
+        if not shared:
+            return get_data_error_result(message="Fail to share the session!")
+        return get_json_result(data={"id": shared.id, "visibility": shared.visibility})
+    except Exception as ex:
+        return server_error_response(ex)
+
+
+@manager.route("/shared-conversations", methods=["GET"])  # noqa: F821
+@login_required
+async def list_shared_conversations():
+    try:
+        user = current_user._get_current_object()
+        items = await thread_pool_exec(SharedConversationService.list_visible, user)
+        return get_json_result(data={
+            "items": items,
+            "is_dept_admin": bool(getattr(user, "is_dept_admin", False)),
+        })
+    except Exception as ex:
+        return server_error_response(ex)
+
+
+@manager.route("/shared-conversations/<shared_id>/publish", methods=["POST"])  # noqa: F821
+@login_required
+async def publish_shared_conversation(shared_id):
+    try:
+        user = current_user._get_current_object()
+        ok, msg = await thread_pool_exec(SharedConversationService.publish, user, shared_id)
+        if not ok:
+            code = RetCode.AUTHENTICATION_ERROR if msg == "No authorization." else RetCode.DATA_ERROR
+            return get_json_result(data=False, message=msg, code=code)
+        return get_json_result(data=True)
+    except Exception as ex:
+        return server_error_response(ex)
+
+
+@manager.route("/shared-conversations/<shared_id>/hide", methods=["POST"])  # noqa: F821
+@login_required
+async def hide_shared_conversation(shared_id):
+    try:
+        req = await get_request_json()
+        hidden = bool(req.get("hidden", True))
+        user = current_user._get_current_object()
+        ok, msg = await thread_pool_exec(SharedConversationService.set_hidden, user, shared_id, hidden)
+        if not ok:
+            code = RetCode.AUTHENTICATION_ERROR if msg == "No authorization." else RetCode.DATA_ERROR
+            return get_json_result(data=False, message=msg, code=code)
+        return get_json_result(data=True)
+    except Exception as ex:
+        return server_error_response(ex)
+
+
+@manager.route("/shared-conversations/<shared_id>", methods=["GET"])  # noqa: F821
+@login_required
+async def get_shared_conversation(shared_id):
+    try:
+        user = current_user._get_current_object()
+        data = await thread_pool_exec(SharedConversationService.get_detail, user, shared_id)
+        if not data:
+            return get_data_error_result(message="Shared conversation not found!")
+        return get_json_result(data=data)
+    except Exception as ex:
+        return server_error_response(ex)
+
+
+@manager.route("/shared-conversations/reorder", methods=["POST"])  # noqa: F821
+@login_required
+async def reorder_shared_conversations():
+    try:
+        req = await get_request_json()
+        ids = req.get("ids")
+        if not isinstance(ids, list):
+            return get_data_error_result(message="`ids` must be a list.")
+        user = current_user._get_current_object()
+        ok, msg = await thread_pool_exec(SharedConversationService.reorder, user, ids)
+        if not ok:
+            return get_json_result(data=False, message=msg, code=RetCode.AUTHENTICATION_ERROR)
+        return get_json_result(data=True)
+    except Exception as ex:
+        return server_error_response(ex)
+
+
+@manager.route("/shared-conversations/<shared_id>", methods=["PATCH"])  # noqa: F821
+@login_required
+async def rename_shared_conversation(shared_id):
+    try:
+        req = await get_request_json()
+        user = current_user._get_current_object()
+        ok, msg = await thread_pool_exec(SharedConversationService.rename, user, shared_id, req.get("name"))
+        if not ok:
+            code = RetCode.AUTHENTICATION_ERROR if msg == "No authorization." else RetCode.DATA_ERROR
+            return get_json_result(data=False, message=msg, code=code)
+        return get_json_result(data=True)
+    except Exception as ex:
+        return server_error_response(ex)
+
+
+@manager.route("/shared-conversations/<shared_id>", methods=["DELETE"])  # noqa: F821
+@login_required
+async def delete_shared_conversation(shared_id):
+    try:
+        user = current_user._get_current_object()
+        ok, msg = await thread_pool_exec(SharedConversationService.remove, user, shared_id)
+        if not ok:
+            code = RetCode.AUTHENTICATION_ERROR if msg == "No authorization." else RetCode.DATA_ERROR
+            return get_json_result(data=False, message=msg, code=code)
+        return get_json_result(data=True)
+    except Exception as ex:
+        return server_error_response(ex)
+
+
+@manager.route("/shared-conversations/<shared_id>/fork", methods=["POST"])  # noqa: F821
+@login_required
+async def fork_shared_conversation(shared_id):
+    try:
+        req = await get_request_json()
+        target_chat_id = req.get("target_chat_id")
+        if not target_chat_id:
+            return get_data_error_result(message="`target_chat_id` is required.")
+        if not await _ensure_owned_chat(target_chat_id):
+            return get_json_result(data=False, message="No authorization.", code=RetCode.AUTHENTICATION_ERROR)
+        ok, shared = await thread_pool_exec(SharedConversationService.get_by_id, shared_id)
+        if not ok or shared.status != StatusEnum.VALID.value:
+            return get_data_error_result(message="Shared conversation not found!")
+        conv = {
+            "id": get_uuid(),
+            "dialog_id": target_chat_id,
+            "name": (shared.name or "Shared conversation")[:255],
+            "message": deepcopy(shared.message or []),
+            "user_id": current_user.id,
+            "reference": deepcopy(shared.reference or []),
+        }
+        await thread_pool_exec(ConversationService.save, **conv)
+        ok, conv_obj = await thread_pool_exec(ConversationService.get_by_id, conv["id"])
+        if not ok:
+            return get_data_error_result(message="Fail to fork the shared conversation!")
+        return get_json_result(data=_build_session_response(conv_obj.to_dict()))
     except Exception as ex:
         return server_error_response(ex)
 

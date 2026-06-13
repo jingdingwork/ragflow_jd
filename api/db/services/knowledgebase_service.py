@@ -110,6 +110,19 @@ class KnowledgebaseService(CommonService):
         return False
 
     @classmethod
+    def manageable(cls, kb_id, user_id):
+        """Whether a user may OPERATE on a dataset's data (upload documents, run
+        parsing, add/edit/delete chunks, edit metadata, delete docs, …).
+
+        Uses the same governance rule as edit/delete (``accessible4deletion``):
+        the dataset creator, or a department admin over a department-visible
+        dataset in their own department. Plain members with mere read/team
+        access can view & search but cannot mutate. Regular employees therefore
+        get a read-only experience; only department admins operate the data.
+        """
+        return cls.accessible4deletion(kb_id, user_id)
+
+    @classmethod
     @DB.connection_context()
     def is_parsed_done(cls, kb_id):
         # Check if all documents in the dataset have completed parsing

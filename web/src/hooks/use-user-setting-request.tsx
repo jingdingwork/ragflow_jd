@@ -5,6 +5,7 @@ import { IToken } from '@/interfaces/database/chat';
 import { ITenantInfo } from '@/interfaces/database/dataset';
 import { ILangfuseConfig } from '@/interfaces/database/system';
 import {
+  IMyDepartment,
   ITenant,
   ITenantUser,
   IUserInfo,
@@ -39,6 +40,7 @@ export const enum UserSettingApiAction {
   DeleteTenantUser = 'deleteTenantUser',
   ListTenant = 'listTenant',
   AgreeTenant = 'agreeTenant',
+  MyDepartment = 'myDepartment',
   SetLangfuseConfig = 'setLangfuseConfig',
   DeleteLangfuseConfig = 'deleteLangfuseConfig',
   FetchLangfuseConfig = 'fetchLangfuseConfig',
@@ -67,6 +69,17 @@ export const useFetchUserInfo = (): ResponseGetType<IUserInfo> => {
   });
 
   return { data, loading };
+};
+
+/**
+ * Whether the current user may OPERATE on knowledge bases (create datasets,
+ * upload documents, run parsing, edit/delete chunks & docs, …). Only department
+ * admins may operate; regular employees get a read-only experience (search /
+ * view). Mirrors the backend `KnowledgebaseService.manageable` gate.
+ */
+export const useCanManageKnowledge = (): boolean => {
+  const { data } = useFetchUserInfo();
+  return Boolean((data as IUserInfo)?.is_dept_admin);
 };
 
 export const useFetchTenantInfo = (
@@ -112,6 +125,23 @@ export const useFetchTenantInfo = (
       }
 
       return res;
+    },
+  });
+
+  return { data, loading };
+};
+
+export const useFetchMyDepartment = (): ResponseGetType<IMyDepartment> => {
+  const { data, isFetching: loading } = useQuery<IMyDepartment>({
+    queryKey: [UserSettingApiAction.MyDepartment],
+    initialData: { department: null, members: [] },
+    gcTime: 0,
+    queryFn: async () => {
+      const { data } = await userService.myDepartment();
+      if (data.code === 0) {
+        return data.data ?? { department: null, members: [] };
+      }
+      return { department: null, members: [] };
     },
   });
 

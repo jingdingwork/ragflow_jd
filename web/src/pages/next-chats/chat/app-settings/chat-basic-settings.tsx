@@ -17,6 +17,7 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useTranslate } from '@/hooks/common-hooks';
+import { useFetchChat } from '@/hooks/use-chat-request';
 import { useFetchKnowledgeMetadataKeys } from '@/hooks/use-knowledge-request';
 import { getDirAttribute } from '@/utils/text-direction';
 import { useEffect, useMemo } from 'react';
@@ -25,6 +26,15 @@ import { useFormContext, useWatch } from 'react-hook-form';
 export default function ChatBasicSetting() {
   const { t } = useTranslate('chat');
   const form = useFormContext();
+  // The header KB selector ("outside") persists dataset_ids via patchChat, which
+  // refetches the chat. The panel's MultiSelect is uncontrolled once it has a
+  // value, so we remount the field whenever the server-side dataset_ids change
+  // to keep the inside panel in sync with the outside selector.
+  const { data: chatData } = useFetchChat();
+  const kbSyncKey = useMemo(
+    () => (chatData?.dataset_ids ?? []).join(','),
+    [chatData?.dataset_ids],
+  );
   const emptyResponseValue = form.watch('prompt_config.empty_response');
   const prologueValue = form.watch('prompt_config.prologue');
   const rawDatasetIds = useWatch({
@@ -126,7 +136,7 @@ export default function ChatBasicSetting() {
       ></SwitchFormField>
       <TOCEnhanceFormField name="prompt_config.toc_enhance"></TOCEnhanceFormField>
       <TavilyFormField></TavilyFormField>
-      <KnowledgeBaseFormField></KnowledgeBaseFormField>
+      <KnowledgeBaseFormField key={kbSyncKey}></KnowledgeBaseFormField>
       <MetadataFilter></MetadataFilter>
       <FormField
         control={form.control}

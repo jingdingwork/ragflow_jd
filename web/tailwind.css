@@ -111,10 +111,14 @@
     /* Input accent color */
     --border-accent: #000000;
     --border-button: rgba(0, 0, 0, 0.1);
-    /* Regulators, parsing, switches, variables */
-    --accent-primary: 0 190 180;
+    /* Regulators, parsing, switches, variables — CTCI brand orange #F39800 */
+    --accent-primary: 243 152 0;
     /* Output Variables Box */
-    --bg-accent: rgba(76, 164, 231, 0.05);
+    --bg-accent: rgba(243, 152, 0, 0.05);
+    /* CTCI brand gradient (logo/banner wordmark) */
+    --brand-from: #f39800;
+    --brand-via: #ff8c00;
+    --brand-to: #ffc373;
 
     /* --state-success: #3ba05c; */
     --state-success: 59 160 92;

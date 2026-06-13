@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
+import message from '@/components/ui/message';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { DatasetMetadata } from '@/constants/chat';
@@ -26,6 +27,62 @@ import { useChatSettingSchema } from './use-chat-setting-schema';
 
 type ChatSettingsProps = { hasSingleChatBox: boolean };
 
+// Complete set of defaults for every required schema field. The chat returned by
+// the backend may omit some of these (e.g. a silently-created default chat), and
+// `form.reset` replaces the whole form — so we always merge these underneath the
+// server data to avoid leaving required fields `undefined` (which surfaces as a
+// "Required" validation error that blocks Save).
+const DEFAULT_FORM_VALUES = {
+  name: '',
+  icon: '',
+  description: '',
+  dataset_ids: [],
+  llm_setting: {},
+  prompt_config: {
+    quote: true,
+    keyword: false,
+    tts: false,
+    use_kg: false,
+    refine_multiturn: true,
+    system: '',
+    parameters: [],
+    reasoning: false,
+    cross_languages: [],
+    toc_enhance: false,
+    reference_metadata: {
+      include: false,
+      fields: undefined,
+    },
+  },
+  top_n: 8,
+  similarity_threshold: 0.2,
+  vector_similarity_weight: 0.2,
+  top_k: 1024,
+  meta_data_filter: {
+    method: DatasetMetadata.Disabled,
+    manual: [],
+  },
+};
+
+// Walk a react-hook-form errors tree and return the first error as `field: message`,
+// so a generic "Required" still tells the user (and us) which field is at fault.
+function findFirstErrorMessage(
+  errors: any,
+  path: string[] = [],
+): string | undefined {
+  if (!errors || typeof errors !== 'object') return undefined;
+  if (typeof errors.message === 'string' && errors.message) {
+    const field = path.join('.');
+    return field ? `${field}: ${errors.message}` : errors.message;
+  }
+  for (const key of Object.keys(errors)) {
+    if (key === 'ref' || key === 'type' || key === 'message') continue;
+    const nested = findFirstErrorMessage(errors[key], [...path, key]);
+    if (nested) return nested;
+  }
+  return undefined;
+}
+
 export function ChatSettings({ hasSingleChatBox }: ChatSettingsProps) {
   const formSchema = useChatSettingSchema();
   const { data } = useFetchChat();
@@ -41,36 +98,7 @@ export function ChatSettings({ hasSingleChatBox }: ChatSettingsProps) {
   const form = useForm<FormSchemaType>({
     resolver: zodResolver(formSchema),
     shouldUnregister: false,
-    defaultValues: {
-      name: '',
-      icon: '',
-      description: '',
-      dataset_ids: [],
-      prompt_config: {
-        quote: true,
-        keyword: false,
-        tts: false,
-        use_kg: false,
-        refine_multiturn: true,
-        system: '',
-        parameters: [],
-        reasoning: false,
-        cross_languages: [],
-        toc_enhance: false,
-        reference_metadata: {
-          include: false,
-          fields: undefined,
-        },
-      },
-      top_n: 8,
-      similarity_threshold: 0.2,
-      vector_similarity_weight: 0.2,
-      top_k: 1024,
-      meta_data_filter: {
-        method: DatasetMetadata.Disabled,
-        manual: [],
-      },
-    },
+    defaultValues: DEFAULT_FORM_VALUES as unknown as FormSchemaType,
   });
 
   async function onSubmit(values: FormSchemaType) {
@@ -106,7 +134,10 @@ export function ChatSettings({ hasSingleChatBox }: ChatSettingsProps) {
   }
 
   function onInvalid(errors: any) {
-    void errors;
+    // Surface the first validation error instead of silently swallowing it,
+    // otherwise the Save button looks dead when a required field is missing.
+    const firstError = findFirstErrorMessage(errors);
+    message.error(firstError || t('chat.saveValidationFailed'));
   }
 
   useEffect(() => {
@@ -122,10 +153,22 @@ export function ChatSettings({ hasSingleChatBox }: ChatSettingsProps) {
         : referenceMetadata;
 
     const nextData = {
+      ...DEFAULT_FORM_VALUES,
       ...data,
       prompt_config: {
+        ...DEFAULT_FORM_VALUES.prompt_config,
         ...data.prompt_config,
-        reference_metadata: normalizedReferenceMetadata,
+        reference_metadata:
+          normalizedReferenceMetadata ??
+          DEFAULT_FORM_VALUES.prompt_config.reference_metadata,
+      },
+      meta_data_filter: {
+        ...DEFAULT_FORM_VALUES.meta_data_filter,
+        ...(data.meta_data_filter ?? {}),
+      },
+      llm_setting: {
+        ...DEFAULT_FORM_VALUES.llm_setting,
+        ...(data.llm_setting ?? {}),
       },
       ...llmSettingEnabledValues,
     };

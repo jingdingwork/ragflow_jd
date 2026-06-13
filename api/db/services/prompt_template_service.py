@@ -140,17 +140,37 @@ class PromptTemplateService(CommonService):
         return cls.update_by_id(template_id, {"status": StatusEnum.INVALID.value})
 
     @classmethod
+    def _pick_template(cls, scope, department_id):
+        """Pick the active template for a scope.
+
+        Prefer the one explicitly marked default, but fall back to any template in
+        that scope (ordered by sort, then name) so an admin who configures a
+        department/global prompt without toggling "set as default" still has it
+        take effect. Returns a model row or None. Must be called within a DB
+        connection context.
+        """
+        filters = [cls.model.scope == scope, cls.model.status == StatusEnum.VALID.value]
+        if scope == SCOPE_DEPARTMENT:
+            filters.append(cls.model.department_id == department_id)
+        rows = list(cls.model.select().where(*filters))
+        if not rows:
+            return None
+        rows.sort(key=lambda r: (0 if r.is_default else 1, r.sort or 0, r.name or ""))
+        return rows[0]
+
+    @classmethod
     @DB.connection_context()
     def get_default_for_user(cls, department_id):
-        """The preselected template for a user: department default → global default → fallback."""
+        """The preselected template for a user: department → global → fallback.
+
+        Within each scope, an explicitly defaulted template wins; otherwise the
+        first available template for that scope is used.
+        """
         if department_id:
-            dept = cls.get_or_none(
-                scope=SCOPE_DEPARTMENT, department_id=department_id,
-                is_default=True, status=StatusEnum.VALID.value,
-            )
+            dept = cls._pick_template(SCOPE_DEPARTMENT, department_id)
             if dept:
                 return {"system": dept.system or "", "prologue": dept.prologue or ""}
-        glob = cls.get_or_none(scope=SCOPE_DEFAULT, is_default=True, status=StatusEnum.VALID.value)
+        glob = cls._pick_template(SCOPE_DEFAULT, None)
         if glob:
             return {"system": glob.system or "", "prologue": glob.prologue or ""}
         return {"system": FALLBACK_SYSTEM, "prologue": FALLBACK_PROLOGUE}

@@ -10,6 +10,7 @@ export default {
   register: `${restAPIv1}/users`,
   setting: `${restAPIv1}/users/me`,
   userInfo: `${restAPIv1}/users/me`,
+  myDepartment: `${restAPIv1}/users/me/department`,
   tenantInfo: `${restAPIv1}/users/me/models`,
   setTenantInfo: `${restAPIv1}/users/me/models`,
   loginChannels: `${restAPIv1}/auth/login/channels`,
@@ -145,6 +146,7 @@ export default {
   createChat: `${restAPIv1}/chats`,
   listPromptTemplates: `${restAPIv1}/chats/prompt-templates`,
   listChats: `${restAPIv1}/chats`,
+  getDefaultChat: `${restAPIv1}/chats/default`,
   getChat: (chatId: string) => `${restAPIv1}/chats/${chatId}`,
   updateChat: (chatId: string) => `${restAPIv1}/chats/${chatId}`,
   patchChat: (chatId: string) => `${restAPIv1}/chats/${chatId}`,
@@ -161,6 +163,22 @@ export default {
     `${restAPIv1}/chats/${chatId}/sessions/${sessionId}/messages/${msgId}`,
   thumbup: (chatId: string, sessionId: string, msgId: string) =>
     `${restAPIv1}/chats/${chatId}/sessions/${sessionId}/messages/${msgId}/feedback`,
+  shareSession: (chatId: string, sessionId: string) =>
+    `${restAPIv1}/chats/${chatId}/sessions/${sessionId}/share`,
+  listSharedConversations: `${restAPIv1}/shared-conversations`,
+  reorderSharedConversations: `${restAPIv1}/shared-conversations/reorder`,
+  getSharedConversation: (sharedId: string) =>
+    `${restAPIv1}/shared-conversations/${sharedId}`,
+  renameSharedConversation: (sharedId: string) =>
+    `${restAPIv1}/shared-conversations/${sharedId}`,
+  publishSharedConversation: (sharedId: string) =>
+    `${restAPIv1}/shared-conversations/${sharedId}/publish`,
+  hideSharedConversation: (sharedId: string) =>
+    `${restAPIv1}/shared-conversations/${sharedId}/hide`,
+  deleteSharedConversation: (sharedId: string) =>
+    `${restAPIv1}/shared-conversations/${sharedId}`,
+  forkSharedConversation: (sharedId: string) =>
+    `${restAPIv1}/shared-conversations/${sharedId}/fork`,
   completionUrl: `${restAPIv1}/chat/completions`,
   chatsTts: `${restAPIv1}/chat/audio/speech`,
   searchCompletion: (searchId: string) =>
@@ -314,6 +332,8 @@ export default {
   adminResyncAllDepartmentModels: `${restAPIv1}/admin/departments/llm/resync-all`,
   adminResyncDepartmentModels: (departmentId: string) =>
     `${restAPIv1}/admin/departments/${departmentId}/llm/resync`,
+  adminGlobalLlm: `${restAPIv1}/admin/global-llm`,
+  adminFetchGlobalModels: `${restAPIv1}/admin/global-llm/fetch-models`,
 
   adminChatHistoryStats: `${restAPIv1}/admin/chat-history/stats`,
   adminChatHistoryOverview: `${restAPIv1}/admin/chat-history/overview`,

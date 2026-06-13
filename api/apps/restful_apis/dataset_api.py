@@ -136,6 +136,14 @@ async def create(tenant_id: str = None):
             data:
               type: object
     """
+    # Only department admins may create knowledge bases. Regular employees get a
+    # read-only experience (search/view) and cannot create or operate data.
+    if not getattr(current_user, "is_dept_admin", False):
+        return get_error_data_result(
+            message="Only department admins can create knowledge bases.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+
     req, err = await validate_and_parse_json_request(request, CreateDatasetReq)
     if err is not None:
         return get_error_argument_result(err)

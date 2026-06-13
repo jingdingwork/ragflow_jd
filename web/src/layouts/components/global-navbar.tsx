@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router';
 
 import { LucideHouse } from 'lucide-react';
 
+import { useFetchUserInfo } from '@/hooks/use-user-setting-request';
 import { cn } from '@/lib/utils';
 import { Routes } from '@/routes';
 import { supportsCssAnchor } from '@/utils/css-support';
@@ -20,32 +21,52 @@ const PathMap = {
 
 const menuItems = [
   { path: Routes.Root, name: 'header.Root', icon: LucideHouse },
-  { path: Routes.Datasets, name: 'header.dataset' /* icon: Library, */ },
   {
     path: Routes.Chats,
     name: 'header.chat',
     /* icon: MessageSquareText, */ 'data-testid': 'nav-chat',
   },
-  {
-    path: Routes.Searches,
-    name: 'header.search',
-    /* icon: Search, */ 'data-testid': 'nav-search',
-  },
+  { path: Routes.Datasets, name: 'header.dataset' /* icon: Library, */ },
+  // Search is no longer a top-level nav item; it now lives as a search bar
+  // inside the Dataset page (see web/src/pages/datasets/dataset-search.tsx).
   {
     path: Routes.Agents,
     name: 'header.flow',
     /* icon: Cpu, */ 'data-testid': 'nav-agent',
   },
   { path: Routes.Memories, name: 'header.memories' /* icon: Cpu, */ },
-  { path: Routes.Files, name: 'header.fileManager' /* icon: File, */ },
+  // File manager is hidden for normal users; only superusers (admins) see it.
+  {
+    path: Routes.Files,
+    name: 'header.fileManager',
+    /* icon: File, */ adminOnly: true,
+  },
   { path: Routes.Apps, name: 'header.apps' /* icon: LayoutGrid, */ },
 ];
+
+// Filter out admin-only entries (e.g. File manager) for non-superusers.
+function useVisibleMenuItems() {
+  const {
+    data: { is_superuser },
+  } = useFetchUserInfo();
+
+  return useMemo(
+    () =>
+      menuItems
+        .filter((item) => !('adminOnly' in item) || is_superuser)
+        // Strip the flag so it is never spread onto the DOM <Link>.
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        .map(({ adminOnly, ...item }: any) => item),
+    [is_superuser],
+  );
+}
 
 const GlobalNavbar = supportsCssAnchor
   ? () => {
       const { t } = useTranslation();
       const { pathname } = useLocation();
       const navbarAnchorNamePrefix = useId().replace(/:/g, '');
+      const visibleMenuItems = useVisibleMenuItems();
 
       const activePath = useMemo(() => {
         return (
@@ -60,14 +81,14 @@ const GlobalNavbar = supportsCssAnchor
       const activePathAnchorName = `--${navbarAnchorNamePrefix}${activePath === Routes.Root ? '-root' : activePath.replace('/', '-')}`;
 
       const hasAnyActive = useMemo(
-        () => menuItems.some(({ path }) => path === activePath),
-        [activePath],
+        () => visibleMenuItems.some(({ path }) => path === activePath),
+        [visibleMenuItems, activePath],
       );
 
       return (
         <nav>
           <ul className="relative flex items-center p-1 bg-bg-card rounded-full border border-border-button">
-            {menuItems.map(({ path, name, icon: Icon, ...props }) => {
+            {visibleMenuItems.map(({ path, name, icon: Icon, ...props }) => {
               const isActive = path === activePath;
               const anchorName = `--${navbarAnchorNamePrefix}${path === Routes.Root ? '-root' : path.replace('/', '-')}`;
 
@@ -112,6 +133,7 @@ const GlobalNavbar = supportsCssAnchor
   : () => {
       const { t } = useTranslation();
       const { pathname } = useLocation();
+      const visibleMenuItems = useVisibleMenuItems();
 
       const activePath = useMemo(() => {
         return (
@@ -126,7 +148,7 @@ const GlobalNavbar = supportsCssAnchor
       return (
         <nav>
           <ul className="flex items-center p-1 bg-bg-card rounded-full border border-border-button">
-            {menuItems.map(({ path, name, icon: Icon, ...props }) => {
+            {visibleMenuItems.map(({ path, name, icon: Icon, ...props }) => {
               const isActive = path === activePath;
 
               return (

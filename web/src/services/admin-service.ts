@@ -132,6 +132,8 @@ const {
   adminExportDepartments,
   adminFetchDepartmentModels,
   adminResyncAllDepartmentModels,
+  adminGlobalLlm,
+  adminFetchGlobalModels,
 
   adminChatHistoryStats,
   adminChatHistoryOverview,
@@ -295,6 +297,39 @@ export type ResyncModelsStats = {
 
 export const resyncAllDepartmentModels = () =>
   request.post<ResponseData<ResyncModelsStats>>(adminResyncAllDepartmentModels);
+
+// Global "other models": one provider + one model name per auxiliary type.
+export type GlobalModelType =
+  | 'embedding'
+  | 'rerank'
+  | 'image2text'
+  | 'speech2text'
+  | 'tts';
+
+export type GlobalLlmConfig = {
+  api_base: string;
+  api_key: string;
+  models: Record<GlobalModelType, string>;
+};
+
+export type GlobalLlmStats = {
+  users: number;
+  models_configured: number;
+};
+
+export const fetchGlobalModels = (params: {
+  api_base: string;
+  api_key: string;
+}) => request.post<ResponseData<string[]>>(adminFetchGlobalModels, params);
+
+export const getGlobalLlm = () =>
+  request.get<ResponseData<GlobalLlmConfig>>(adminGlobalLlm);
+
+export const saveGlobalLlm = (params: {
+  api_base: string;
+  api_key: string;
+  models: Record<GlobalModelType, string>;
+}) => request.post<ResponseData<GlobalLlmStats>>(adminGlobalLlm, params);
 
 export type ImpersonateResult = {
   auth: string;

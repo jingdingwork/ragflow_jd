@@ -12,6 +12,7 @@ import {
   LucideLogIn,
   LucidePackageSearch,
   LucideRefreshCw,
+  LucideServerCog,
   LucideSettings2,
   LucideShieldCheck,
   LucideSlidersHorizontal,
@@ -46,6 +47,7 @@ import {
 } from '@/services/admin-service';
 
 import { DepartmentLlmDialog } from './components/department-llm-dialog';
+import { GlobalLlmDialog } from './components/global-llm-dialog';
 import { UserLlmDialog } from './components/user-llm-dialog';
 
 function flattenIds(nodes: DepartmentNode[], acc: string[] = []) {
@@ -176,6 +178,7 @@ function AdminDepartments() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [configNode, setConfigNode] = useState<DepartmentNode | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
+  const [globalOpen, setGlobalOpen] = useState(false);
   const [userEdit, setUserEdit] = useState<{
     email: string;
     nickname: string;
@@ -342,6 +345,14 @@ function AdminDepartments() {
               <LucidePackageSearch className="size-4 mr-1" />
               {t('admin.syncModels')}
             </ButtonLoading>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setGlobalOpen(true)}
+            >
+              <LucideServerCog className="size-4 mr-1" />
+              {t('admin.otherModelSettings')}
+            </Button>
             <ButtonLoading
               size="sm"
               variant="outline"
@@ -556,6 +567,12 @@ function AdminDepartments() {
           setUserEditOpen(o);
           if (!o) setUserEdit(null);
         }}
+        onSaved={() => refetch()}
+      />
+
+      <GlobalLlmDialog
+        open={globalOpen}
+        onOpenChange={setGlobalOpen}
         onSaved={() => refetch()}
       />
     </Card>

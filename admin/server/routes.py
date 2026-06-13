@@ -25,7 +25,7 @@ from flask_login import current_user, login_required, logout_user
 
 from auth import login_verify, login_admin, check_admin_auth
 from responses import success_response, error_response
-from services import UserMgr, DepartmentMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, RetrievalMgr, PromptMgr, FolderMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr
+from services import UserMgr, DepartmentMgr, GlobalLLMMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, RetrievalMgr, PromptMgr, FolderMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr
 from roles import RoleMgr
 from api.common.exceptions import AdminException
 from common.versions import get_ragflow_version
@@ -168,6 +168,45 @@ def resync_all_department_llm():
     try:
         stats = DepartmentMgr.resync_all_llm_models()
         return success_response(stats, "Resync all department models", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/global-llm/fetch-models", methods=["POST"])
+@login_required
+@check_admin_auth
+def fetch_global_llm_models():
+    try:
+        data = request.get_json() or {}
+        models = GlobalLLMMgr.fetch_models(data.get("api_base", ""), data.get("api_key", ""))
+        return success_response(models, "Fetch global models", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/global-llm", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_global_llm():
+    try:
+        config = GlobalLLMMgr.get_config()
+        return success_response(config, "Get global LLM config", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/global-llm", methods=["POST"])
+@login_required
+@check_admin_auth
+def save_global_llm():
+    try:
+        data = request.get_json() or {}
+        stats = GlobalLLMMgr.save_config(
+            data.get("api_base", ""),
+            data.get("api_key", ""),
+            data.get("models", {}),
+        )
+        return success_response(stats, "Save global LLM config", 0)
     except Exception as e:
         return error_response(str(e), 500)
 

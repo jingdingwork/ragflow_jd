@@ -12,6 +12,7 @@ import { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
+import { CtciLogo } from '@/components/ctci-logo';
 import { Button, ButtonLoading } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -28,7 +29,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 import FlipCard3D, { FlipFaceContext } from './card';
-import { CtciLogo } from './ctci-logo';
 import './index.less';
 
 const BRAND_GRADIENT_FROM = '#F39800';

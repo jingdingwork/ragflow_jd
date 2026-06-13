@@ -33,6 +33,10 @@ import { useSearchParams } from 'react-router';
 import { ISearchAppDetailProps } from '../next-searches/hooks';
 import { useClickDrawer } from './document-preview-modal/hooks';
 
+// User-side search defaults to 10 results per page (scoped to this page only;
+// other list pages keep the shared 50 default from useSetPaginationParams).
+const SEARCH_PAGE_SIZE = 10;
+
 export interface ISearchingProps {
   searchText?: string;
   data: ISearchAppDetailProps;
@@ -331,7 +335,7 @@ export const useSendQuestion = (
     (question: string, enableAI: boolean = true) => {
       const q = trim(question);
       if (isEmpty(q)) return;
-      setPagination({ page: 1 });
+      setPagination({ page: 1, pageSize: SEARCH_PAGE_SIZE });
       setIsFirstRender(false);
       setCurrentAnswer({} as IAnswer);
       if (enableAI) {
@@ -351,7 +355,7 @@ export const useSendQuestion = (
         highlight: true,
         question: q,
         page: 1,
-        size: pagination.pageSize,
+        size: SEARCH_PAGE_SIZE,
         search_id: searchId,
       });
 

@@ -773,6 +773,27 @@ class DepartmentLLMModel(DataBaseModel):
         )
 
 
+class GlobalLLM(DataBaseModel):
+    """
+    Singleton global "other models" config (one row, id="global"). Holds a single
+    OpenAI-compatible provider plus one model name per auxiliary type
+    (embedding/rerank/image2text/speech2text/tts) that is provisioned onto every
+    user's tenant and set as that tenant's default for the type.
+    """
+    id = CharField(max_length=32, primary_key=True)
+    api_base = CharField(max_length=512, null=False, help_text="OpenAI-compatible base URL", default="")
+    api_key = TextField(null=True, help_text="API key for the global model endpoint")
+    embd_name = CharField(max_length=128, null=False, help_text="global embedding model name", default="")
+    rerank_name = CharField(max_length=128, null=False, help_text="global rerank model name", default="")
+    img2txt_name = CharField(max_length=128, null=False, help_text="global image2text (VLM) model name", default="")
+    asr_name = CharField(max_length=128, null=False, help_text="global speech2text (ASR) model name", default="")
+    tts_name = CharField(max_length=128, null=False, help_text="global tts model name", default="")
+    status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
+
+    class Meta:
+        db_table = "global_llm"
+
+
 class PromptTemplate(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     name = CharField(max_length=255, null=False, help_text="prompt template display name", index=True)
@@ -1106,6 +1127,35 @@ class Conversation(DataBaseModel):
 
     class Meta:
         db_table = "conversation"
+
+
+class SharedConversation(DataBaseModel):
+    """A department-shared snapshot of selected chat turns from a Conversation.
+
+    A normal user's share starts as ``visibility="pending"`` (only the
+    department's admins can see it); a department admin can publish it to
+    ``visibility="department"`` so every department member sees it. Admins may
+    also ``hidden`` a copy (kept visible to admins, hidden from members) or soft
+    delete it. The ``message``/``reference`` are an immutable snapshot — viewers
+    fork them into a brand-new session of their own to continue chatting.
+    """
+
+    id = CharField(max_length=32, primary_key=True)
+    source_session_id = CharField(max_length=32, null=True, help_text="original conversation id (lineage only)", index=True)
+    dialog_id = CharField(max_length=32, null=True, help_text="sharer's chat app id (informational)", index=True)
+    department_id = CharField(max_length=32, null=True, help_text="sharer's department id; governs visibility", index=True)
+    owner_id = CharField(max_length=32, null=False, help_text="sharer user id", index=True)
+    owner_name = CharField(max_length=255, null=True, help_text="sharer nickname (denormalized)")
+    name = CharField(max_length=255, null=True, help_text="shared copy title", index=True)
+    message = JSONField(null=True, help_text="snapshot of selected message turns")
+    reference = JSONField(null=True, default=[], help_text="snapshot of references for selected assistant turns")
+    visibility = CharField(max_length=16, null=False, help_text="pending | department", default="pending", index=True)
+    hidden = BooleanField(null=False, help_text="admin-hidden copy", default=False, index=True)
+    sort = IntegerField(null=False, help_text="display order within the share zone, ascending", default=0, index=True)
+    status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
+
+    class Meta:
+        db_table = "shared_conversation"
 
 
 class APIToken(DataBaseModel):
@@ -1770,6 +1820,7 @@ def migrate_db():
     alter_db_add_column(migrator, "file", "permission", CharField(max_length=16, null=False, help_text="me|department", default="me", index=True))
     alter_db_add_column(migrator, "file", "department_id", CharField(max_length=32, null=True, help_text="creator's department id for department-visible files", index=True))
     alter_db_add_column(migrator, "connector", "department_id", CharField(max_length=32, null=True, help_text="department id for admin-managed department data sources", index=True))
+    alter_db_add_column(migrator, "shared_conversation", "sort", IntegerField(null=False, help_text="display order within the share zone, ascending", default=0, index=True))
     logging.disable(logging.NOTSET)
     # this is after re-enabling logging to allow logging changed user emails
     migrate_add_unique_email(migrator)

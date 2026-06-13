@@ -1,29 +1,15 @@
 // src/components/ModelProviderCard.tsx
-import {
-  ConfirmDeleteDialog,
-  ConfirmDeleteDialogNode,
-} from '@/components/confirm-delete-dialog';
 import { LlmIcon } from '@/components/svg-icon';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { useSetModalState, useTranslate } from '@/hooks/common-hooks';
 import { LlmItem } from '@/hooks/use-llm-request';
 import { getRealModelName } from '@/utils/llm-util';
-import { EditOutlined, SettingOutlined } from '@ant-design/icons';
-import { ChevronsDown, ChevronsUp, Trash2 } from 'lucide-react';
+import { ChevronsDown, ChevronsUp } from 'lucide-react';
 import { FC } from 'react';
-import { isLocalLlmFactory } from '../../utils';
-import {
-  useHandleDeleteFactory,
-  useHandleDeleteLlm,
-  useHandleEnableLlm,
-} from '../hooks';
 import { mapModelKey } from './un-add-model';
 
 interface IModelCardProps {
   item: LlmItem;
-  clickApiKey: (llmFactory: string) => void;
-  handleEditModel: (model: any, factory: LlmItem) => void;
 }
 
 type TagType =
@@ -55,20 +41,9 @@ const sortTags = (tags: string) => {
     );
 };
 
-export const ModelProviderCard: FC<IModelCardProps> = ({
-  item,
-  clickApiKey,
-  handleEditModel,
-}) => {
+export const ModelProviderCard: FC<IModelCardProps> = ({ item }) => {
   const { visible, switchVisible } = useSetModalState();
   const { t } = useTranslate('setting');
-  const { handleEnableLlm } = useHandleEnableLlm(item.name);
-  const { deleteFactory } = useHandleDeleteFactory(item.name);
-  const { handleDeleteLlm } = useHandleDeleteLlm(item.name);
-
-  const handleApiKeyClick = () => {
-    clickApiKey(item.name);
-  };
 
   const handleShowMoreClick = () => {
     switchVisible();
@@ -94,18 +69,7 @@ export const ModelProviderCard: FC<IModelCardProps> = ({
         <div className="flex items-center space-x-2">
           <Button
             variant="outline"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleApiKeyClick();
-            }}
-          >
-            <SettingOutlined />
-            {isLocalLlmFactory(item.name) ? t('addTheModel') : 'API-Key'}
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
               e.stopPropagation();
               handleShowMoreClick();
             }}
@@ -113,32 +77,6 @@ export const ModelProviderCard: FC<IModelCardProps> = ({
             <span>{visible ? t('hideModels') : t('showMoreModels')}</span>
             {!visible ? <ChevronsDown /> : <ChevronsUp />}
           </Button>
-
-          <ConfirmDeleteDialog
-            onOk={() => deleteFactory({ llm_factory: item.name })}
-            title={t('deleteModel')}
-            content={{
-              node: (
-                <ConfirmDeleteDialogNode>
-                  <div className="flex items-center gap-2 border-0.5 text-text-secondary border-border-button rounded-lg px-3 py-4">
-                    <LlmIcon name={item.name} />
-                    {item.name}
-                  </div>
-                </ConfirmDeleteDialogNode>
-              ),
-            }}
-          >
-            <Button
-              size="icon"
-              variant="danger-hover"
-              // onClick={(e) => {
-              //   e.stopPropagation();
-              //   handleDeleteFactory(item);
-              // }}
-            >
-              <Trash2 />
-            </Button>
-          </ConfirmDeleteDialog>
         </div>
       </div>
 
@@ -170,36 +108,6 @@ export const ModelProviderCard: FC<IModelCardProps> = ({
                     <span className="px-2 py-1 text-xs bg-bg-card text-text-secondary rounded-md">
                       {model.type}
                     </span>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {isLocalLlmFactory(item.name) && (
-                      <Button
-                        variant="secondary"
-                        size="icon-sm"
-                        onClick={() => handleEditModel(model, item)}
-                      >
-                        <EditOutlined />
-                      </Button>
-                    )}
-
-                    <Switch
-                      checked={model.status === '1'}
-                      onCheckedChange={(value) => {
-                        handleEnableLlm(model.name, value);
-                      }}
-                    />
-
-                    <Button
-                      size="icon-sm"
-                      variant="danger-hover"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteLlm(model.name);
-                      }}
-                    >
-                      <Trash2 size={16} />
-                    </Button>
                   </div>
                 </li>
               ))}

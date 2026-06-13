@@ -28,12 +28,14 @@ const FunctionMap = {
 export function DatasetActionCell({
   record,
   showRenameModal,
-}: { record: IDocumentInfo } & UseRenameDocumentShowType) {
+  canManage = true,
+}: { record: IDocumentInfo; canManage?: boolean } & UseRenameDocumentShowType) {
   const { id, run, type } = record;
   const isRunning = isParserRunning(run);
   const isVirtualDocument = type === DocumentType.Virtual;
-  // Shared-folder documents are read-only here; hide rename/delete (keep view/download).
-  const isReadOnly = isSharedFolderDocument(record.source_type);
+  // Non-managers (and shared-folder docs) are read-only here: hide rename/delete,
+  // keep view/download.
+  const isReadOnly = isSharedFolderDocument(record.source_type) || !canManage;
 
   const { removeDocument } = useRemoveDocument();
 

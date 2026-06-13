@@ -927,7 +927,6 @@ async def search(dataset_id: str, tenant_id: str, req: dict):
     from api.db.services.doc_metadata_service import DocMetadataService
     from api.db.services.llm_service import LLMBundle
     from api.db.services.search_service import SearchService
-    from api.db.services.user_service import UserTenantService
     from common.constants import LLMType
     from common.metadata_utils import apply_meta_data_filter
     from rag.app.tag import label_question
@@ -994,14 +993,11 @@ async def search(dataset_id: str, tenant_id: str, req: dict):
             metas_loader=lambda: DocMetadataService.get_flatted_meta_by_kbs([dataset_id]),
         )
 
-    tenant_ids = []
-    tenants = UserTenantService.query(user_id=tenant_id)
-    for tenant in tenants:
-        if KnowledgebaseService.query(tenant_id=tenant.tenant_id, id=dataset_id):
-            tenant_ids.append(tenant.tenant_id)
-            break
-    else:
-        return False, "Only owner of dataset authorized for this operation."
+    # Authorization was already enforced via `accessible()` above. Retrieval must
+    # target the dataset owner's tenant (where the chunks are indexed), so users
+    # with department visibility — who are not team members of the owner — can
+    # search too, instead of being wrongly rejected as "not the owner".
+    tenant_ids = [kb.tenant_id]
 
     _question = question
     if langs:
@@ -1286,7 +1282,6 @@ async def search_datasets(tenant_id: str, req: dict):
     from api.db.services.doc_metadata_service import DocMetadataService
     from api.db.services.llm_service import LLMBundle
     from api.db.services.search_service import SearchService
-    from api.db.services.user_service import UserTenantService
     from common.constants import LLMType
     from common.metadata_utils import apply_meta_data_filter
     from rag.app.tag import label_question
@@ -1360,14 +1355,14 @@ async def search_datasets(tenant_id: str, req: dict):
             metas_loader=lambda: DocMetadataService.get_flatted_meta_by_kbs(kb_ids),
         )
 
-    tenant_ids = []
-    tenants = UserTenantService.query(user_id=tenant_id)
-    for tenant in tenants:
-        if any(KnowledgebaseService.query(tenant_id=tenant.tenant_id, id=kb_id) for kb_id in kb_ids):
-            tenant_ids.append(tenant.tenant_id)
-            break
-    else:
-        return False, "Only owner of datasets authorized for this operation."
+    # Authorization was already enforced per-dataset via `accessible()` above
+    # (owner / team / department visibility). Retrieval must target the tenant(s)
+    # that OWN the datasets — that's where the chunks are indexed — NOT the
+    # searcher's own tenants. Deriving the owners from the datasets lets users
+    # search KBs shared to them by department visibility (a department member is
+    # not a team member of the owner's tenant), instead of being wrongly rejected
+    # with "Only owner of datasets authorized".
+    tenant_ids = list({kb.tenant_id for kb in kbs})
 
     kb = kbs[0]
     _question = question

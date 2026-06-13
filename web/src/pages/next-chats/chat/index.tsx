@@ -10,13 +10,14 @@ import { RootLayoutContainer } from '@/layouts/root-layout';
 import { cn } from '@/lib/utils';
 import { useMount } from 'ahooks';
 import { isEmpty } from 'lodash';
-import { LucideArrowBigLeft, LucideArrowUpRight } from 'lucide-react';
+import { LucideArrowBigLeft } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHandleClickConversationCard } from '../hooks/use-click-card';
 import { ChatSettings } from './app-settings/chat-settings';
 import { MultipleChatBox } from './chat-box/next-multiple-chat-box';
 import { SingleChatBox } from './chat-box/single-chat-box';
+import { ChatHeaderControls } from './chat-header-controls';
 import { Sessions } from './sessions';
 import { useAddChatBox } from './use-add-box';
 import { useSwitchDebugMode } from './use-switch-debug-mode';
@@ -120,16 +121,13 @@ export default function Chat() {
                   })}
                 >
                   <CardTitle className="flex justify-between items-center text-base gap-2">
-                    <div className="truncate">{currentConversationName}</div>
+                    <div className="truncate min-w-0">
+                      {currentConversationName}
+                    </div>
 
-                    <Button
-                      variant="ghost"
-                      onClick={switchDebugMode}
-                      data-testid="chat-detail-multimodel-toggle"
-                    >
-                      <LucideArrowUpRight />
-                      {t('chat.multipleModels')}
-                    </Button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <ChatHeaderControls />
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-1 p-0 min-h-0">

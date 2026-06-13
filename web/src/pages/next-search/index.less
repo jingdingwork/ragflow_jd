@@ -114,3 +114,16 @@
     font-style: normal;
   }
 }
+
+// Search result keyword highlight: matched terms come back wrapped in <em>.
+// Mark them with the CTCI brand orange background (readable in light & dark).
+.searchResultHighlight {
+  em {
+    background-color: rgb(243 152 0 / 0.25);
+    color: inherit;
+    font-style: normal;
+    font-weight: 600;
+    border-radius: 2px;
+    padding: 0 2px;
+  }
+}

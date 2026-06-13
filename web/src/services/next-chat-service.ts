@@ -5,6 +5,7 @@ const {
   createChat,
   listPromptTemplates,
   listChats,
+  getDefaultChat,
   getChat,
   updateChat,
   patchChat,
@@ -22,6 +23,15 @@ const {
   chatsRelatedQuestions,
   documentInfoUpload,
   fetchExternalChatInfo,
+  shareSession,
+  listSharedConversations,
+  reorderSharedConversations,
+  getSharedConversation,
+  renameSharedConversation,
+  publishSharedConversation,
+  hideSharedConversation,
+  deleteSharedConversation,
+  forkSharedConversation,
 } = api;
 
 const methods = {
@@ -35,6 +45,10 @@ const methods = {
   },
   listChats: {
     url: listChats,
+    method: 'get',
+  },
+  getDefaultChat: {
+    url: getDefaultChat,
     method: 'get',
   },
   getChat: {
@@ -104,6 +118,42 @@ const methods = {
   fetchExternalChatInfo: {
     url: fetchExternalChatInfo,
     method: 'get',
+  },
+  shareSession: {
+    url: shareSession,
+    method: 'post',
+  },
+  listSharedConversations: {
+    url: listSharedConversations,
+    method: 'get',
+  },
+  getSharedConversation: {
+    url: getSharedConversation,
+    method: 'get',
+  },
+  reorderSharedConversations: {
+    url: reorderSharedConversations,
+    method: 'post',
+  },
+  renameSharedConversation: {
+    url: renameSharedConversation,
+    method: 'patch',
+  },
+  publishSharedConversation: {
+    url: publishSharedConversation,
+    method: 'post',
+  },
+  hideSharedConversation: {
+    url: hideSharedConversation,
+    method: 'post',
+  },
+  deleteSharedConversation: {
+    url: deleteSharedConversation,
+    method: 'delete',
+  },
+  forkSharedConversation: {
+    url: forkSharedConversation,
+    method: 'post',
   },
 } as const;
 

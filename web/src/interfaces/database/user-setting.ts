@@ -10,6 +10,8 @@ export interface IUserInfo {
   is_anonymous: string;
   is_authenticated: string;
   is_superuser: boolean;
+  is_dept_admin: boolean;
+  department_id?: string;
   language: string;
   last_login_time: string;
   login_channel: string;
@@ -93,4 +95,24 @@ export interface ITenant {
   role: string;
   tenant_id: string;
   update_date: string;
+}
+
+export interface IDepartmentMember {
+  email: string;
+  nickname: string;
+  avatar?: string;
+  is_dept_admin: boolean;
+  is_active: boolean;
+  department_id: string;
+  department_name?: string;
+  last_login_time?: string;
+}
+
+export interface IMyDepartment {
+  department: {
+    id: string;
+    name: string;
+    path_key: string;
+  } | null;
+  members: IDepartmentMember[];
 }

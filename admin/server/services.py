@@ -37,6 +37,12 @@ from api.db.services.department_llm_service import (
     resync_department_models,
     resync_all_department_models,
 )
+from api.db.services.global_llm_service import (
+    fetch_models as fetch_global_models,
+    get_global_config,
+    save_global_config,
+    apply_global_models_to_user,
+)
 from api.db.joint_services.user_account_service import create_new_user, delete_user_data
 from api.db.services.canvas_service import UserCanvasService
 from api.db.services.user_service import TenantService, UserTenantService
@@ -425,6 +431,7 @@ class DepartmentMgr:
                             new_id = (res.get("user_info") or {}).get("id")
                             if new_id:
                                 apply_department_models_to_user(new_id, dept_id)
+                                apply_global_models_to_user(new_id)
                         else:
                             stats["failed"] += 1
                     except Exception:
@@ -449,6 +456,7 @@ class DepartmentMgr:
                 else:
                     stats["unchanged"] += 1
                 apply_department_models_to_user(user.id, dept_id)
+                apply_global_models_to_user(user.id)
             except Exception:
                 logging.exception(f"Failed to sync user {info.get('email')}")
                 stats["failed"] += 1
@@ -542,6 +550,23 @@ class DepartmentMgr:
         buffer = io.BytesIO()
         wb.save(buffer)
         return buffer.getvalue()
+
+
+class GlobalLLMMgr:
+    """Global "other models" config: one provider + one model per auxiliary type,
+    applied to every user's tenant defaults."""
+
+    @staticmethod
+    def fetch_models(api_base, api_key):
+        return fetch_global_models(api_base, api_key)
+
+    @staticmethod
+    def get_config():
+        return get_global_config()
+
+    @staticmethod
+    def save_config(api_base, api_key, models):
+        return save_global_config(api_base, api_key, models)
 
 
 class ChatHistoryMgr:
