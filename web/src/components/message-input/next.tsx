@@ -79,6 +79,7 @@ export function NextMessageInput({
   const [audioInputValue, setAudioInputValue] = React.useState<string | null>(
     null,
   );
+  const formRef = React.useRef<HTMLFormElement>(null);
 
   const [enableThinking, setEnableThinking] = useState(false);
   const [enableInternet, setEnableInternet] = useState(false);
@@ -138,6 +139,50 @@ export function NextMessageInput({
     }
   };
 
+  // Support pasting files/images from the clipboard directly into the input.
+  // Routes pasted files through the same hidden file input the dropzone uses,
+  // so they go through the regular validation + upload pipeline.
+  const handlePaste = React.useCallback(
+    (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      if (!showUploadIcon || disabled || isUploading || sendLoading) return;
+
+      const items = event.clipboardData?.items;
+      if (!items) return;
+
+      const pastedFiles: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item?.kind === 'file') {
+          const file = item.getAsFile();
+          if (file) {
+            pastedFiles.push(file);
+          }
+        }
+      }
+
+      // No files in the clipboard — let normal text pasting proceed.
+      if (pastedFiles.length === 0) return;
+
+      event.preventDefault();
+
+      // The hidden file input is a sibling of the form inside the FileUpload root.
+      const inputElement =
+        formRef.current?.parentElement?.querySelector<HTMLInputElement>(
+          'input[type="file"]',
+        );
+      if (!inputElement) return;
+
+      const dataTransfer = new DataTransfer();
+      for (const file of pastedFiles) {
+        dataTransfer.items.add(file);
+      }
+
+      inputElement.files = dataTransfer.files;
+      inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+    },
+    [showUploadIcon, disabled, isUploading, sendLoading],
+  );
+
   const onSubmit = React.useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -180,6 +225,7 @@ export function NextMessageInput({
       </FileUploadDropzone>
 
       <form
+        ref={formRef}
         onSubmit={onSubmit}
         className="
           relative flex w-full flex-col gap-2.5 rounded-md
@@ -222,6 +268,7 @@ export function NextMessageInput({
           "
           disabled={isUploading || disabled || sendLoading}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           autoSize={{ minRows: 2, maxRows: 8 }}
         />
 
