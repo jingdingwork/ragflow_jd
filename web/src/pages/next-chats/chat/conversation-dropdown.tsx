@@ -5,6 +5,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { MessageType } from '@/constants/chat';
 import {
   useFetchSessionManually,
   useGetChatSearchParams,
@@ -41,7 +42,14 @@ export function ConversationDropdown({
   const [shareOpen, setShareOpen] = useState(false);
   const [shareMessages, setShareMessages] = useState<Message[]>([]);
 
-  const isTemporary = conversation.is_new || isNew === 'true';
+  // The share action is available only once the conversation actually has a
+  // chat record, i.e. at least one user message. A brand-new session that only
+  // carries the assistant prologue (and nothing has been asked yet) is not
+  // shareable. This is a per-conversation check and must not depend on the
+  // currently-active session's `isNew` URL flag.
+  const hasChatRecords = (conversation.messages ?? []).some(
+    (m) => m.role === MessageType.User,
+  );
 
   const handleOpenShare = useCallback(async () => {
     const conv = await fetchSessionManually(conversation.id);
@@ -76,7 +84,7 @@ export function ConversationDropdown({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
         <DropdownMenuContent>
-          {!isTemporary && (
+          {hasChatRecords && (
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation();

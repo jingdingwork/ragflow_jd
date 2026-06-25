@@ -38,6 +38,7 @@ export const enum ChatApiAction {
   PatchChat = 'patchChat',
   FetchChat = 'fetchChat',
   FetchSessionList = 'fetchSessionList',
+  FetchAllConversations = 'fetchAllConversations',
   FetchSession = 'fetchSession',
   FetchSessionManually = 'fetchSessionManually',
   CreateSession = 'createSession',
@@ -347,6 +348,40 @@ export const useFetchSessionList = () => {
   });
 
   return { data, loading, refetch, searchString, handleInputChange };
+};
+
+export interface IConversationSummary {
+  id: string;
+  name: string;
+  chat_id: string;
+  chat_name: string;
+  avatar?: string;
+  create_time?: number;
+  update_time?: number;
+}
+
+/**
+ * List the current user's recent conversations across all their chats,
+ * newest-updated first. Used by the home page to surface conversations
+ * instead of chat apps.
+ */
+export const useFetchAllConversations = () => {
+  const {
+    data,
+    isFetching: loading,
+    refetch,
+  } = useQuery<IConversationSummary[]>({
+    queryKey: [ChatApiAction.FetchAllConversations],
+    initialData: [],
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const { data } = await chatService.listAllConversations();
+      return data?.data ?? [];
+    },
+  });
+
+  return { data, loading, refetch };
 };
 
 export function useFetchSessionManually() {

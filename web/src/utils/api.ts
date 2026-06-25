@@ -152,6 +152,7 @@ export default {
   patchChat: (chatId: string) => `${restAPIv1}/chats/${chatId}`,
   deleteChat: (chatId: string) => `${restAPIv1}/chats/${chatId}`,
   bulkDeleteChats: `${restAPIv1}/chats`,
+  listAllConversations: `${restAPIv1}/chats/conversations`,
   createSession: (chatId: string) => `${restAPIv1}/chats/${chatId}/sessions`,
   listSessions: (chatId: string) => `${restAPIv1}/chats/${chatId}/sessions`,
   getSession: (chatId: string, sessionId: string) =>

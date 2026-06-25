@@ -11,6 +11,7 @@ const {
   patchChat,
   deleteChat,
   bulkDeleteChats,
+  listAllConversations,
   createSession,
   listSessions,
   getSession,
@@ -70,6 +71,10 @@ const methods = {
   bulkDeleteChats: {
     url: bulkDeleteChats,
     method: 'delete',
+  },
+  listAllConversations: {
+    url: listAllConversations,
+    method: 'get',
   },
   createSession: {
     url: createSession,

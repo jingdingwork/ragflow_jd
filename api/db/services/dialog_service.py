@@ -216,6 +216,17 @@ class DialogService(CommonService):
 
     @classmethod
     @DB.connection_context()
+    def get_meta_by_tenant_id(cls, tenant_id):
+        """Return id/name/icon for a tenant's valid dialogs, for display joins."""
+        fields = [cls.model.id, cls.model.name, cls.model.icon]
+        dialogs = cls.model.select(*fields).where(
+            (cls.model.tenant_id == tenant_id)
+            & (cls.model.status == StatusEnum.VALID.value)
+        )
+        return list(dialogs.dicts())
+
+    @classmethod
+    @DB.connection_context()
     def get_all_dialogs_by_tenant_id(cls, tenant_id):
         fields = [cls.model.id]
         dialogs = cls.model.select(*fields).where(cls.model.tenant_id == tenant_id)

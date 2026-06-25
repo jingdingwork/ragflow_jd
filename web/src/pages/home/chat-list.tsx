@@ -1,13 +1,9 @@
 import { HomeCard } from '@/components/home-card';
-import { MoreButton } from '@/components/more-button';
-import { RenameDialog } from '@/components/rename-dialog';
-import { useNavigatePage } from '@/hooks/logic-hooks/navigate-hooks';
-import { useFetchChatList } from '@/hooks/use-chat-request';
-import { useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import { ChatDropdown } from '../next-chats/chat-dropdown';
-import { CreateChatDialog } from '../next-chats/components/create-chat-dialog';
-import { useRenameChat } from '../next-chats/hooks/use-rename-chat';
+import { ChatSearchParams } from '@/constants/chat';
+import { useFetchAllConversations } from '@/hooks/use-chat-request';
+import { Routes } from '@/routes';
+import { useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router';
 
 export function ChatList({
   setListLength,
@@ -16,56 +12,38 @@ export function ChatList({
   setListLength: (length: number) => void;
   setLoading?: (loading: boolean) => void;
 }) {
-  const { t } = useTranslation();
-  const { data, loading } = useFetchChatList();
-  const { navigateToChat } = useNavigatePage();
+  const { data, loading } = useFetchAllConversations();
+  const navigate = useNavigate();
 
-  const {
-    initialChatName,
-    isCreatingChat,
-    chatRenameVisible,
-    showChatRenameModal,
-    hideChatRenameModal,
-    onChatRenameOk,
-    chatRenameLoading,
-  } = useRenameChat();
+  const openConversation = useCallback(
+    (chatId: string, conversationId: string) => () => {
+      navigate(
+        `${Routes.Chat}/${chatId}?${ChatSearchParams.ConversationId}=${conversationId}`,
+      );
+    },
+    [navigate],
+  );
+
   useEffect(() => {
-    setListLength(data?.chats?.length || 0);
+    setListLength(data?.length || 0);
     setLoading?.(loading || false);
   }, [data, setListLength, loading, setLoading]);
+
   return (
     <>
-      {data.chats.slice(0, 10).map((x) => (
+      {data.slice(0, 10).map((x) => (
         <HomeCard
           key={x.id}
           data={{
-            avatar: x.icon,
-            ...x,
+            name: x.name,
+            avatar: x.avatar,
+            description: x.chat_name,
+            update_time: x.update_time,
           }}
-          onClick={navigateToChat(x.id)}
-          moreDropdown={
-            <ChatDropdown chat={x} showChatRenameModal={showChatRenameModal}>
-              <MoreButton></MoreButton>
-            </ChatDropdown>
-          }
+          onClick={openConversation(x.chat_id, x.id)}
+          moreDropdown={null}
         ></HomeCard>
       ))}
-      {chatRenameVisible &&
-        (isCreatingChat ? (
-          <CreateChatDialog
-            hideModal={hideChatRenameModal}
-            onOk={onChatRenameOk}
-            loading={chatRenameLoading}
-          />
-        ) : (
-          <RenameDialog
-            hideModal={hideChatRenameModal}
-            onOk={onChatRenameOk}
-            initialName={initialChatName}
-            loading={chatRenameLoading}
-            title={initialChatName || t('chat.createChat')}
-          ></RenameDialog>
-        ))}
     </>
   );
 }

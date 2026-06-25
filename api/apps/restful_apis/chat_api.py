@@ -521,6 +521,44 @@ async def list_chats():
         return server_error_response(ex)
 
 
+@manager.route("/chats/conversations", methods=["GET"])  # noqa: F821
+@login_required
+async def list_all_conversations():
+    """List the current user's recent conversations across all their chats,
+    newest-updated first, with the owning chat's name/icon attached."""
+    try:
+        limit = int(request.args.get("limit", 200))
+
+        dialogs_meta = await thread_pool_exec(
+            DialogService.get_meta_by_tenant_id, current_user.id
+        )
+        dialog_map = {d["id"]: d for d in dialogs_meta}
+        if not dialog_map:
+            return get_json_result(data=[])
+
+        convs = await thread_pool_exec(
+            ConversationService.get_meta_by_dialog_ids, list(dialog_map.keys()), limit
+        )
+
+        result = []
+        for conv in convs:
+            dialog = dialog_map.get(conv["dialog_id"], {})
+            result.append(
+                {
+                    "id": conv["id"],
+                    "name": conv.get("name"),
+                    "chat_id": conv["dialog_id"],
+                    "chat_name": dialog.get("name"),
+                    "avatar": dialog.get("icon"),
+                    "create_time": conv.get("create_time"),
+                    "update_time": conv.get("update_time"),
+                }
+            )
+        return get_json_result(data=result)
+    except Exception as ex:
+        return server_error_response(ex)
+
+
 @manager.route("/chats/<chat_id>", methods=["GET"])  # noqa: F821
 @login_required
 async def get_chat(chat_id):

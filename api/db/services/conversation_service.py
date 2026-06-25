@@ -69,6 +69,29 @@ class ConversationService(CommonService):
             offset += limit
         return res
 
+    @classmethod
+    @DB.connection_context()
+    def get_meta_by_dialog_ids(cls, dialog_ids, limit=200):
+        """Lightweight cross-dialog conversation list (no message body),
+        newest-updated first. Used to render a user's recent conversations."""
+        if not dialog_ids:
+            return []
+        fields = [
+            cls.model.id,
+            cls.model.dialog_id,
+            cls.model.name,
+            cls.model.create_time,
+            cls.model.update_time,
+        ]
+        sessions = (
+            cls.model.select(*fields)
+            .where(cls.model.dialog_id.in_(dialog_ids))
+            .order_by(cls.model.update_time.desc())
+        )
+        if limit > 0:
+            sessions = sessions.limit(limit)
+        return list(sessions.dicts())
+
 
 def structure_answer(conv, ans, message_id, session_id):
     reference = ans["reference"]
