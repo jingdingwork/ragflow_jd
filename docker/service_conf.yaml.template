@@ -67,14 +67,12 @@ user_default_llm:
       base_url: 'http://localhost:6380'
 oauth:
   oidc:
-    display_name: JDEC
-    # TODO: realm 已改为 master，请确认该 realm 下 client_id / client_secret 是否需要更新
-    client_id: yhj
-    client_secret: ItuL82aguvfVUvauDl1KIv3YayzTOYej
-    issuer: http://172.27.1.91:8082/realms/master
-    scope: openid email profile
-    # TODO: 改成生产对外访问地址（当前按部署机 80 端口填）
-    redirect_uri: http://172.27.1.91/api/v1/auth/oauth/oidc/callback
+    display_name: ${OIDC_DISPLAY_NAME:-JDEC}
+    client_id: ${OIDC_CLIENT_ID}
+    client_secret: ${OIDC_CLIENT_SECRET}
+    issuer: ${OIDC_ISSUER}
+    scope: ${OIDC_SCOPE:-openid email profile}
+    redirect_uri: ${OIDC_REDIRECT_URI}
 # postgres:
 #   name: '${POSTGRES_DBNAME:-rag_flow}'
 #   user: '${POSTGRES_USER:-rag_flow}'
