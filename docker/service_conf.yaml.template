@@ -59,8 +59,22 @@ redis:
 user_default_llm:
   default_models:
     embedding_model:
+      name: 'bge-m3'
+      factory: 'xxxx'
       api_key: 'xxx'
-      base_url: 'http://${TEI_HOST}:80'
+      # TODO: 容器内 localhost 指向容器自身，连不到宿主机 TEI。
+      # 后续改成可达地址，如 http://172.27.1.90:6380 或 http://host.docker.internal:6380
+      base_url: 'http://localhost:6380'
+oauth:
+  oidc:
+    display_name: JDEC
+    # TODO: realm 已改为 master，请确认该 realm 下 client_id / client_secret 是否需要更新
+    client_id: yhj
+    client_secret: ItuL82aguvfVUvauDl1KIv3YayzTOYej
+    issuer: http://172.27.1.91:8082/realms/master
+    scope: openid email profile
+    # TODO: 改成生产对外访问地址（当前按部署机 80 端口填）
+    redirect_uri: http://172.27.1.91/api/v1/auth/oauth/oidc/callback
 # postgres:
 #   name: '${POSTGRES_DBNAME:-rag_flow}'
 #   user: '${POSTGRES_USER:-rag_flow}'

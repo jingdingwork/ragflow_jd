@@ -28,6 +28,9 @@ Cargo.lock
 
 # Exclude the log folder
 docker/ragflow-logs/
+
+# Exclude deployment secrets (contains DB passwords)
+docker/.env
 /flask_session
 /logs
 rag/res/deepdoc

@@ -1,0 +1,29 @@
+# 生产部署用 compose：只跑 RAGFlow 应用容器，连接外部已有的 MySQL/ES/Redis/MinIO。
+# 不要用 docker-compose.yml（那个会 include base 把数据库也起起来）。
+#
+# 部署机只需放置：本文件 + .env（同目录 /opt/ragflow_jd/docker/）。
+# service_conf.yaml.template / entrypoint.sh 已打进镜像，无需挂载。
+#
+# 启动：
+#   export RAGFLOW_TAG=<jenkins构建tag>   # 不传则用 latest
+#   docker compose -f docker-compose-deploy.yml pull
+#   docker compose -f docker-compose-deploy.yml up -d
+services:
+  ragflow:
+    # TODO: 确认 registry 端口（5050 为 GitLab 默认）
+    image: 172.27.1.90:5050/ctcibj/ragflow_jd:${RAGFLOW_TAG:-latest}
+    container_name: ragflow_jd
+    command:
+      - --enable-adminserver
+    ports:
+      - "80:80"      # Web
+      - "443:443"
+      - "9380:9380"  # HTTP API
+      - "9381:9381"  # Admin
+    volumes:
+      - ./ragflow-logs:/ragflow/logs
+    env_file: .env
+    restart: unless-stopped
+    extra_hosts:
+      # 让容器内可用 host.docker.internal 访问宿主机（如本机 TEI）
+      - "host.docker.internal:host-gateway"
