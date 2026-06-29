@@ -30,12 +30,7 @@ pipeline {
   }
 
   stages {
-    stage('Checkout') {
-      steps {
-        // 必须带 .git，Dockerfile 靠它生成 VERSION 文件
-        checkout scm
-      }
-    }
+    // 注：声明式管道已自动 checkout 代码（含 .git）到工作目录，无需再显式 checkout
 
     stage('Build Image') {
       steps {
