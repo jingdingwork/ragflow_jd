@@ -17,7 +17,7 @@
 import os
 import os.path
 import logging
-from logging.handlers import RotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler
 from common.file_utils import get_project_base_directory
 
 initialized_root_logger = False
@@ -36,7 +36,9 @@ def init_root_logger(logfile_basename: str, log_format: str = "%(asctime)-15s %(
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
     formatter = logging.Formatter(log_format)
 
-    handler1 = RotatingFileHandler(log_path, maxBytes=10*1024*1024, backupCount=5)
+    # Rotate daily at midnight; keep 30 days. Rotated files get a .YYYY-MM-DD suffix.
+    handler1 = TimedRotatingFileHandler(log_path, when="midnight", interval=1, backupCount=30, encoding="utf-8")
+    handler1.suffix = "%Y-%m-%d"
     handler1.setFormatter(formatter)
     logger.addHandler(handler1)
 

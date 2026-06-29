@@ -110,10 +110,10 @@ user_default_llm:
 #     image2text_model: ''
 oauth:
   oidc:
-    display_name: JDEC
-    client_id: yhj
-    client_secret: ItuL82aguvfVUvauDl1KIv3YayzTOYej
-    issuer: http://172.27.1.57:8080/realms/JDEC
+    display_name: ragflow
+    client_id: ragflow
+    client_secret: E27DQggVIrcgeYrcqJu1ozVjK0zjvufj
+    issuer: http://172.27.1.91:8082/realms/master
     scope: openid email profile
     redirect_uri: http://172.27.202.192:9222/api/v1/auth/oauth/oidc/callback
 # authentication:

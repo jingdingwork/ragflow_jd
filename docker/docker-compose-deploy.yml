@@ -21,7 +21,7 @@ services:
       - "9380:9380"  # HTTP API
       - "9381:9381"  # Admin
     volumes:
-      - ./ragflow-logs:/ragflow/logs
+      - /data/logs/ragflow:/ragflow/logs
     env_file: .env
     restart: unless-stopped
     extra_hosts:
