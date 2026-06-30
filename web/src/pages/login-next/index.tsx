@@ -436,7 +436,7 @@ const Login = () => {
         }}
       />
 
-      <div className="relative min-h-full overflow-auto">
+      <div className="relative flex min-h-full flex-col overflow-auto">
         {/* Top-left brand block */}
         <div className="absolute top-8 left-10 z-30 flex items-center gap-4 group cursor-default animate-fade-in-down">
           <div className="relative">
@@ -458,7 +458,7 @@ const Login = () => {
         </div>
 
         {/* Hero + Form */}
-        <div className="relative z-10 flex flex-col items-center justify-center min-h-[1050px] px-4 sm:px-6 lg:px-8 pt-24 pb-16">
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-28 pb-16">
           <div className="text-center mb-12 animate-fade-in-up">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#F39800]/30 bg-[#F39800]/5 text-[11px] tracking-[0.25em] text-[#F39800] uppercase mb-6">
               <span className="size-1.5 rounded-full bg-[#F39800] animate-pulse" />
