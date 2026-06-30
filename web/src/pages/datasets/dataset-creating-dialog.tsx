@@ -32,7 +32,6 @@ import {
   EmbeddingModelItem,
   ParseTypeItem,
 } from '../dataset/dataset-setting/configuration/common-item';
-import { PermissionFormField } from '../dataset/dataset-setting/permission-form-field';
 
 const FormId = 'dataset-creating-form';
 
@@ -88,9 +87,11 @@ export function InputForm({ onOk }: IModalProps<any>) {
     defaultValues: {
       name: '',
       parseType: ParseType.BuiltIn,
-      [ChunkMethodName]: '',
+      // 解析方式默认 General（naive），用户可自行更换
+      [ChunkMethodName]: 'naive',
       embedding_model: tenantInfo?.embd_id,
-      permission: 'me',
+      // 权限默认部门（员工只能由部门管理员创建，统一归属部门）
+      permission: 'department',
     },
   });
 
@@ -144,7 +145,8 @@ export function InputForm({ onOk }: IModalProps<any>) {
         />
 
         <EmbeddingModelItem line={2} isEdit={false} />
-        <PermissionFormField />
+        {/* 权限选择隐藏：统一默认部门 */}
+        {/* <PermissionFormField /> */}
         <ParseTypeItem />
         {parseType === ParseType.BuiltIn && (
           <ChunkMethodItem name={ChunkMethodName}></ChunkMethodItem>

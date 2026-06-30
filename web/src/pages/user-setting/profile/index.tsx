@@ -209,8 +209,8 @@ const ProfilePage: FC = () => {
           </div>
         </div>
 
-        {/* Password */}
-        <div className="flex items-start gap-4">
+        {/* Password —— OIDC 登录环境下隐藏密码修改 */}
+        {/* <div className="flex items-start gap-4">
           <label className="w-[190px] text-sm font-medium">
             {t('password')}
           </label>
@@ -226,7 +226,7 @@ const ProfilePage: FC = () => {
               <PenLine size={12} /> {t('edit')}
             </Button>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {editType && (
