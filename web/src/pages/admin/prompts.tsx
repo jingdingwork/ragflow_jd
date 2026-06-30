@@ -102,6 +102,8 @@ function AdminPrompts() {
       <TableCell>
         {p.scope === 'default' ? (
           <Badge variant="default">{t('admin.promptScopeDefault')}</Badge>
+        ) : p.scope === 'all' ? (
+          <Badge variant="default">{t('admin.promptScopeAll')}</Badge>
         ) : (
           <Badge variant="secondary">
             {deptNames[p.department_id] || t('admin.promptScopeDepartment')}

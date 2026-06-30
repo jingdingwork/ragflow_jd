@@ -169,6 +169,10 @@ export function PromptFormDialog({
                   {t('admin.promptScopeDefault')}
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer text-sm">
+                  <RadioGroupItem value="all" />
+                  {t('admin.promptScopeAll')}
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-sm">
                   <RadioGroupItem value="department" />
                   {t('admin.promptScopeDepartment')}
                 </label>

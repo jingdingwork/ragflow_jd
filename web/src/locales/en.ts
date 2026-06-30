@@ -3076,6 +3076,7 @@ Important structured information may include: names, dates, locations, events, k
       promptNameRequired: 'Prompt name is required',
       promptScope: 'Scope',
       promptScopeDefault: 'Default (global)',
+      promptScopeAll: 'All users',
       promptScopeDepartment: 'Department',
       promptDepartment: 'Department',
       promptDepartmentPlaceholder: 'Select a department',

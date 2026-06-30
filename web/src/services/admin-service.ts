@@ -805,7 +805,7 @@ export const testSandboxConnection = (params: {
     config: params.config,
   });
 
-export type PromptScope = 'default' | 'department';
+export type PromptScope = 'default' | 'all' | 'department';
 
 export type PromptTemplate = {
   id: string;

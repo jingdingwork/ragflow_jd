@@ -150,7 +150,7 @@ export const useFetchChatList = () => {
 export interface IPromptTemplate {
   id: string;
   name: string;
-  scope: 'default' | 'department' | 'personal';
+  scope: 'default' | 'all' | 'department' | 'personal';
   system: string;
   prologue: string;
   is_default: boolean;

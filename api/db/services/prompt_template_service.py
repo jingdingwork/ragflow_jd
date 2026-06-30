@@ -21,11 +21,18 @@ from common.constants import StatusEnum
 from common.misc_utils import get_uuid
 
 SCOPE_DEFAULT = "default"
+SCOPE_ALL = "all"
 SCOPE_DEPARTMENT = "department"
 SCOPE_PERSONAL = "personal"
-VALID_SCOPES = {SCOPE_DEFAULT, SCOPE_DEPARTMENT}
+VALID_SCOPES = {SCOPE_DEFAULT, SCOPE_ALL, SCOPE_DEPARTMENT}
+# Admin-managed scopes:
+#   default    – the global preset/fallback prompt (visible to everyone)
+#   all        – visible to every user as a selectable option (not the fallback)
+#   department – visible only to that department
 # personal templates are user-owned, created from the chat settings UI, and are
-# not part of the admin-managed library (SCOPE_DEFAULT / SCOPE_DEPARTMENT).
+# not part of the admin-managed library.
+# Scopes whose templates are visible to every user, regardless of department.
+GLOBAL_SCOPES = (SCOPE_DEFAULT, SCOPE_ALL)
 
 # Ultimate fallback used only when no template is configured at all. Kept in sync
 # with the historical hard-coded default in api/apps/restful_apis/chat_api.py.
@@ -57,12 +64,12 @@ def _serialize(t):
     }
 
 
-_SCOPE_ORDER = {SCOPE_DEFAULT: 0, SCOPE_DEPARTMENT: 1, SCOPE_PERSONAL: 2}
+_SCOPE_ORDER = {SCOPE_DEFAULT: 0, SCOPE_ALL: 1, SCOPE_DEPARTMENT: 2, SCOPE_PERSONAL: 3}
 
 
 def _order_key(item):
-    # default scope first, then department, then the user's own personal ones;
-    # within a scope by sort, then name.
+    # default first, then all-visible, then department, then the user's own
+    # personal ones; within a scope by sort, then name.
     return (_SCOPE_ORDER.get(item["scope"], 9), item.get("sort", 0), item.get("name", ""))
 
 
@@ -88,9 +95,10 @@ class PromptTemplateService(CommonService):
     @classmethod
     @DB.connection_context()
     def list_for_user(cls, department_id, user_id=None):
-        """Templates available to a user: all global defaults + that user's
-        department's + the user's own personal templates."""
-        cond = cls.model.scope == SCOPE_DEFAULT
+        """Templates available to a user: all globally-visible templates
+        (default + all) + that user's department's + the user's own personal
+        templates."""
+        cond = cls.model.scope.in_(GLOBAL_SCOPES)
         if department_id:
             cond = cond | ((cls.model.scope == SCOPE_DEPARTMENT) & (cls.model.department_id == department_id))
         if user_id:
@@ -238,7 +246,7 @@ class PromptTemplateService(CommonService):
             # templates. Anything else falls back to default so a client cannot
             # snapshot another department's / user's template by id.
             if row and (
-                row.scope == SCOPE_DEFAULT
+                row.scope in GLOBAL_SCOPES
                 or (row.scope == SCOPE_DEPARTMENT and row.department_id == department_id)
                 or (row.scope == SCOPE_PERSONAL and user_id and row.created_by == user_id)
             ):

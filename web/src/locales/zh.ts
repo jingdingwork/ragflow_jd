@@ -255,6 +255,7 @@ export default {
       promptNameRequired: '提示词名称为必填项',
       promptScope: '范围',
       promptScopeDefault: '默认(全局)',
+      promptScopeAll: '全部',
       promptScopeDepartment: '部门',
       promptDepartment: '部门',
       promptDepartmentPlaceholder: '请选择部门',
