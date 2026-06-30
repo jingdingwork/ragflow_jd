@@ -257,7 +257,8 @@ def _apply_prompt_defaults(req, user=None):
     if template_id or need_system or need_prologue:
         from api.db.services.prompt_template_service import PromptTemplateService
         department_id = getattr(user, "department_id", None) if user else None
-        resolved = PromptTemplateService.resolve(template_id, department_id)
+        user_id = getattr(user, "id", None) if user else None
+        resolved = PromptTemplateService.resolve(template_id, department_id, user_id)
         if template_id or need_system:
             prompt_config["system"] = resolved["system"]
         if template_id or need_prologue:
@@ -464,8 +465,52 @@ async def list_prompt_templates():
     try:
         from api.db.services.prompt_template_service import PromptTemplateService
         department_id = getattr(current_user, "department_id", None)
-        items = await thread_pool_exec(PromptTemplateService.list_for_user, department_id)
+        items = await thread_pool_exec(PromptTemplateService.list_for_user, department_id, current_user.id)
         return get_json_result(data=items)
+    except Exception as ex:
+        return server_error_response(ex)
+
+
+@manager.route("/chats/prompt-templates", methods=["POST"])  # noqa: F821
+@login_required
+async def create_prompt_template():
+    """Save the current system prompt as a personal, reusable template."""
+    try:
+        from api.db.services.prompt_template_service import PromptTemplateService
+        req = await get_request_json()
+        name, err = _validate_name(req.get("name"), required=True)
+        if err:
+            return get_data_error_result(message=err)
+        system = req.get("system")
+        if not isinstance(system, str) or not system.strip():
+            return get_data_error_result(message="`system` is required.")
+        prologue = req.get("prologue") or ""
+        if not isinstance(prologue, str):
+            return get_data_error_result(message="`prologue` must be a string.")
+        department_id = getattr(current_user, "department_id", None)
+        item = await thread_pool_exec(
+            PromptTemplateService.create_personal,
+            current_user.id, department_id, name, system, prologue,
+        )
+        if not item:
+            return get_data_error_result(message="Failed to save prompt template.")
+        return get_json_result(data=item)
+    except Exception as ex:
+        return server_error_response(ex)
+
+
+@manager.route("/chats/prompt-templates/<template_id>", methods=["DELETE"])  # noqa: F821
+@login_required
+async def delete_prompt_template(template_id):
+    """Delete one of the current user's personal templates."""
+    try:
+        from api.db.services.prompt_template_service import PromptTemplateService
+        ok = await thread_pool_exec(PromptTemplateService.delete_personal, current_user.id, template_id)
+        if not ok:
+            return get_json_result(
+                data=False, message="No authorization.", code=RetCode.AUTHENTICATION_ERROR
+            )
+        return get_json_result(data=True)
     except Exception as ex:
         return server_error_response(ex)
 

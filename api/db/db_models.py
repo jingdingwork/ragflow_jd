@@ -803,6 +803,7 @@ class PromptTemplate(DataBaseModel):
     prologue = TextField(null=True, help_text="assistant opener shown on entering a chat")
     is_default = BooleanField(null=False, help_text="preselected template within its scope", default=False, index=True)
     sort = IntegerField(null=False, help_text="display order, ascending", default=0, index=True)
+    created_by = CharField(max_length=32, null=True, help_text="owner user id for personal-scope templates", index=True)
     status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
 
     class Meta:
@@ -1821,6 +1822,7 @@ def migrate_db():
     alter_db_add_column(migrator, "file", "department_id", CharField(max_length=32, null=True, help_text="creator's department id for department-visible files", index=True))
     alter_db_add_column(migrator, "connector", "department_id", CharField(max_length=32, null=True, help_text="department id for admin-managed department data sources", index=True))
     alter_db_add_column(migrator, "shared_conversation", "sort", IntegerField(null=False, help_text="display order within the share zone, ascending", default=0, index=True))
+    alter_db_add_column(migrator, "prompt_template", "created_by", CharField(max_length=32, null=True, help_text="owner user id for personal-scope templates", index=True))
     logging.disable(logging.NOTSET)
     # this is after re-enabling logging to allow logging changed user emails
     migrate_add_unique_email(migrator)

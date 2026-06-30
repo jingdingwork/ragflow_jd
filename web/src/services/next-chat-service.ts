@@ -4,6 +4,8 @@ import { registerNextServer } from '@/utils/register-server';
 const {
   createChat,
   listPromptTemplates,
+  createPromptTemplate,
+  deletePromptTemplate,
   listChats,
   getDefaultChat,
   getChat,
@@ -43,6 +45,14 @@ const methods = {
   listPromptTemplates: {
     url: listPromptTemplates,
     method: 'get',
+  },
+  createPromptTemplate: {
+    url: createPromptTemplate,
+    method: 'post',
+  },
+  deletePromptTemplate: {
+    url: deletePromptTemplate,
+    method: 'delete',
   },
   listChats: {
     url: listChats,

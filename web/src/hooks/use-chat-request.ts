@@ -150,14 +150,19 @@ export const useFetchChatList = () => {
 export interface IPromptTemplate {
   id: string;
   name: string;
-  scope: 'default' | 'department';
+  scope: 'default' | 'department' | 'personal';
   system: string;
   prologue: string;
   is_default: boolean;
+  created_by?: string;
 }
 
 export const useFetchPromptTemplates = () => {
-  const { data, isFetching: loading } = useQuery<IPromptTemplate[]>({
+  const {
+    data,
+    isFetching: loading,
+    refetch,
+  } = useQuery<IPromptTemplate[]>({
     queryKey: [ChatApiAction.FetchPromptTemplates],
     initialData: [],
     gcTime: 0,
@@ -168,7 +173,53 @@ export const useFetchPromptTemplates = () => {
     },
   });
 
-  return { data, loading };
+  return { data, loading, refetch };
+};
+
+export const useCreatePromptTemplate = () => {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  const { isPending: loading, mutateAsync } = useMutation({
+    mutationKey: ['createPromptTemplate'],
+    mutationFn: async (params: {
+      name: string;
+      system: string;
+      prologue?: string;
+    }) => {
+      const { data } = await chatService.createPromptTemplate(params);
+      if (data.code === 0) {
+        queryClient.invalidateQueries({
+          queryKey: [ChatApiAction.FetchPromptTemplates],
+        });
+        message.success(t('message.created'));
+      }
+      return data;
+    },
+  });
+
+  return { loading, createPromptTemplate: mutateAsync };
+};
+
+export const useDeletePromptTemplate = () => {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  const { isPending: loading, mutateAsync } = useMutation({
+    mutationKey: ['deletePromptTemplate'],
+    mutationFn: async (id: string) => {
+      const { data } = await chatService.deletePromptTemplate(id);
+      if (data.code === 0) {
+        queryClient.invalidateQueries({
+          queryKey: [ChatApiAction.FetchPromptTemplates],
+        });
+        message.success(t('message.deleted'));
+      }
+      return data.code;
+    },
+  });
+
+  return { loading, deletePromptTemplate: mutateAsync };
 };
 
 export const useDeleteChat = () => {

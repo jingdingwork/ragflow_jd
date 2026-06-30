@@ -145,6 +145,9 @@ export default {
   // chat
   createChat: `${restAPIv1}/chats`,
   listPromptTemplates: `${restAPIv1}/chats/prompt-templates`,
+  createPromptTemplate: `${restAPIv1}/chats/prompt-templates`,
+  deletePromptTemplate: (id: string) =>
+    `${restAPIv1}/chats/prompt-templates/${id}`,
   listChats: `${restAPIv1}/chats`,
   getDefaultChat: `${restAPIv1}/chats/default`,
   getChat: (chatId: string) => `${restAPIv1}/chats/${chatId}`,

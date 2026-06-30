@@ -18,6 +18,7 @@ import { useTranslate } from '@/hooks/common-hooks';
 import { getDirAttribute } from '@/utils/text-direction';
 import { useFormContext } from 'react-hook-form';
 import { DynamicVariableForm } from './dynamic-variable';
+import { SystemPromptTemplates } from './system-prompt-templates';
 
 export function ChatPromptEngine() {
   const { t } = useTranslate('chat');
@@ -32,6 +33,7 @@ export function ChatPromptEngine() {
         render={({ field }) => (
           <FormItem>
             <FormLabel>{t('system')}</FormLabel>
+            <SystemPromptTemplates />
             <FormControl>
               <Textarea
                 {...field}

@@ -22,7 +22,10 @@ from common.misc_utils import get_uuid
 
 SCOPE_DEFAULT = "default"
 SCOPE_DEPARTMENT = "department"
+SCOPE_PERSONAL = "personal"
 VALID_SCOPES = {SCOPE_DEFAULT, SCOPE_DEPARTMENT}
+# personal templates are user-owned, created from the chat settings UI, and are
+# not part of the admin-managed library (SCOPE_DEFAULT / SCOPE_DEPARTMENT).
 
 # Ultimate fallback used only when no template is configured at all. Kept in sync
 # with the historical hard-coded default in api/apps/restful_apis/chat_api.py.
@@ -44,6 +47,7 @@ def _serialize(t):
         "name": t.name,
         "scope": t.scope,
         "department_id": t.department_id or "",
+        "created_by": t.created_by or "",
         "system": t.system or "",
         "prologue": t.prologue or "",
         "is_default": bool(t.is_default),
@@ -53,9 +57,13 @@ def _serialize(t):
     }
 
 
+_SCOPE_ORDER = {SCOPE_DEFAULT: 0, SCOPE_DEPARTMENT: 1, SCOPE_PERSONAL: 2}
+
+
 def _order_key(item):
-    # default scope first, then by sort, then by name
-    return (0 if item["scope"] == SCOPE_DEFAULT else 1, item.get("sort", 0), item.get("name", ""))
+    # default scope first, then department, then the user's own personal ones;
+    # within a scope by sort, then name.
+    return (_SCOPE_ORDER.get(item["scope"], 9), item.get("sort", 0), item.get("name", ""))
 
 
 class PromptTemplateService(CommonService):
@@ -64,23 +72,63 @@ class PromptTemplateService(CommonService):
     @classmethod
     @DB.connection_context()
     def list_all(cls):
-        """Every valid template; default-scope templates first, then department ones."""
-        rows = cls.model.select().where(cls.model.status == StatusEnum.VALID.value)
+        """Every admin-managed template; default-scope first, then department ones.
+
+        Personal (user-owned) templates are excluded — they belong to individual
+        users and are not part of the admin-managed library.
+        """
+        rows = cls.model.select().where(
+            cls.model.status == StatusEnum.VALID.value,
+            cls.model.scope != SCOPE_PERSONAL,
+        )
         items = [_serialize(r) for r in rows]
         items.sort(key=_order_key)
         return items
 
     @classmethod
     @DB.connection_context()
-    def list_for_user(cls, department_id):
-        """Templates available to a user: all global defaults + that user's department's."""
+    def list_for_user(cls, department_id, user_id=None):
+        """Templates available to a user: all global defaults + that user's
+        department's + the user's own personal templates."""
         cond = cls.model.scope == SCOPE_DEFAULT
         if department_id:
             cond = cond | ((cls.model.scope == SCOPE_DEPARTMENT) & (cls.model.department_id == department_id))
+        if user_id:
+            cond = cond | ((cls.model.scope == SCOPE_PERSONAL) & (cls.model.created_by == user_id))
         rows = cls.model.select().where(cls.model.status == StatusEnum.VALID.value, cond)
         items = [_serialize(r) for r in rows]
         items.sort(key=_order_key)
         return items
+
+    @classmethod
+    def create_personal(cls, user_id, department_id, name, system, prologue=""):
+        """Create a user-owned (personal-scope) template from the chat settings UI."""
+        if not user_id:
+            raise ValueError("user_id is required for a personal template.")
+        tid = get_uuid()
+        cls.insert(
+            id=tid,
+            name=(name or "").strip() or "Untitled",
+            scope=SCOPE_PERSONAL,
+            department_id=department_id or None,
+            created_by=user_id,
+            system=system or "",
+            prologue=prologue or "",
+            is_default=False,
+            sort=0,
+            status=StatusEnum.VALID.value,
+        )
+        ok, row = cls.get_by_id(tid)
+        return _serialize(row) if ok else None
+
+    @classmethod
+    def delete_personal(cls, user_id, template_id):
+        """Soft-delete a personal template, only if it belongs to the requesting user."""
+        row = cls.get_or_none(id=template_id, status=StatusEnum.VALID.value)
+        if not row or row.scope != SCOPE_PERSONAL or row.created_by != user_id:
+            return False
+        cls.update_by_id(template_id, {"status": StatusEnum.INVALID.value})
+        return True
 
     @classmethod
     @DB.connection_context()
@@ -177,7 +225,7 @@ class PromptTemplateService(CommonService):
 
     @classmethod
     @DB.connection_context()
-    def resolve(cls, template_id, department_id=None):
+    def resolve(cls, template_id, department_id=None, user_id=None):
         """Resolve {system, prologue} for chat creation.
 
         Use the explicitly chosen template when valid; otherwise fall back to the
@@ -185,12 +233,14 @@ class PromptTemplateService(CommonService):
         """
         if template_id:
             row = cls.get_or_none(id=template_id, status=StatusEnum.VALID.value)
-            # Only accept a global template, or a department template belonging to
-            # the requesting user's department. Anything else falls back to default
-            # so a client cannot snapshot another department's template by id.
+            # Only accept a global template, a department template belonging to the
+            # requesting user's department, or one of the user's own personal
+            # templates. Anything else falls back to default so a client cannot
+            # snapshot another department's / user's template by id.
             if row and (
                 row.scope == SCOPE_DEFAULT
                 or (row.scope == SCOPE_DEPARTMENT and row.department_id == department_id)
+                or (row.scope == SCOPE_PERSONAL and user_id and row.created_by == user_id)
             ):
                 return {"system": row.system or "", "prologue": row.prologue or ""}
             logging.warning(f"PromptTemplateService.resolve: template {template_id} not visible/found, using default.")
