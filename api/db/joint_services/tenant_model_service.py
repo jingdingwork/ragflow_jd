@@ -157,6 +157,10 @@ def get_tenant_default_model_by_type(tenant_id: str, model_type: str|enum.Enum):
             model_name = tenant.img2txt_id
         case LLMType.CHAT.value:
             model_name = tenant.llm_id
+            if not model_name:
+                # No tenant default chat model set: fall back to the first
+                # configured (api_key present) chat model on this account.
+                model_name = _first_configured_chat_model(tenant_id)
         case LLMType.RERANK.value:
             model_name = tenant.rerank_id
         case LLMType.TTS.value:
@@ -168,3 +172,13 @@ def get_tenant_default_model_by_type(tenant_id: str, model_type: str|enum.Enum):
     if not model_name:
         raise Exception(f"No default {model_type} model is set.")
     return get_model_config_by_type_and_name(tenant_id, model_type, model_name)
+
+
+def _first_configured_chat_model(tenant_id: str) -> str:
+    """Return 'llm_name@llm_factory' of the earliest configured chat model
+    for the tenant (one whose api_key has been set), or "" if none exist."""
+    objs = TenantLLMService.query(tenant_id=tenant_id, model_type=LLMType.CHAT.value, order_by="id")
+    for obj in objs:
+        if obj.api_key:
+            return f"{obj.llm_name}@{obj.llm_factory}"
+    return ""
