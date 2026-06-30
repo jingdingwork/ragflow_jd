@@ -37,10 +37,6 @@ import { formSchema } from './form-schema';
 import { GeneralForm } from './general-form';
 import { useFetchKnowledgeConfigurationOnMount } from './hooks';
 import { SavingButton } from './saving-button';
-const enum DocumentType {
-  DeepDOC = 'DeepDOC',
-  PlainText = 'Plain Text',
-}
 export const DataSetContext = createContext<{
   loading: boolean;
   knowledgeDetails: IDataset;
@@ -71,7 +67,8 @@ export default function DatasetSettings() {
       permission: PermissionRole.Me,
       language: 'English',
       parser_config: {
-        layout_recognize: DocumentType.DeepDOC,
+        // 默认 PDF parser 使用 MinerU（env 自动注册的模型 mineru-from-env-1）
+        layout_recognize: 'mineru-from-env-1@MinerU',
         chunk_token_num: 512,
         delimiter: `\n`,
         enable_children: false,

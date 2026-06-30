@@ -1,7 +1,6 @@
 import { IParserConfig } from '@/interfaces/database/document';
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ParseDocumentType } from '../layout-recognize-form-field';
 
 export function useDefaultParserValues() {
   const { t } = useTranslation();
@@ -9,7 +8,8 @@ export function useDefaultParserValues() {
   const defaultParserValues = useMemo(() => {
     const defaultParserValues = {
       task_page_size: 12,
-      layout_recognize: ParseDocumentType.DeepDOC,
+      // 默认 PDF parser 使用 MinerU（env 自动注册的模型 mineru-from-env-1）
+      layout_recognize: 'mineru-from-env-1@MinerU',
       chunk_token_num: 512,
       delimiter: '\n',
       enable_children: false,
