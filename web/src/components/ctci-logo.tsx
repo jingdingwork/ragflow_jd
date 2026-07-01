@@ -38,23 +38,73 @@ interface CtciFullLogoProps {
   className?: string;
   /** rendered logo height in px */
   height?: number;
+  /**
+   * Which artwork to show:
+   * - `dark`  — dark-grey wordmark, for light surfaces
+   * - `light` — white wordmark, for dark surfaces
+   * - `auto`  — dark on light theme, white on dark theme (default)
+   */
+  variant?: 'auto' | 'dark' | 'light';
 }
 
+const CTCI_LOGO_DARK = '/ctci-logo-dark.png';
+const CTCI_LOGO_LIGHT = '/ctci-logo-light.png';
+const CTCI_LOGO_ALT = '京鼎工程建设有限公司 CTCI Beijing Co., Ltd.';
+
 /**
- * Full official CTCI lockup image ("CTCI" + orange hexagon + "Discover
- * Reliable"). Backed by the raster asset in `public/ctci-logo-full.png`.
- * Use a transparent-background PNG so it sits cleanly on both light and
- * dark surfaces. This is the whole brand block on its own — do NOT pair it
- * with the separate 京鼎 wordmark.
+ * Official CTCI company lockup: the "CTCI" wordmark + orange hexagon accent
+ * followed by the two-line company name (京鼎工程建设有限公司 / CTCI Beijing
+ * Co., Ltd.). Backed by the raster assets in `public/ctci-logo-dark.png`
+ * (dark wordmark, for light surfaces) and `public/ctci-logo-light.png`
+ * (white wordmark, for dark surfaces). `variant="auto"` swaps between them by
+ * theme. This is the whole brand block on its own — do NOT pair it with a
+ * separate 京鼎 wordmark.
  */
-export function CtciFullLogo({ className, height = 40 }: CtciFullLogoProps) {
+export function CtciFullLogo({
+  className,
+  height = 40,
+  variant = 'auto',
+}: CtciFullLogoProps) {
+  const common = cn('inline-block w-auto select-none', className);
+
+  if (variant === 'dark') {
+    return (
+      <img
+        src={CTCI_LOGO_DARK}
+        alt={CTCI_LOGO_ALT}
+        style={{ height }}
+        className={common}
+      />
+    );
+  }
+
+  if (variant === 'light') {
+    return (
+      <img
+        src={CTCI_LOGO_LIGHT}
+        alt={CTCI_LOGO_ALT}
+        style={{ height }}
+        className={common}
+      />
+    );
+  }
+
+  // auto: dark wordmark on light theme, white wordmark on dark theme
   return (
-    <img
-      src="/ctci-logo-full.png"
-      alt="CTCI · Discover Reliable"
-      style={{ height }}
-      className={cn('inline-block w-auto select-none', className)}
-    />
+    <>
+      <img
+        src={CTCI_LOGO_DARK}
+        alt={CTCI_LOGO_ALT}
+        style={{ height }}
+        className={cn(common, 'dark:hidden')}
+      />
+      <img
+        src={CTCI_LOGO_LIGHT}
+        alt={CTCI_LOGO_ALT}
+        style={{ height }}
+        className={cn(common, 'hidden dark:inline-block')}
+      />
+    </>
   );
 }
 

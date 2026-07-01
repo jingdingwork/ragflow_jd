@@ -64,11 +64,10 @@ export function Header({
           aria-current={pathname === Routes.Root ? 'page' : undefined}
           aria-label="京鼎智能平台"
         >
-          {/* Light rounded backing only in dark mode so the dark-grey CTCI
-              wordmark stays legible on the dark header; padding is constant
-              across modes to avoid layout shift when toggling the theme. */}
-          <span className="inline-flex items-center rounded-lg p-1.5 transition-colors dark:bg-white/90">
-            <CtciFullLogo height={60} />
+          {/* variant="auto" swaps the dark/white wordmark by theme, so no
+              backing is needed on either light or dark headers. */}
+          <span className="inline-flex items-center">
+            <CtciFullLogo height={48} />
           </span>
         </Link>
       </div>

@@ -442,7 +442,8 @@ const Login = () => {
           <div className="relative">
             <div className="absolute -inset-2 rounded-xl bg-[#F39800]/0 group-hover:bg-[#F39800]/10 blur-md transition-all duration-500" />
             <CtciFullLogo
-              height={56}
+              variant="dark"
+              height={52}
               className="relative transition-transform duration-300 group-hover:scale-105"
             />
           </div>
