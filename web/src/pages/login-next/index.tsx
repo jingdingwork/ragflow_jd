@@ -12,7 +12,7 @@ import { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
-import { CtciLogo } from '@/components/ctci-logo';
+import { CtciFullLogo } from '@/components/ctci-logo';
 import { Button, ButtonLoading } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -438,22 +438,13 @@ const Login = () => {
 
       <div className="relative min-h-full overflow-auto">
         {/* Top-left brand block */}
-        <div className="absolute top-8 left-10 z-30 flex items-center gap-4 group cursor-default animate-fade-in-down">
+        <div className="absolute top-8 left-10 z-30 flex items-center group cursor-default animate-fade-in-down">
           <div className="relative">
             <div className="absolute -inset-2 rounded-xl bg-[#F39800]/0 group-hover:bg-[#F39800]/10 blur-md transition-all duration-500" />
-            <CtciLogo
-              size={38}
-              className="relative text-text-primary transition-transform duration-300 group-hover:scale-105"
+            <CtciFullLogo
+              height={56}
+              className="relative transition-transform duration-300 group-hover:scale-105"
             />
-          </div>
-          <div className="h-9 w-px bg-text-primary/15" />
-          <div className="flex flex-col leading-tight">
-            <span className="text-[22px] font-bold tracking-[0.18em] text-text-primary">
-              京鼎
-            </span>
-            <span className="text-[10px] tracking-[0.32em] text-text-secondary uppercase mt-0.5">
-              CTCI Engineering
-            </span>
           </div>
         </div>
 

@@ -34,6 +34,30 @@ export function CtciLogo({ className, size = 44 }: CtciLogoProps) {
   );
 }
 
+interface CtciFullLogoProps {
+  className?: string;
+  /** rendered logo height in px */
+  height?: number;
+}
+
+/**
+ * Full official CTCI lockup image ("CTCI" + orange hexagon + "Discover
+ * Reliable"). Backed by the raster asset in `public/ctci-logo-full.png`.
+ * Use a transparent-background PNG so it sits cleanly on both light and
+ * dark surfaces. This is the whole brand block on its own — do NOT pair it
+ * with the separate 京鼎 wordmark.
+ */
+export function CtciFullLogo({ className, height = 40 }: CtciFullLogoProps) {
+  return (
+    <img
+      src="/ctci-logo-full.png"
+      alt="CTCI · Discover Reliable"
+      style={{ height }}
+      className={cn('inline-block w-auto select-none', className)}
+    />
+  );
+}
+
 interface CtciBrandProps {
   className?: string;
   /** logo height in px */
