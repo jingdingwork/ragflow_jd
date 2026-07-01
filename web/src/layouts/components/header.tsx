@@ -68,7 +68,7 @@ export function Header({
               wordmark stays legible on the dark header; padding is constant
               across modes to avoid layout shift when toggling the theme. */}
           <span className="inline-flex items-center rounded-lg p-1.5 transition-colors dark:bg-white/90">
-            <CtciFullLogo height={40} />
+            <CtciFullLogo height={60} />
           </span>
         </Link>
       </div>
