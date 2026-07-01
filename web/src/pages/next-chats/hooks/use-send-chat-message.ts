@@ -10,7 +10,7 @@ import { useGetChatSearchParams } from '@/hooks/use-chat-request';
 import { IMessage } from '@/interfaces/database/chat';
 import api from '@/utils/api';
 import { trim } from 'lodash';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useParams } from 'react-router';
 import { v4 as uuid } from 'uuid';
 import { useCreateConversationBeforeSendMessage } from './use-chat-url';
@@ -32,17 +32,28 @@ export const useSelectNextMessages = () => {
   const { isNew, conversationId } = useGetChatSearchParams();
   const { id: dialogId } = useParams();
   const prologue = useFindPrologueFromDialogList();
+  // Remember which conversation we last seeded the prologue for, so we can tell
+  // a genuine switch into a new conversation from a mere re-render of the same
+  // one.
+  const seededConversationRef = useRef<string | null>(null);
 
   const addPrologue = useCallback(() => {
     if (dialogId !== '' && isNew === 'true') {
+      const switchedConversation =
+        seededConversationRef.current !== conversationId;
       setDerivedMessages((prev) => {
-        // Don't clobber an in-progress exchange. `prologue` is derived from the
-        // chat list, so a background refetch (e.g. triggered by patchChat when
-        // the user picks a knowledge base right after entering) can re-run this
-        // effect mid-send. Once a user message exists the conversation has
-        // started, so a stale `isNew === 'true'` render must not reset it back
-        // to just the prologue.
-        if (prev.some((m) => m.role === MessageType.User)) {
+        // Only (re)seed the prologue when entering a NEW conversation, or while
+        // the current new conversation still has no real exchange (so a
+        // late-loading prologue can fill in). Once a user message exists, a
+        // re-render of the SAME conversation must not wipe it — `prologue` is
+        // derived from the chat list, so a background refetch (e.g. patchChat
+        // when picking a knowledge base right after entering) can re-run this
+        // effect mid-send. Switching conversations always resets, even if the
+        // previous one had messages, so "new chat" clears the view.
+        if (
+          !switchedConversation &&
+          prev.some((m) => m.role === MessageType.User)
+        ) {
           return prev;
         }
         const nextMessage = {
@@ -53,6 +64,7 @@ export const useSelectNextMessages = () => {
         } as IMessage;
         return [nextMessage];
       });
+      seededConversationRef.current = conversationId;
     }
   }, [conversationId, dialogId, isNew, prologue, setDerivedMessages]);
 
