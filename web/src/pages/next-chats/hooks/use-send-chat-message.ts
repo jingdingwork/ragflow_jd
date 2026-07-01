@@ -35,14 +35,24 @@ export const useSelectNextMessages = () => {
 
   const addPrologue = useCallback(() => {
     if (dialogId !== '' && isNew === 'true') {
-      const nextMessage = {
-        role: MessageType.Assistant,
-        content: prologue,
-        id: uuid(),
-        conversationId: conversationId,
-      } as IMessage;
-
-      setDerivedMessages([nextMessage]);
+      setDerivedMessages((prev) => {
+        // Don't clobber an in-progress exchange. `prologue` is derived from the
+        // chat list, so a background refetch (e.g. triggered by patchChat when
+        // the user picks a knowledge base right after entering) can re-run this
+        // effect mid-send. Once a user message exists the conversation has
+        // started, so a stale `isNew === 'true'` render must not reset it back
+        // to just the prologue.
+        if (prev.some((m) => m.role === MessageType.User)) {
+          return prev;
+        }
+        const nextMessage = {
+          role: MessageType.Assistant,
+          content: prologue,
+          id: uuid(),
+          conversationId: conversationId,
+        } as IMessage;
+        return [nextMessage];
+      });
     }
   }, [conversationId, dialogId, isNew, prologue, setDerivedMessages]);
 
@@ -211,10 +221,16 @@ export const useSendMessage = (controller: AbortController) => {
 
   useEffect(() => {
     //  #1289
-    if (answer.answer && conversationId && isNew !== 'true') {
+    // While a send is in progress (`!done`) always commit streamed answers: the
+    // `isNew` URL flag flips to '' as part of sending, but patchChat-driven
+    // re-renders (e.g. selecting a knowledge base right after entering) can make
+    // this effect observe a stale `isNew === 'true'` and silently drop the
+    // stream. The `isNew !== 'true'` guard is only needed after `done`, to avoid
+    // committing a leftover answer into a freshly-created conversation.
+    if (answer.answer && conversationId && (!done || isNew !== 'true')) {
       addNewestAnswer(answer);
     }
-  }, [answer, addNewestAnswer, conversationId, isNew]);
+  }, [answer, addNewestAnswer, conversationId, isNew, done]);
 
   return {
     handlePressEnter,
