@@ -219,7 +219,6 @@ export default {
       rangeToday: '今天',
       rangeWeek: '本周',
       rangeAll: '全部',
-      exportExcel: '导出 Excel',
       exportDept: '部门',
       exportType: '类型',
       exportTypeDept: '部门合计',
