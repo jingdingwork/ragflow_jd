@@ -275,7 +275,14 @@ export const useSendMessageWithSse = () => {
                 if (typeof d !== 'boolean') {
                   setAnswer((prev) => {
                     const prevAnswer = prev.answer || '';
-                    const currentAnswer = d.final ? '' : d.answer || '';
+                    // The final chunk normally just repeats the fully-streamed
+                    // text, so we drop its (redundant) answer. But some replies
+                    // arrive as a SINGLE `final: true` chunk carrying the whole
+                    // message (e.g. the "no relevant content in the knowledge
+                    // base" short-circuit). If nothing has been accumulated yet,
+                    // keep that final answer — otherwise nothing renders.
+                    const currentAnswer =
+                      d.final && prevAnswer ? '' : d.answer || '';
 
                     let newAnswer: string;
                     if (prevAnswer && currentAnswer.startsWith(prevAnswer)) {
