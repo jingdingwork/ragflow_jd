@@ -747,15 +747,31 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
     logging.debug("{}->{}".format(" ".join(questions), "\n->".join(knowledges)))
 
     retrieval_ts = timer()
-    if not knowledges and prompt_config.get("empty_response"):
-        empty_res = prompt_config["empty_response"]
-        yield {"answer": empty_res, "reference": kbinfos, "prompt": "\n\n### Query:\n%s" % " ".join(questions), "audio_binary": tts(tts_mdl, empty_res), "final": True}
-        return
+    # When the knowledge base returns nothing relevant we deliberately do NOT
+    # short-circuit with the canned `empty_response`. Instead we fall through and
+    # let the model answer from its own general knowledge (see the system-prompt
+    # override below). A KB miss is not a failure — only genuine model errors
+    # (raised during generation and surfaced by the API layer) show an error.
+    # Guard on `"knowledge" in param_keys` so a pure direct-chat (no KB bound,
+    # hence no retrieval) is not mistaken for a knowledge-base miss.
+    no_kb_hit = "knowledge" in param_keys and not knowledges
 
     kwargs["knowledge"] = "\n------\n" + "\n\n------\n\n".join(knowledges)
     gen_conf = dialog.llm_setting
 
-    msg = [{"role": "system", "content": prompt_config["system"].format(**kwargs) + attachments_}]
+    if no_kb_hit:
+        # KB miss: replace the KB-grounded prompt (which would force a "not found
+        # in the dataset" refusal) with a general-knowledge prompt, so the model
+        # answers from its own knowledge and flags that the answer is not from the
+        # knowledge base.
+        system_content = (
+            "你是一个智能助手。本次未能在知识库中检索到与用户问题相关的内容。"
+            "请直接依据你自身的通用知识，准确、完整地回答用户的问题，并结合聊天历史。"
+            "请在回答的第一行单独给出提示：“⚠️ 以下内容来自模型的通用知识，并非知识库检索结果。”"
+        )
+    else:
+        system_content = prompt_config["system"].format(**kwargs)
+    msg = [{"role": "system", "content": system_content + attachments_}]
     prompt4citation = ""
     if knowledges and (prompt_config.get("quote", True) and kwargs.get("quote", True)):
         prompt4citation = citation_prompt()

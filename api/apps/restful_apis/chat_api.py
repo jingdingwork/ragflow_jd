@@ -1502,7 +1502,14 @@ async def session_completion(chat_id_in_arg=""):
                     await thread_pool_exec(ConversationService.update_by_id, conv.id, conv.to_dict())
             except Exception as ex:
                 logging.exception(ex)
-                yield "data:" + json.dumps({"code": 500, "message": str(ex), "data": {"answer": "**ERROR**: " + str(ex), "reference": []}}, ensure_ascii=False) + "\n\n"
+                # A genuine model/generation failure: show the friendly
+                # `empty_response` message to the user instead of the raw
+                # exception (which is still kept in `message` and the logs for
+                # debugging). A knowledge-base miss is NOT routed here — that now
+                # falls back to the model's general knowledge in async_chat.
+                prompt_cfg = getattr(dia, "prompt_config", None) or {}
+                error_answer = prompt_cfg.get("empty_response") or "抱歉，服务暂时不可用，请稍后重试。"
+                yield "data:" + json.dumps({"code": 500, "message": str(ex), "data": {"answer": error_answer, "reference": []}}, ensure_ascii=False) + "\n\n"
             yield "data:" + json.dumps({"code": 0, "message": "", "data": True}, ensure_ascii=False) + "\n\n"
 
         if stream_mode:
