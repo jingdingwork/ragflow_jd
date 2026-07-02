@@ -3,10 +3,11 @@ import { useTranslate } from '@/hooks/common-hooks';
 import {
   useFetchChatList,
   useFetchSessionList,
+  useGetChatSearchParams,
 } from '@/hooks/use-chat-request';
 import { IConversation } from '@/interfaces/database/chat';
 import { generateConversationId } from '@/utils/chat';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import { useChatUrlParams } from './use-chat-url';
 
@@ -24,7 +25,8 @@ export const useFindPrologueFromDialogList = () => {
 export const useSelectDerivedConversationList = () => {
   const { t } = useTranslate('chat');
 
-  const [list, setList] = useState<Array<IConversation>>([]);
+  const [temporaryConversation, setTemporaryConversation] =
+    useState<IConversation | null>(null);
   const {
     data: conversationList,
     loading,
@@ -33,49 +35,50 @@ export const useSelectDerivedConversationList = () => {
   } = useFetchSessionList();
 
   const { id: dialogId } = useParams();
+  const { conversationId } = useGetChatSearchParams();
   const prologue = useFindPrologueFromDialogList();
   const { setConversationBoth } = useChatUrlParams();
 
   const addTemporaryConversation = useCallback(() => {
-    const conversationId = generateConversationId();
-    setList((pre) => {
-      if (dialogId) {
-        setConversationBoth(conversationId, 'true');
-        const nextList = [
-          {
-            id: conversationId,
-            name: t('newConversation'),
-            chat_id: dialogId,
-            is_new: true,
-            messages: [
-              {
-                content: prologue,
-                role: MessageType.Assistant,
-              },
-            ],
-          } as any,
-          ...conversationList,
-        ];
-        return nextList;
-      }
+    if (!dialogId) return;
+    const id = generateConversationId();
+    setTemporaryConversation({
+      id,
+      name: t('newConversation'),
+      chat_id: dialogId,
+      is_new: true,
+      messages: [
+        {
+          content: prologue,
+          role: MessageType.Assistant,
+        },
+      ],
+    } as any);
+    setConversationBoth(id, 'true');
+  }, [dialogId, setConversationBoth, t, prologue]);
 
-      return pre;
-    });
-  }, [dialogId, setConversationBoth, t, prologue, conversationList]);
-
-  const removeTemporaryConversation = useCallback((conversationId: string) => {
-    setList((prevList) => {
-      return prevList.filter(
-        (conversation) => conversation.id !== conversationId,
-      );
-    });
+  const removeTemporaryConversation = useCallback((id?: string) => {
+    setTemporaryConversation((prev) =>
+      prev && (!id || prev.id === id) ? null : prev,
+    );
   }, []);
 
-  // When you first enter the page, select the top conversation card
-
-  useEffect(() => {
-    setList([...conversationList]);
-  }, [conversationList]);
+  // An unsent "new conversation" only belongs in the sidebar while it is the
+  // active conversation. As soon as the user switches to another conversation
+  // — or a real session is created after sending the first message, which
+  // moves the active id off the temporary one — it is dropped, so an empty new
+  // conversation never lingers in the list. Once the server list already
+  // contains it (shouldn't normally happen), don't duplicate it.
+  const list = useMemo(() => {
+    if (
+      temporaryConversation &&
+      temporaryConversation.id === conversationId &&
+      !conversationList.some((c) => c.id === temporaryConversation.id)
+    ) {
+      return [temporaryConversation, ...conversationList];
+    }
+    return conversationList;
+  }, [temporaryConversation, conversationId, conversationList]);
 
   return {
     list,
