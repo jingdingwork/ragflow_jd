@@ -141,10 +141,21 @@ class OAuthClient:
                 headers={"Accept": "application/json"},
                 timeout=self.http_request_timeout,
             )
-            response.raise_for_status()
-            return response.json()
         except Exception as e:
-            raise ValueError(f"Failed to exchange password for token: {e}")
+            raise ValueError(f"Failed to reach token endpoint: {e}")
+
+        if response.status_code >= 400:
+            # Surface the identity provider's actual reason (e.g. invalid_grant /
+            # "Invalid user credentials" / "Account is not fully set up") instead
+            # of a generic HTTP 400, so login failures are diagnosable.
+            detail = response.text
+            try:
+                body = response.json()
+                detail = body.get("error_description") or body.get("error") or detail
+            except Exception:
+                pass
+            raise ValueError(f"Token endpoint returned {response.status_code}: {detail}")
+        return response.json()
 
 
     def fetch_user_info(self, access_token, **kwargs):

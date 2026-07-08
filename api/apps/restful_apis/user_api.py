@@ -330,7 +330,10 @@ async def oauth_login_with_password(channel):
         )
 
     try:
-        password = decrypt(password)
+        # The frontend sends RSA(base64(plaintext)); decrypt() returns
+        # base64(plaintext) (see crypt.crypt), which the local login compares
+        # as-is. The identity provider needs the real plaintext, so decode it.
+        password = base64.b64decode(decrypt(password)).decode("utf-8")
     except BaseException:
         return get_json_result(data=False, code=RetCode.SERVER_ERROR, message="Fail to crypt password")
 
