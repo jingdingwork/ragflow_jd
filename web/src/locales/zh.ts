@@ -76,6 +76,8 @@ export default {
       registerDescription: '很高兴您加入！',
       emailLabel: '邮箱',
       emailPlaceholder: '请输入邮箱地址',
+      employeeIdLabel: '工号',
+      employeeIdPlaceholder: '请输入工号',
       passwordLabel: '密码',
       passwordPlaceholder: '请输入密码',
       rememberMe: '记住我',

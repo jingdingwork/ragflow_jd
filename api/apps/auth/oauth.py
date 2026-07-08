@@ -114,6 +114,39 @@ class OAuthClient:
             raise ValueError(f"Failed to exchange authorization code for token: {e}")
 
 
+    async def async_exchange_password_for_token(self, username, password):
+        """
+        Exchange a username/password directly for tokens via the OAuth2
+        Resource Owner Password Credentials (ROPC) grant.
+
+        This lets the application collect the credentials in its own login form
+        and complete the login without redirecting the browser to the identity
+        provider's login page. The IdP client must have Direct Access Grants
+        enabled for this grant to be accepted.
+        """
+        payload = {
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "grant_type": "password",
+            "username": username,
+            "password": password,
+        }
+        if self.scope:
+            payload["scope"] = self.scope
+        try:
+            response = await async_request(
+                "POST",
+                self.token_url,
+                data=payload,
+                headers={"Accept": "application/json"},
+                timeout=self.http_request_timeout,
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            raise ValueError(f"Failed to exchange password for token: {e}")
+
+
     def fetch_user_info(self, access_token, **kwargs):
         """
         Fetch user information using access token.

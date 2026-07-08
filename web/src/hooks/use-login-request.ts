@@ -3,6 +3,7 @@ import { Authorization } from '@/constants/authorization';
 import userService, {
   getLoginChannels,
   loginWithChannel,
+  loginWithChannelPassword,
 } from '@/services/user-service';
 import {
   default as authorizationUtil,
@@ -46,6 +47,44 @@ export const useLoginWithChannel = () => {
     mutationFn: async (channel: string) => {
       loginWithChannel(channel);
       return Promise.resolve();
+    },
+  });
+
+  return { loading, login: mutateAsync };
+};
+
+// Direct OIDC login with the employee id + password entered in the local form.
+// Persists the returned auth exactly like the local password login (useLogin).
+export const useLoginWithChannelPassword = () => {
+  const { saveSetting } = useSaveSetting(true);
+  const { isPending: loading, mutateAsync } = useMutation({
+    mutationKey: ['loginWithChannelPassword'],
+    mutationFn: async (params: {
+      channel: string;
+      username: string;
+      password: string;
+    }) => {
+      const { data: res = {}, response } = await loginWithChannelPassword(
+        params.channel,
+        { username: params.username, password: params.password },
+      );
+      if (res.code === 0) {
+        saveSetting({ language: storage.getLanguage() });
+        const { data } = res;
+        const authorization = response.headers.get(Authorization);
+        const token = data.access_token;
+        const userInfo = {
+          avatar: data.avatar,
+          name: data.nickname,
+          email: data.email,
+        };
+        authorizationUtil.setItems({
+          Authorization: authorization,
+          userInfo: JSON.stringify(userInfo),
+          Token: token,
+        });
+      }
+      return res.code;
     },
   });
 

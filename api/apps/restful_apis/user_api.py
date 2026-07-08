@@ -296,6 +296,148 @@ async def oauth_callback(channel):
         return redirect(f"/?error={str(e)}")
 
 
+@manager.route("/auth/login/<channel>/password", methods=["POST"])  # noqa: F821
+async def oauth_login_with_password(channel):
+    """
+    Log in through an OIDC/OAuth channel using the employee id and password
+    typed into RAGFlow's own login form.
+
+    The credentials are exchanged for tokens directly via the Resource Owner
+    Password Credentials (ROPC) grant, so the user never leaves the app for the
+    identity provider's login page. The IdP client must have Direct Access
+    Grants enabled. Returns the same JSON/`Authorization` shape as the local
+    password login so the frontend can treat it identically.
+    """
+    channel_config = settings.OAUTH_CONFIG.get(channel) if settings.OAUTH_CONFIG else None
+    if not channel_config:
+        return get_json_result(
+            data=False,
+            code=RetCode.AUTHENTICATION_ERROR,
+            message=f"Invalid channel name: {channel}",
+        )
+
+    json_body = await get_request_json()
+    if not json_body:
+        return get_json_result(data=False, code=RetCode.AUTHENTICATION_ERROR, message="Unauthorized!")
+
+    username = str(json_body.get("username", "")).strip()
+    password = json_body.get("password")
+    if not username or not password:
+        return get_json_result(
+            data=False,
+            code=RetCode.AUTHENTICATION_ERROR,
+            message="Please input the employee id and password!",
+        )
+
+    try:
+        password = decrypt(password)
+    except BaseException:
+        return get_json_result(data=False, code=RetCode.SERVER_ERROR, message="Fail to crypt password")
+
+    try:
+        auth_cli = get_auth_client(channel_config)
+
+        # Exchange employee id + password for tokens (ROPC / Direct Access Grants)
+        token_info = await auth_cli.async_exchange_password_for_token(username, password)
+        access_token = token_info.get("access_token")
+        if not access_token:
+            return get_json_result(
+                data=False,
+                code=RetCode.AUTHENTICATION_ERROR,
+                message="Employee id and password do not match!",
+            )
+        id_token = token_info.get("id_token")
+
+        user_info = await auth_cli.async_fetch_user_info(access_token, id_token=id_token)
+        if not user_info.email:
+            return get_json_result(
+                data=False,
+                code=RetCode.AUTHENTICATION_ERROR,
+                message="The identity provider did not return an email for this account!",
+            )
+    except Exception as e:
+        logging.exception(e)
+        return get_json_result(
+            data=False,
+            code=RetCode.AUTHENTICATION_ERROR,
+            message="Employee id and password do not match!",
+        )
+
+    # Resolve the user's department from the LDAP DN claim (refreshed on every login)
+    department_id = None
+    try:
+        department_id = DepartmentService.upsert_from_dn(getattr(user_info, "department_dn", None))
+    except Exception as e:
+        logging.exception(e)
+
+    users = UserService.query(email=user_info.email)
+
+    # First login for this account -> auto-provision, mirroring the OAuth callback
+    if not users:
+        user_id = get_uuid()
+        try:
+            try:
+                avatar = await download_img(user_info.avatar_url)
+            except Exception as e:
+                logging.exception(e)
+                avatar = ""
+
+            users = user_register(
+                user_id,
+                {
+                    "access_token": get_uuid(),
+                    "email": user_info.email,
+                    "avatar": avatar,
+                    "nickname": user_info.nickname,
+                    "username": getattr(user_info, "username", None),
+                    "login_channel": channel,
+                    "last_login_time": get_format_time(),
+                    "is_superuser": False,
+                    "department_id": department_id,
+                },
+            )
+            if not users:
+                raise Exception(f"Failed to register {user_info.email}")
+            if len(users) > 1:
+                raise Exception(f"Same email: {user_info.email} exists!")
+            if department_id:
+                try:
+                    apply_department_models_to_user(users[0].id, department_id)
+                except Exception as e:
+                    logging.exception(e)
+        except Exception as e:
+            rollback_user_registration(user_id)
+            logging.exception(e)
+            return get_json_result(data=False, code=RetCode.EXCEPTION_ERROR, message=str(e))
+
+    user = users[0]
+    if hasattr(user, "is_active") and user.is_active == "0":
+        return get_json_result(
+            data=False,
+            code=RetCode.FORBIDDEN,
+            message="This account has been disabled, please contact the administrator!",
+        )
+
+    # Refresh the latest department + employee id on every login
+    if department_id:
+        user.department_id = department_id
+        try:
+            apply_department_models_to_user(user.id, department_id)
+        except Exception as e:
+            logging.exception(e)
+    oidc_username = getattr(user_info, "username", None)
+    if oidc_username and getattr(user, "username", None) != oidc_username:
+        user.username = oidc_username
+
+    response_data = user.to_json()
+    user.access_token = get_uuid()
+    login_user(user)
+    user.update_time = current_timestamp()
+    user.update_date = datetime_format(datetime.now())
+    user.save()
+    return await construct_response(data=response_data, auth=user.get_id(), message="Welcome back!")
+
+
 @manager.route("/auth/logout", methods=["POST"])  # noqa: F821
 @login_required
 async def log_out():

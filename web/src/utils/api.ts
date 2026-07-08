@@ -15,6 +15,8 @@ export default {
   setTenantInfo: `${restAPIv1}/users/me/models`,
   loginChannels: `${restAPIv1}/auth/login/channels`,
   loginChannel: (channel: string) => `${restAPIv1}/auth/login/${channel}`,
+  loginChannelPassword: (channel: string) =>
+    `${restAPIv1}/auth/login/${channel}/password`,
 
   // team
   addTenantUser: (tenantId: string) => `${restAPIv1}/tenants/${tenantId}/users`,

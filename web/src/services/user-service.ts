@@ -132,6 +132,13 @@ export const getLoginChannels = () => request.get(api.loginChannels);
 export const loginWithChannel = (channel: string) =>
   (window.location.href = api.loginChannel(channel));
 
+// Direct (ROPC) login: send the employee id + password to the OIDC channel
+// and complete the login in place, without redirecting to the IdP login page.
+export const loginWithChannelPassword = (
+  channel: string,
+  body: { username: string; password: string },
+) => post(api.loginChannelPassword(channel), body);
+
 export const listTenantUser = (tenantId: string) =>
   request.get(api.listTenantUser(tenantId));
 

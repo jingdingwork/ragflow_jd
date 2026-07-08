@@ -91,6 +91,8 @@ export default {
       registerDescription: 'Glad to have you on board!',
       emailLabel: 'Email',
       emailPlaceholder: 'Please input email',
+      employeeIdLabel: 'Employee ID',
+      employeeIdPlaceholder: 'Please input employee ID',
       passwordLabel: 'Password',
       passwordPlaceholder: 'Please input password',
       rememberMe: 'Remember me',

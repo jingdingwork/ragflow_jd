@@ -4,6 +4,7 @@ import {
   useLogin,
   useLoginChannels,
   useLoginWithChannel,
+  useLoginWithChannelPassword,
   useRegister,
 } from '@/hooks/use-login-request';
 import { useSystemConfig } from '@/hooks/use-system-request';
@@ -99,12 +100,20 @@ function LoginFormContent({
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel required>{t('emailLabel')}</FormLabel>
+                    <FormLabel required>
+                      {title === 'login'
+                        ? t('employeeIdLabel')
+                        : t('emailLabel')}
+                    </FormLabel>
                     <FormControl>
                       <Input
                         data-testid="auth-email"
-                        placeholder={t('emailPlaceholder')}
-                        autoComplete="email"
+                        placeholder={
+                          title === 'login'
+                            ? t('employeeIdPlaceholder')
+                            : t('emailPlaceholder')
+                        }
+                        autoComplete={title === 'login' ? 'username' : 'email'}
                         className={inputAccent}
                         {...field}
                       />
@@ -218,38 +227,44 @@ function LoginFormContent({
           </Form>
         )}
 
-        {title === 'login' && channels && channels.length > 0 && (
-          <div
-            className={
-              disablePasswordLogin
-                ? 'py-8'
-                : 'mt-3 pt-4 border-t border-border-default/50'
-            }
-          >
-            {channels.map((item) => (
-              <Button
-                variant={'transparent'}
-                key={item.channel}
-                onClick={() => handleLoginWithChannel(item.channel)}
-                style={{ marginTop: 10 }}
-                className={cn(
-                  'hover:bg-[#F39800]/5 hover:text-[#F39800] transition-colors duration-200',
-                  disablePasswordLogin ? 'w-full' : '',
-                )}
-              >
-                <div className="flex items-center">
-                  <SvgIcon
-                    name={item.icon || 'sso'}
-                    width={20}
-                    height={20}
-                    style={{ marginRight: 5 }}
-                  />
-                  Sign in with {item.display_name}
-                </div>
-              </Button>
-            ))}
-          </div>
-        )}
+        {/* Redirect-based SSO button. The visible password form already logs in
+            through the OIDC channel directly, so only show this fallback when
+            that form is hidden (disablePasswordLogin). */}
+        {title === 'login' &&
+          disablePasswordLogin &&
+          channels &&
+          channels.length > 0 && (
+            <div
+              className={
+                disablePasswordLogin
+                  ? 'py-8'
+                  : 'mt-3 pt-4 border-t border-border-default/50'
+              }
+            >
+              {channels.map((item) => (
+                <Button
+                  variant={'transparent'}
+                  key={item.channel}
+                  onClick={() => handleLoginWithChannel(item.channel)}
+                  style={{ marginTop: 10 }}
+                  className={cn(
+                    'hover:bg-[#F39800]/5 hover:text-[#F39800] transition-colors duration-200',
+                    disablePasswordLogin ? 'w-full' : '',
+                  )}
+                >
+                  <div className="flex items-center">
+                    <SvgIcon
+                      name={item.icon || 'sso'}
+                      width={20}
+                      height={20}
+                      style={{ marginRight: 5 }}
+                    />
+                    Sign in with {item.display_name}
+                  </div>
+                </Button>
+              ))}
+            </div>
+          )}
 
         {!disablePasswordLogin && title === 'login' && registerEnabled && (
           <div className="mt-8 text-right">
@@ -289,11 +304,15 @@ function LoginFormContent({
 const Login = () => {
   const [title, setTitle] = useState('login');
   const navigate = useNavigate();
-  const { login, loading: signLoading } = useLogin();
+  const { loading: signLoading } = useLogin();
   const { register, loading: registerLoading } = useRegister();
   const { channels, loading: channelsLoading } = useLoginChannels();
   const { login: loginWithChannel, loading: loginWithChannelLoading } =
     useLoginWithChannel();
+  const {
+    login: loginWithChannelPassword,
+    loading: loginWithChannelPasswordLoading,
+  } = useLoginWithChannelPassword();
   const { t } = useTranslation('translation', { keyPrefix: 'login' });
   const [isLoginPage, setIsLoginPage] = useState(true);
 
@@ -301,9 +320,13 @@ const Login = () => {
     signLoading ||
     registerLoading ||
     channelsLoading ||
-    loginWithChannelLoading;
+    loginWithChannelLoading ||
+    loginWithChannelPasswordLoading;
   const { config } = useSystemConfig();
   const registerEnabled = config?.registerEnabled !== 0;
+  // The local login form authenticates the employee id + password against the
+  // OIDC channel (ROPC) instead of the legacy email/password login.
+  const oidcChannel = channels?.[0]?.channel ?? 'oidc';
 
   const { isLogin } = useAuth();
   useEffect(() => {
@@ -330,10 +353,14 @@ const Login = () => {
   const FormSchema = z
     .object({
       nickname: z.string(),
-      email: z
-        .string()
-        .email()
-        .min(1, { message: t('emailPlaceholder') }),
+      // For login this field holds the employee id (OIDC username); for
+      // register it must still be a valid email address.
+      email: z.string().min(1, {
+        message:
+          title === 'login'
+            ? t('employeeIdPlaceholder')
+            : t('emailPlaceholder'),
+      }),
       password: z.string().min(1, { message: t('passwordPlaceholder') }),
       remember: z.boolean().optional(),
     })
@@ -342,6 +369,17 @@ const Login = () => {
         ctx.addIssue({
           path: ['nickname'],
           message: 'nicknamePlaceholder',
+          code: z.ZodIssueCode.custom,
+        });
+      }
+      if (
+        title === 'register' &&
+        data.email &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)
+      ) {
+        ctx.addIssue({
+          path: ['email'],
+          message: t('emailPlaceholder'),
           code: z.ZodIssueCode.custom,
         });
       }
@@ -362,8 +400,11 @@ const Login = () => {
       const rsaPassWord = rsaPsw(params.password) as string;
 
       if (title === 'login') {
-        const code = await login({
-          email: `${params.email}`.trim(),
+        // Log in by handing the employee id + password to the OIDC channel
+        // directly (ROPC), skipping the identity provider's login page.
+        const code = await loginWithChannelPassword({
+          channel: oidcChannel,
+          username: `${params.email}`.trim(),
           password: rsaPassWord,
         });
         if (code === 0) {
