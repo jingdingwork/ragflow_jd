@@ -323,7 +323,8 @@ const Login = () => {
     loginWithChannelLoading ||
     loginWithChannelPasswordLoading;
   const { config } = useSystemConfig();
-  const registerEnabled = config?.registerEnabled !== 0;
+  // 企业内网产品：用户端不开放自助注册，账号由管理员统一开通，隐藏注册入口。
+  const registerEnabled = false;
   // The local login form authenticates the employee id + password against the
   // OIDC channel (ROPC) instead of the legacy email/password login.
   const oidcChannel = channels?.[0]?.channel ?? 'oidc';
