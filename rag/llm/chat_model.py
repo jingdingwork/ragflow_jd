@@ -73,9 +73,18 @@ def _apply_model_family_policies(
     sanitized_gen_conf = deepcopy(gen_conf) if gen_conf else {}
     sanitized_kwargs = dict(request_kwargs) if request_kwargs else {}
 
-    # Qwen3 family disables thinking by extra_body on non-stream chat requests.
-    if "qwen3" in model_name_lower:
-        sanitized_kwargs["extra_body"] = {"enable_thinking": False}
+    # The chat UI's "Thinking" toggle arrives as gen_conf["reasoning"]. It is never a
+    # valid API parameter, so drop it here regardless of the model family.
+    reasoning = sanitized_gen_conf.pop("reasoning", None)
+
+    # Qwen3 hybrid family (Bailian/Model Studio): `enable_thinking` selects thinking
+    # vs. fast reply. It is not an OpenAI parameter, so it travels in `extra_body`.
+    # Pure-thinking variants (e.g. qwen3-vl-32b-thinking) always reason and reject the
+    # switch, so they are left at their default.
+    if "qwen3" in model_name_lower and "thinking" not in model_name_lower:
+        extra_body = dict(sanitized_gen_conf.get("extra_body") or {})
+        extra_body["enable_thinking"] = bool(reasoning)
+        sanitized_gen_conf["extra_body"] = extra_body
 
     if backend == "base":
         return sanitized_gen_conf, sanitized_kwargs
@@ -90,12 +99,8 @@ def _apply_model_family_policies(
             for key in ("presence_penalty", "frequency_penalty"):
                 sanitized_gen_conf.pop(key, None)
         elif "kimi-k2.5" in model_name_lower:
-            reasoning = sanitized_gen_conf.pop("reasoning", None)
-            thinking = {"type": "enabled"}
-            if reasoning is not None:
-                thinking = {"type": "enabled"} if reasoning else {"type": "disabled"}
-            elif not isinstance(thinking, dict) or thinking.get("type") not in {"enabled", "disabled"}:
-                thinking = {"type": "disabled"}
+            # No explicit toggle (non-chat callers) keeps this model's thinking default.
+            thinking = {"type": "enabled"} if reasoning is None or reasoning else {"type": "disabled"}
             sanitized_gen_conf["thinking"] = thinking
 
             thinking_enabled = thinking.get("type") == "enabled"
@@ -179,6 +184,8 @@ class Base(ABC):
             "logprobs",
             "top_logprobs",
             "extra_headers",
+            # Carries provider-specific switches such as Bailian's `enable_thinking`.
+            "extra_body",
         }
 
         gen_conf = {k: v for k, v in gen_conf.items() if k in allowed_conf}
@@ -564,12 +571,6 @@ class Base(ABC):
 
             return final_ans.strip(), tol_token
 
-        _, kwargs = _apply_model_family_policies(
-            self.model_name,
-            backend="base",
-            request_kwargs=kwargs,
-        )
-
         response = await self.async_client.chat.completions.create(model=self.model_name, messages=history, **gen_conf, **kwargs)
 
         if not response.choices or not response.choices[0].message or not response.choices[0].message.content:
@@ -947,6 +948,7 @@ class BaiduYiyanChat(Base):
         self.model_name = model_name.lower()
 
     def _clean_conf(self, gen_conf):
+        gen_conf.pop("reasoning", None)
         gen_conf["penalty_score"] = ((gen_conf.get("presence_penalty", 0) + gen_conf.get("frequency_penalty", 0)) / 2) + 1
         if "max_tokens" in gen_conf:
             del gen_conf["max_tokens"]
@@ -959,10 +961,7 @@ class BaiduYiyanChat(Base):
         return ans, total_token_count_from_response(response)
 
     def chat_streamly(self, system, history, gen_conf=None, **kwargs):
-        gen_conf = dict(gen_conf or {})
-        gen_conf["penalty_score"] = ((gen_conf.get("presence_penalty", 0) + gen_conf.get("frequency_penalty", 0)) / 2) + 1
-        if "max_tokens" in gen_conf:
-            del gen_conf["max_tokens"]
+        gen_conf = self._clean_conf(dict(gen_conf or {}))
         ans = ""
         total_tokens = 0
 
@@ -1021,6 +1020,7 @@ class GoogleChat(Base):
                 self.client = genai.Client(vertexai=True, project=project_id, location=region)
 
     def _clean_conf(self, gen_conf):
+        gen_conf.pop("reasoning", None)
         if "claude" in self.model_name:
             if "max_tokens" in gen_conf:
                 del gen_conf["max_tokens"]

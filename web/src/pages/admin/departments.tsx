@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -12,11 +12,12 @@ import {
   LucideLogIn,
   LucidePackageSearch,
   LucideRefreshCw,
-  LucideServerCog,
+  LucideSearch,
   LucideSettings2,
   LucideShieldCheck,
   LucideSlidersHorizontal,
   LucideUsers,
+  LucideX,
 } from 'lucide-react';
 
 import Spotlight from '@/components/spotlight';
@@ -24,6 +25,7 @@ import { TableEmpty } from '@/components/table-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button, ButtonLoading } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import message from '@/components/ui/message';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -37,6 +39,7 @@ import {
 import { cn } from '@/lib/utils';
 
 import {
+  DepartmentMember,
   DepartmentNode,
   exportDepartmentMembers,
   impersonateUser,
@@ -47,7 +50,6 @@ import {
 } from '@/services/admin-service';
 
 import { DepartmentLlmDialog } from './components/department-llm-dialog';
-import { GlobalLlmDialog } from './components/global-llm-dialog';
 import { UserLlmDialog } from './components/user-llm-dialog';
 
 function flattenIds(nodes: DepartmentNode[], acc: string[] = []) {
@@ -71,6 +73,34 @@ function findNode(
     if (found) return found;
   }
   return null;
+}
+
+type MemberSearchHit = {
+  member: DepartmentMember;
+  deptId: string;
+  deptName: string;
+  ancestorIds: string[];
+};
+
+function collectMembers(
+  nodes: DepartmentNode[],
+  ancestors: string[],
+  acc: MemberSearchHit[],
+) {
+  for (const node of nodes) {
+    for (const member of node.members ?? []) {
+      acc.push({
+        member,
+        deptId: node.id,
+        deptName: node.name,
+        ancestorIds: ancestors,
+      });
+    }
+    if (node.children?.length) {
+      collectMembers(node.children, [...ancestors, node.id], acc);
+    }
+  }
+  return acc;
 }
 
 type TreeProps = {
@@ -178,12 +208,14 @@ function AdminDepartments() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [configNode, setConfigNode] = useState<DepartmentNode | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
-  const [globalOpen, setGlobalOpen] = useState(false);
   const [userEdit, setUserEdit] = useState<{
     email: string;
     nickname: string;
   } | null>(null);
   const [userEditOpen, setUserEditOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [highlightEmail, setHighlightEmail] = useState<string | null>(null);
+  const highlightRowRef = useRef<HTMLTableRowElement | null>(null);
 
   const openConfig = (node: DepartmentNode) => {
     setConfigNode(node);
@@ -308,6 +340,42 @@ function AdminDepartments() {
     [tree, selectedId],
   );
 
+  const searchHits = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    const all = collectMembers(tree, [], []);
+    return all
+      .filter(({ member }) => {
+        const nickname = (member.nickname || '').toLowerCase();
+        const username = (member.username || '').toLowerCase();
+        const email = (member.email || '').toLowerCase();
+        return (
+          nickname.includes(q) || username.includes(q) || email.includes(q)
+        );
+      })
+      .slice(0, 50);
+  }, [search, tree]);
+
+  const jumpToMember = (hit: MemberSearchHit) => {
+    setExpanded((prev) => {
+      const next = { ...prev };
+      for (const id of hit.ancestorIds) next[id] = true;
+      return next;
+    });
+    setSelectedId(hit.deptId);
+    setHighlightEmail(hit.member.email);
+    setSearch('');
+  };
+
+  useEffect(() => {
+    if (highlightEmail && highlightRowRef.current) {
+      highlightRowRef.current.scrollIntoView({
+        block: 'center',
+        behavior: 'smooth',
+      });
+    }
+  }, [highlightEmail, selectedId]);
+
   const expandAll = () => {
     const all = flattenIds(tree);
     setExpanded(Object.fromEntries(all.map((id) => [id, true])));
@@ -345,14 +413,6 @@ function AdminDepartments() {
               <LucidePackageSearch className="size-4 mr-1" />
               {t('admin.syncModels')}
             </ButtonLoading>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setGlobalOpen(true)}
-            >
-              <LucideServerCog className="size-4 mr-1" />
-              {t('admin.otherModelSettings')}
-            </Button>
             <ButtonLoading
               size="sm"
               variant="outline"
@@ -384,22 +444,73 @@ function AdminDepartments() {
         <CardContent>
           <div className="flex gap-4">
             {/* Department tree */}
-            <div className="w-80 shrink-0 border border-border-default rounded-lg p-2">
-              {tree.length === 0 ? (
-                <div className="text-text-secondary text-sm p-4 text-center">
-                  {t('admin.noDepartments')}
-                </div>
-              ) : (
-                <DepartmentTree
-                  nodes={tree}
-                  depth={0}
-                  selectedId={selectedId}
-                  expanded={expanded}
-                  onSelect={setSelectedId}
-                  onToggle={handleToggle}
-                  onConfig={openConfig}
+            <div className="w-80 shrink-0 flex flex-col gap-2">
+              <div className="relative">
+                <LucideSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-text-secondary pointer-events-none" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t('admin.searchMemberPlaceholder')}
+                  className="pl-8 pr-8"
                 />
-              )}
+                {search && (
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
+                    onClick={() => setSearch('')}
+                  >
+                    <LucideX className="size-4" />
+                  </button>
+                )}
+                {search.trim() && (
+                  <div className="absolute z-20 mt-1 w-full max-h-80 overflow-auto rounded-lg border border-border-default bg-bg-component shadow-xl">
+                    {searchHits.length === 0 ? (
+                      <div className="px-3 py-4 text-sm text-text-secondary text-center">
+                        {t('admin.searchMemberNoResult')}
+                      </div>
+                    ) : (
+                      searchHits.map((hit) => (
+                        <button
+                          type="button"
+                          key={`${hit.deptId}-${hit.member.email}`}
+                          className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-primary/10 border-b border-border-default last:border-b-0"
+                          onClick={() => jumpToMember(hit)}
+                        >
+                          <span className="text-sm text-text-primary">
+                            {hit.member.nickname}
+                            {hit.member.username && (
+                              <span className="ml-2 font-mono text-xs text-text-secondary">
+                                {hit.member.username}
+                              </span>
+                            )}
+                          </span>
+                          <span className="flex items-center gap-1 text-xs text-text-secondary">
+                            <LucideBuilding2 className="size-3" />
+                            {hit.deptName}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="border border-border-default rounded-lg p-2">
+                {tree.length === 0 ? (
+                  <div className="text-text-secondary text-sm p-4 text-center">
+                    {t('admin.noDepartments')}
+                  </div>
+                ) : (
+                  <DepartmentTree
+                    nodes={tree}
+                    depth={0}
+                    selectedId={selectedId}
+                    expanded={expanded}
+                    onSelect={setSelectedId}
+                    onToggle={handleToggle}
+                    onConfig={openConfig}
+                  />
+                )}
+              </div>
             </div>
 
             {/* Members of the selected department */}
@@ -434,7 +545,18 @@ function AdminDepartments() {
                 <TableBody>
                   {selectedNode && selectedNode.members.length > 0 ? (
                     selectedNode.members.map((member) => (
-                      <TableRow key={member.email}>
+                      <TableRow
+                        key={member.email}
+                        ref={
+                          highlightEmail === member.email
+                            ? highlightRowRef
+                            : undefined
+                        }
+                        className={cn(
+                          highlightEmail === member.email &&
+                            'bg-[#F39800]/10 ring-1 ring-inset ring-[#F39800]/40',
+                        )}
+                      >
                         <TableCell className="font-medium">
                           {member.nickname}
                           {member.is_superuser && (
@@ -567,12 +689,6 @@ function AdminDepartments() {
           setUserEditOpen(o);
           if (!o) setUserEdit(null);
         }}
-        onSaved={() => refetch()}
-      />
-
-      <GlobalLlmDialog
-        open={globalOpen}
-        onOpenChange={setGlobalOpen}
         onSaved={() => refetch()}
       />
     </Card>

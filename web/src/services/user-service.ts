@@ -13,6 +13,7 @@ const {
   factoriesList,
   llmList,
   myLlm,
+  modelTags,
   setApiKey,
   setTenantInfo,
   addLlm,
@@ -70,6 +71,10 @@ const methods = {
   },
   myLlm: {
     url: myLlm,
+    method: 'get',
+  },
+  modelTags: {
+    url: modelTags,
     method: 'get',
   },
   setApiKey: {

@@ -18,9 +18,13 @@ import { Label } from '@/components/ui/label';
 import message from '@/components/ui/message';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
 
 import {
   DepartmentLlmModel,
+  MODEL_CAPABILITIES,
+  MODEL_CAPABILITY_I18N,
+  ModelCapability,
   fetchDepartmentModels,
   getDepartmentLlm,
   saveDepartmentLlm,
@@ -72,13 +76,17 @@ export function DepartmentLlmDialog({
       return res?.data?.data ?? [];
     },
     onSuccess: (names: string[]) => {
-      // Preserve existing enabled flags; new models default to enabled
-      const prev = new Map(models.map((m) => [m.llm_name, m.enabled]));
+      // Preserve existing enabled flags + type tags; new models default to enabled
+      const prev = new Map(models.map((m) => [m.llm_name, m]));
       setModels(
-        names.map((name) => ({
-          llm_name: name,
-          enabled: prev.get(name) ?? true,
-        })),
+        names.map((name) => {
+          const existing = prev.get(name);
+          return {
+            llm_name: name,
+            enabled: existing?.enabled ?? true,
+            model_types: existing?.model_types ?? [],
+          };
+        }),
       );
       message.success(t('admin.fetchModelsResult', { count: names.length }));
     },
@@ -109,6 +117,19 @@ export function DepartmentLlmDialog({
   const toggleModel = (name: string, enabled: boolean) => {
     setModels((prev) =>
       prev.map((m) => (m.llm_name === name ? { ...m, enabled } : m)),
+    );
+  };
+
+  const toggleType = (name: string, type: ModelCapability, on: boolean) => {
+    setModels((prev) =>
+      prev.map((m) => {
+        if (m.llm_name !== name) return m;
+        const current = m.model_types ?? [];
+        const next = on
+          ? Array.from(new Set([...current, type]))
+          : current.filter((tp) => tp !== type);
+        return { ...m, model_types: next };
+      }),
     );
   };
 
@@ -177,9 +198,32 @@ export function DepartmentLlmDialog({
                 {models.map((m) => (
                   <li
                     key={m.llm_name}
-                    className="flex items-center justify-between px-4 py-2.5"
+                    className="flex items-center gap-3 px-4 py-2.5"
                   >
-                    <span className="truncate mr-3 text-sm">{m.llm_name}</span>
+                    <span className="truncate flex-1 text-sm">
+                      {m.llm_name}
+                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {MODEL_CAPABILITIES.map((cap) => {
+                        const on = (m.model_types ?? []).includes(cap);
+                        return (
+                          <button
+                            key={cap}
+                            type="button"
+                            title={t('admin.modelCapabilitiesTip')}
+                            onClick={() => toggleType(m.llm_name, cap, !on)}
+                            className={cn(
+                              'px-2 py-0.5 rounded text-xs border transition-colors',
+                              on
+                                ? 'border-accent-primary text-accent-primary bg-accent-primary/10'
+                                : 'border-border-default text-text-secondary hover:text-text-primary',
+                            )}
+                          >
+                            {t(MODEL_CAPABILITY_I18N[cap])}
+                          </button>
+                        );
+                      })}
+                    </div>
                     <Switch
                       checked={m.enabled}
                       onCheckedChange={(v) => toggleModel(m.llm_name, v)}

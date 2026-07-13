@@ -25,7 +25,43 @@ from common.misc_utils import get_uuid
 
 # Department-configured models are provisioned as OpenAI-compatible chat models.
 OPENAI_COMPATIBLE_FACTORY = "OpenAI-API-Compatible"
+
+# Department chat models live in their OWN factory namespace, distinct from the
+# global "other models" (auxiliary) config which keeps OPENAI_COMPATIBLE_FACTORY.
+# tenant_llm's uniqueness key is (tenant_id, llm_factory, llm_name) — WITHOUT
+# model_type — so if a model name appears in both the department chat list and
+# the global aux config under the same factory, they collapse into one row and
+# the two tokens overwrite each other (the reported "all models use the
+# department token" bug). Keeping department chat under a separate factory makes
+# the two row sets disjoint. "VLLM" resolves to the same OpenAI-compatible
+# ChatModel implementation (identical runtime behavior) and is a real factory in
+# FACTORY_LLM_INFOS, so "<name>@VLLM" references still parse.
+DEPARTMENT_CHAT_FACTORY = "VLLM"
 DEFAULT_MAX_TOKENS = 8192
+
+# Admin-assigned capability tags for a department model. Pure classification
+# metadata (display/grouping); does not change how models are provisioned.
+VALID_MODEL_TYPES = ("web_search", "image_parse", "multimodal")
+
+
+def _parse_model_types(raw):
+    """Comma-separated tag string -> ordered list of valid, de-duplicated tags."""
+    result = []
+    for t in (raw or "").split(","):
+        t = t.strip()
+        if t in VALID_MODEL_TYPES and t not in result:
+            result.append(t)
+    return result
+
+
+def _serialize_model_types(values):
+    """List of tags -> canonical comma-separated string (valid + de-duplicated)."""
+    result = []
+    for t in values or []:
+        t = str(t).strip()
+        if t in VALID_MODEL_TYPES and t not in result:
+            result.append(t)
+    return ",".join(result)
 
 
 def fetch_models(api_base, api_key):
@@ -73,7 +109,7 @@ def _upsert_user_model(user_id, api_base, api_key, llm_name):
     encoded_key = TenantLLMService._encode_api_key_config(api_key or "", False)
     row = {
         "tenant_id": user_id,
-        "llm_factory": OPENAI_COMPATIBLE_FACTORY,
+        "llm_factory": DEPARTMENT_CHAT_FACTORY,
         "model_type": LLMType.CHAT.value,
         "llm_name": llm_name,
         "api_key": encoded_key,
@@ -83,7 +119,7 @@ def _upsert_user_model(user_id, api_base, api_key, llm_name):
     updated = TenantLLMService.filter_update(
         [
             TenantLLM.tenant_id == user_id,
-            TenantLLM.llm_factory == OPENAI_COMPATIBLE_FACTORY,
+            TenantLLM.llm_factory == DEPARTMENT_CHAT_FACTORY,
             TenantLLM.llm_name == llm_name,
         ],
         row,
@@ -96,7 +132,7 @@ def _remove_user_model(user_id, llm_name):
     TenantLLMService.filter_delete(
         [
             TenantLLM.tenant_id == user_id,
-            TenantLLM.llm_factory == OPENAI_COMPATIBLE_FACTORY,
+            TenantLLM.llm_factory == DEPARTMENT_CHAT_FACTORY,
             TenantLLM.llm_name == llm_name,
         ]
     )
@@ -129,9 +165,9 @@ def apply_department_models_to_all_users(department_id):
 
 @DB.connection_context()
 def get_models_by_tenants():
-    """Return {tenant_id: [llm_name, ...]} of OpenAI-compatible models for all tenants."""
+    """Return {tenant_id: [llm_name, ...]} of department chat models for all tenants."""
     rows = TenantLLM.select(TenantLLM.tenant_id, TenantLLM.llm_name).where(
-        TenantLLM.llm_factory == OPENAI_COMPATIBLE_FACTORY,
+        TenantLLM.llm_factory == DEPARTMENT_CHAT_FACTORY,
         ~TenantLLM.api_key.is_null(),
     )
     result = {}
@@ -151,7 +187,7 @@ def get_configured_department_ids():
 def _user_model_names(user_id):
     rows = TenantLLM.select(TenantLLM.llm_name).where(
         TenantLLM.tenant_id == user_id,
-        TenantLLM.llm_factory == OPENAI_COMPATIBLE_FACTORY,
+        TenantLLM.llm_factory == DEPARTMENT_CHAT_FACTORY,
         ~TenantLLM.api_key.is_null(),
     )
     return {r.llm_name for r in rows}
@@ -241,20 +277,27 @@ def save_department_config(department_id, api_base, api_key, models):
     for m in models or []:
         name = (m.get("llm_name") or "").strip()
         if name:
-            incoming[name] = bool(m.get("enabled", True))
+            incoming[name] = {
+                "enabled": bool(m.get("enabled", True)),
+                "model_types": _serialize_model_types(m.get("model_types")),
+            }
 
     existing = {m.llm_name: m for m in DepartmentLLMModelService.query(department_id=department_id)}
 
-    for name, enabled in incoming.items():
+    for name, spec in incoming.items():
         row = existing.get(name)
         if row:
-            DepartmentLLMModelService.update_by_id(row.id, {"enabled": enabled})
+            DepartmentLLMModelService.update_by_id(
+                row.id,
+                {"enabled": spec["enabled"], "model_types": spec["model_types"]},
+            )
         else:
             DepartmentLLMModelService.insert(
                 id=get_uuid(),
                 department_id=department_id,
                 llm_name=name,
-                enabled=enabled,
+                enabled=spec["enabled"],
+                model_types=spec["model_types"],
                 status=StatusEnum.VALID.value,
             )
 
@@ -271,8 +314,8 @@ def save_department_config(department_id, api_base, api_key, models):
 
     return {
         "users": len(users),
-        "models_enabled": sum(1 for e in incoming.values() if e),
-        "models_disabled": sum(1 for e in incoming.values() if not e),
+        "models_enabled": sum(1 for s in incoming.values() if s["enabled"]),
+        "models_disabled": sum(1 for s in incoming.values() if not s["enabled"]),
         "models_removed": len(removed),
     }
 
@@ -339,7 +382,51 @@ def get_department_config(department_id):
         "api_base": token.api_base if token else "",
         "api_key": token.api_key if token else "",
         "models": sorted(
-            [{"llm_name": m.llm_name, "enabled": bool(m.enabled)} for m in models],
+            [
+                {
+                    "llm_name": m.llm_name,
+                    "enabled": bool(m.enabled),
+                    "model_types": _parse_model_types(getattr(m, "model_types", "")),
+                }
+                for m in models
+            ],
             key=lambda x: x["llm_name"],
         ),
     }
+
+
+def list_department_configs():
+    """
+    Return every department that has a model token configured, each with its
+    department name, api_base and full model on/off list. Used by the admin
+    "model settings" overview. api_key is intentionally omitted (never exposed).
+    """
+    from api.db.services.department_service import DepartmentService
+
+    dept_names = {d.id: d.name for d in DepartmentService.get_all()}
+    result = []
+    for token in DepartmentLLMService.get_all():
+        models = DepartmentLLMModelService.query(department_id=token.department_id)
+        model_list = sorted(
+            [
+                {
+                    "llm_name": m.llm_name,
+                    "enabled": bool(m.enabled),
+                    "model_types": _parse_model_types(getattr(m, "model_types", "")),
+                }
+                for m in models
+            ],
+            key=lambda x: x["llm_name"],
+        )
+        result.append(
+            {
+                "department_id": token.department_id,
+                "department_name": dept_names.get(token.department_id, token.department_id),
+                "api_base": token.api_base or "",
+                "enabled_count": sum(1 for m in model_list if m["enabled"]),
+                "total_count": len(model_list),
+                "models": model_list,
+            }
+        )
+    result.sort(key=lambda x: x["department_name"] or "")
+    return result

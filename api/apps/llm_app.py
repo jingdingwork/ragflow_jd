@@ -496,3 +496,15 @@ async def list_app():
         return get_json_result(data=res)
     except Exception as e:
         return server_error_response(e)
+
+
+@manager.route("/model_tags", methods=["GET"])  # noqa: F821
+@login_required
+async def model_tags():
+    """Admin-curated capability/custom tags per model name, for user-side display."""
+    from api.db.services.model_catalog_service import get_public_catalog
+
+    try:
+        return get_json_result(data=get_public_catalog())
+    except Exception as e:
+        return server_error_response(e)

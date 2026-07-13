@@ -80,6 +80,7 @@ export enum Routes {
   AdminDeptFolders = `${Admin}/dept-folders`,
   AdminRetrievalTest = `${Admin}/retrieval-test`,
   AdminSandboxSettings = `${Admin}/sandbox-settings`,
+  AdminSystemSettings = `${Admin}/system-settings`,
   AdminWhitelist = `${Admin}/whitelist`,
   AdminRoles = `${Admin}/roles`,
   AdminMonitoring = `${Admin}/monitoring`,
@@ -430,6 +431,10 @@ const routeConfigOptions = [
               {
                 path: Routes.AdminSandboxSettings,
                 Component: () => import('@/pages/admin/sandbox-settings'),
+              },
+              {
+                path: Routes.AdminSystemSettings,
+                Component: () => import('@/pages/admin/system-settings'),
               },
               ...(IS_ENTERPRISE
                 ? [

@@ -29,6 +29,7 @@ from api.db.services.department_llm_service import (
     fetch_models as fetch_department_models,
     save_department_config,
     get_department_config,
+    list_department_configs,
     apply_department_models_to_user,
     get_models_by_tenants,
     get_configured_department_ids,
@@ -42,6 +43,12 @@ from api.db.services.global_llm_service import (
     get_global_config,
     save_global_config,
     apply_global_models_to_user,
+)
+from api.db.services.model_catalog_service import (
+    list_models as list_catalog_models,
+    create_model as create_catalog_model,
+    update_model as update_catalog_model,
+    delete_model as delete_catalog_model,
 )
 from api.db.joint_services.user_account_service import create_new_user, delete_user_data
 from api.db.services.canvas_service import UserCanvasService
@@ -494,6 +501,10 @@ class DepartmentMgr:
         return get_department_config(department_id)
 
     @staticmethod
+    def list_llm_configs():
+        return list_department_configs()
+
+    @staticmethod
     def save_llm_config(department_id, api_base, api_key, models):
         return save_department_config(department_id, api_base, api_key, models)
 
@@ -550,6 +561,26 @@ class DepartmentMgr:
         buffer = io.BytesIO()
         wb.save(buffer)
         return buffer.getvalue()
+
+
+class ModelCatalogMgr:
+    """Admin-curated model catalog shown to end users (name + capability/custom tags)."""
+
+    @staticmethod
+    def list_models():
+        return list_catalog_models()
+
+    @staticmethod
+    def create_model(llm_name, capabilities, custom_tags):
+        return create_catalog_model(llm_name, capabilities, custom_tags)
+
+    @staticmethod
+    def update_model(catalog_id, llm_name, capabilities, custom_tags):
+        return update_catalog_model(catalog_id, llm_name, capabilities, custom_tags)
+
+    @staticmethod
+    def delete_model(catalog_id):
+        return delete_catalog_model(catalog_id)
 
 
 class GlobalLLMMgr:

@@ -31,6 +31,7 @@ export default {
   factoriesList: `${webAPI}/llm/factories`,
   llmList: `${webAPI}/llm/list`,
   myLlm: `${webAPI}/llm/my_llms`,
+  modelTags: `${webAPI}/llm/model_tags`,
   setApiKey: `${webAPI}/llm/set_api_key`,
   addLlm: `${webAPI}/llm/add_llm`,
   deleteLlm: `${webAPI}/llm/delete_llm`,
@@ -328,6 +329,7 @@ export default {
   adminSyncDepartments: `${restAPIv1}/admin/departments/sync`,
   adminExportDepartments: `${restAPIv1}/admin/departments/export`,
   adminFetchDepartmentModels: `${restAPIv1}/admin/departments/llm/fetch-models`,
+  adminDepartmentLlmConfigs: `${restAPIv1}/admin/departments/llm/configs`,
   adminDepartmentLlm: (departmentId: string) =>
     `${restAPIv1}/admin/departments/${departmentId}/llm`,
   adminUserLlm: (email: string) => `${restAPIv1}/admin/users/${email}/llm`,
@@ -340,6 +342,9 @@ export default {
     `${restAPIv1}/admin/departments/${departmentId}/llm/resync`,
   adminGlobalLlm: `${restAPIv1}/admin/global-llm`,
   adminFetchGlobalModels: `${restAPIv1}/admin/global-llm/fetch-models`,
+  adminModelCatalog: `${restAPIv1}/admin/model-catalog`,
+  adminModelCatalogItem: (id: string) =>
+    `${restAPIv1}/admin/model-catalog/${id}`,
 
   adminChatHistoryStats: `${restAPIv1}/admin/chat-history/stats`,
   adminChatHistoryOverview: `${restAPIv1}/admin/chat-history/overview`,

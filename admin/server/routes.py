@@ -25,7 +25,7 @@ from flask_login import current_user, login_required, logout_user
 
 from auth import login_verify, login_admin, check_admin_auth
 from responses import success_response, error_response
-from services import UserMgr, DepartmentMgr, GlobalLLMMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, RetrievalMgr, PromptMgr, FolderMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr
+from services import UserMgr, DepartmentMgr, GlobalLLMMgr, ModelCatalogMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, RetrievalMgr, PromptMgr, FolderMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr
 from roles import RoleMgr
 from api.common.exceptions import AdminException
 from common.versions import get_ragflow_version
@@ -133,6 +133,17 @@ def fetch_department_models():
         return error_response(str(e), 500)
 
 
+@admin_bp.route("/departments/llm/configs", methods=["GET"])
+@login_required
+@check_admin_auth
+def list_department_llm_configs():
+    try:
+        configs = DepartmentMgr.list_llm_configs()
+        return success_response(configs, "List department LLM configs", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
 @admin_bp.route("/departments/<department_id>/llm", methods=["GET"])
 @login_required
 @check_admin_auth
@@ -218,6 +229,61 @@ def resync_department_llm(department_id):
     try:
         stats = DepartmentMgr.resync_llm_models(department_id)
         return success_response(stats, "Resync department models", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/model-catalog", methods=["GET"])
+@login_required
+@check_admin_auth
+def list_model_catalog():
+    try:
+        models = ModelCatalogMgr.list_models()
+        return success_response(models, "List model catalog", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/model-catalog", methods=["POST"])
+@login_required
+@check_admin_auth
+def create_model_catalog():
+    try:
+        data = request.get_json() or {}
+        model = ModelCatalogMgr.create_model(
+            data.get("llm_name", ""),
+            data.get("capabilities", []),
+            data.get("custom_tags", []),
+        )
+        return success_response(model, "Create catalog model", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/model-catalog/<catalog_id>", methods=["PUT"])
+@login_required
+@check_admin_auth
+def update_model_catalog(catalog_id):
+    try:
+        data = request.get_json() or {}
+        model = ModelCatalogMgr.update_model(
+            catalog_id,
+            data.get("llm_name", ""),
+            data.get("capabilities", []),
+            data.get("custom_tags", []),
+        )
+        return success_response(model, "Update catalog model", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/model-catalog/<catalog_id>", methods=["DELETE"])
+@login_required
+@check_admin_auth
+def delete_model_catalog(catalog_id):
+    try:
+        result = ModelCatalogMgr.delete_model(catalog_id)
+        return success_response(result, "Delete catalog model", 0)
     except Exception as e:
         return error_response(str(e), 500)
 

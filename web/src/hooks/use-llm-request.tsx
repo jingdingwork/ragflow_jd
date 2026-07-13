@@ -35,6 +35,42 @@ export const enum LLMApiAction {
   DeleteFactory = 'deleteFactory',
 }
 
+export type ModelCapability = 'web_search' | 'image_parse' | 'multimodal';
+
+export type ModelTagEntry = {
+  llm_name: string;
+  capabilities: ModelCapability[];
+  custom_tags: string[];
+};
+
+// Admin-curated capability i18n keys (labels live in locales/{zh,en}.ts).
+export const MODEL_CAPABILITY_I18N: Record<ModelCapability, string> = {
+  web_search: 'admin.modelCapWebSearch',
+  image_parse: 'admin.modelCapImageParse',
+  multimodal: 'admin.modelCapMultimodal',
+};
+
+/**
+ * Admin-managed model catalog tags keyed by raw model name, for display in the
+ * user-side model picker. Read-only; empty map when nothing is configured.
+ */
+export const useFetchModelTags = () => {
+  const { data } = useQuery<Record<string, ModelTagEntry>>({
+    queryKey: ['modelTags'],
+    initialData: {},
+    queryFn: async () => {
+      const { data } = await userService.modelTags();
+      const list: ModelTagEntry[] = data?.data ?? [];
+      return list.reduce<Record<string, ModelTagEntry>>((acc, entry) => {
+        acc[entry.llm_name] = entry;
+        return acc;
+      }, {});
+    },
+  });
+
+  return data;
+};
+
 export const useFetchLlmList = (modelType?: LlmModelType) => {
   const { data } = useQuery<IThirdAiModelCollection>({
     queryKey: [LLMApiAction.LlmList],

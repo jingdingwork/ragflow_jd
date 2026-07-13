@@ -134,7 +134,7 @@ const MessageItem = ({
               ></UserGroupButton>
             )}
             {/* Show message content if there's any text besides the download */}
-            {messageContent && (
+            {messageContent ? (
               <div
                 className={cn(
                   isAssistant
@@ -152,6 +152,17 @@ const MessageItem = ({
                   clickDocumentButton={clickDocumentButton}
                 ></MarkdownContent>
               </div>
+            ) : (
+              // While waiting for the first streamed token the content is empty;
+              // show a typing indicator instead of a blank bubble.
+              isAssistant &&
+              loading && (
+                <div className="flex items-center gap-1.5 py-2 pl-1">
+                  <span className="size-2 rounded-full bg-accent-primary animate-bounce [animation-delay:-0.3s]" />
+                  <span className="size-2 rounded-full bg-accent-primary animate-bounce [animation-delay:-0.15s]" />
+                  <span className="size-2 rounded-full bg-accent-primary animate-bounce" />
+                </div>
+              )
             )}
             {isAssistant && (
               <ReferenceImageList

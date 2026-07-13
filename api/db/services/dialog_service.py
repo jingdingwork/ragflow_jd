@@ -272,7 +272,7 @@ def _strip_rag_system_prompt(system: str) -> str:
     return ""
 
 
-async def async_chat_solo(dialog, messages, stream=True):
+async def async_chat_solo(dialog, messages, stream=True, reasoning=False):
     llm_type = TenantLLMService.llm_id2llm_type(dialog.llm_id)
     attachments = ""
     image_attachments = []
@@ -312,11 +312,16 @@ async def async_chat_solo(dialog, messages, stream=True):
         msg[-1]["content"] += attachments
     if llm_type == "chat" and image_attachments:
         convert_last_user_msg_to_multimodal(msg, image_attachments, factory)
+    gen_conf = dict(dialog.llm_setting or {})
+    if llm_type == "chat":
+        # Only chat models understand the thinking switch; vision models would
+        # forward the unknown key straight to their API.
+        gen_conf["reasoning"] = bool(reasoning)
     if stream:
         if llm_type == "chat":
-            stream_iter = chat_mdl.async_chat_streamly_delta(system_content, msg, dialog.llm_setting)
+            stream_iter = chat_mdl.async_chat_streamly_delta(system_content, msg, gen_conf)
         else:
-            stream_iter = chat_mdl.async_chat_streamly_delta(system_content, msg, dialog.llm_setting, images=image_files)
+            stream_iter = chat_mdl.async_chat_streamly_delta(system_content, msg, gen_conf, images=image_files)
         async for kind, value, state in _stream_with_think_delta(stream_iter):
             if kind == "marker":
                 flags = {"start_to_think": True} if value == "<think>" else {"end_to_think": True}
@@ -325,9 +330,9 @@ async def async_chat_solo(dialog, messages, stream=True):
             yield {"answer": value, "reference": {}, "audio_binary": tts(tts_mdl, value), "prompt": "", "created_at": time.time(), "final": False}
     else:
         if llm_type == "chat":
-            answer = await chat_mdl.async_chat(system_content, msg, dialog.llm_setting)
+            answer = await chat_mdl.async_chat(system_content, msg, gen_conf)
         else:
-            answer = await chat_mdl.async_chat(system_content, msg, dialog.llm_setting, images=image_files)
+            answer = await chat_mdl.async_chat(system_content, msg, gen_conf, images=image_files)
         user_content = msg[-1].get("content", "[content not available]")
         logging.debug("User: {}|Assistant: {}".format(user_content, answer))
         yield {"answer": answer, "reference": {}, "audio_binary": tts(tts_mdl, answer), "prompt": "", "created_at": time.time()}
@@ -489,6 +494,29 @@ BAD_CITATION_PATTERNS = [
 CITATION_MARKER_PATTERN = re.compile(r"\[(?:ID:)?([0-9\u0660-\u0669\u06F0-\u06F9]+)\]")
 
 
+def _answer_is_kb_refusal(answer: str, prompt_config: dict) -> bool:
+    """True when the model refused with the knowledge-base "nothing found" reply
+    instead of producing a real, grounded answer.
+
+    The default KB system prompt instructs the model to output the exact phrase
+    "知识库中未找到您要的答案！" when all retrieved chunks are irrelevant. In that
+    case the retrieved documents were judged unrelated, so they must NOT be
+    attached as references — otherwise the UI shows source files under an answer
+    that explicitly says nothing was found.
+    """
+    if not answer:
+        return False
+    text = answer.strip()
+    # Core marker from the default system prompt (covers "知识库中未找到您要的答案"
+    # and the placeholder "在知识库中未找到您要寻找的答案").
+    if "未找到您要" in text:
+        return True
+    empty_resp = (prompt_config or {}).get("empty_response")
+    if empty_resp and len(empty_resp.strip()) >= 4 and empty_resp.strip() in text:
+        return True
+    return False
+
+
 def repair_bad_citation_formats(answer: str, kbinfos: dict, idx: set):
     max_index = len(kbinfos["chunks"])
     normalized_answer = normalize_arabic_digits(answer) or ""
@@ -541,8 +569,12 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
     assert messages[-1]["role"] == "user", "The last content of this conversation is not from user."
     use_web_search = _should_use_web_search(dialog.prompt_config, kwargs.get("internet"))
     logging.debug("web_search kb=%s tavily=%s internet=%r enabled=%s", bool(dialog.kb_ids), bool(dialog.prompt_config.get("tavily_api_key")), kwargs.get("internet"), use_web_search)
+    # The chat UI's "Thinking" toggle. It drives the model's native thinking switch
+    # (e.g. Bailian/Qwen3 `enable_thinking`); off means fast reply. DeepResearcher is
+    # a separate feature, gated only by the dialog's own `prompt_config["reasoning"]`.
+    reasoning = bool(kwargs.get("reasoning"))
     if not dialog.kb_ids and not use_web_search:
-        async for ans in async_chat_solo(dialog, messages, stream):
+        async for ans in async_chat_solo(dialog, messages, stream, reasoning=reasoning):
             yield ans
         return
 
@@ -665,7 +697,7 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
         logging.debug("Proceeding with retrieval")
         tenant_ids = list(set([kb.tenant_id for kb in kbs]))
         knowledges = []
-        if prompt_config.get("reasoning", False) or kwargs.get("reasoning"):
+        if prompt_config.get("reasoning", False):
             reasoner = DeepResearcher(
                 chat_mdl,
                 prompt_config,
@@ -757,7 +789,10 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
     no_kb_hit = "knowledge" in param_keys and not knowledges
 
     kwargs["knowledge"] = "\n------\n" + "\n\n------\n\n".join(knowledges)
-    gen_conf = dialog.llm_setting
+    gen_conf = dict(dialog.llm_setting or {})
+    if llm_type == "chat":
+        # See async_chat_solo: the switch is meaningless to vision models.
+        gen_conf["reasoning"] = reasoning
 
     if no_kb_hit:
         # KB miss: replace the KB-grounded prompt (which would force a "not found
@@ -795,7 +830,11 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
             think = ans[0] + "</think>"
             answer = ans[1]
 
-        if knowledges and (prompt_config.get("quote", True) and kwargs.get("quote", True)):
+        # A knowledge-base refusal ("知识库中未找到您要的答案") means the retrieved
+        # chunks were judged irrelevant, so we must not surface any of them as
+        # references — even the "nothing was cited, fall back to all docs" path
+        # below would otherwise attach every retrieved document under the refusal.
+        if knowledges and not _answer_is_kb_refusal(answer, prompt_config) and (prompt_config.get("quote", True) and kwargs.get("quote", True)):
             idx = set([])
             normalized_answer = normalize_arabic_digits(answer) or ""
             if embd_mdl and not CITATION_MARKER_PATTERN.search(normalized_answer):

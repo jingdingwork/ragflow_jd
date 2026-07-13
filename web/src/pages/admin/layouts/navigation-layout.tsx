@@ -14,6 +14,7 @@ import {
   LucideNetwork,
   LucideSearchCheck,
   LucideServerCrash,
+  LucideSettings2,
   LucideSquareUserRound,
   LucideUserCog,
   LucideUserStar,
@@ -93,6 +94,11 @@ const AdminNavigationLayout = () => {
         path: Routes.AdminSandboxSettings,
         name: t('admin.sandboxSettings'),
         icon: <LucideZap className="size-[1em]" />,
+      },
+      {
+        path: Routes.AdminSystemSettings,
+        name: t('admin.systemSettings'),
+        icon: <LucideSettings2 className="size-[1em]" />,
       },
       ...(IS_ENTERPRISE
         ? [

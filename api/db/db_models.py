@@ -764,6 +764,7 @@ class DepartmentLLMModel(DataBaseModel):
     department_id = CharField(max_length=32, null=False, help_text="department id", index=True)
     llm_name = CharField(max_length=128, null=False, help_text="model name from the provider's /models", index=True)
     enabled = BooleanField(null=False, help_text="whether department users may use this model", default=True, index=True)
+    model_types = CharField(max_length=128, null=False, help_text="admin-assigned comma-separated capability tags: web_search|image_parse|multimodal", default="", index=False)
     status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
 
     class Meta:
@@ -792,6 +793,23 @@ class GlobalLLM(DataBaseModel):
 
     class Meta:
         db_table = "global_llm"
+
+
+class ModelCatalog(DataBaseModel):
+    """
+    Admin-curated catalog of models exposed to end users. Independent of the
+    per-department provider config: the admin manually maintains this list, and
+    each entry carries capability tags + free-form tags for user-side display.
+    """
+    id = CharField(max_length=32, primary_key=True)
+    llm_name = CharField(max_length=128, null=False, help_text="model name shown to users", unique=True, index=True)
+    capabilities = CharField(max_length=128, null=False, help_text="comma-separated preset capability tags: web_search|image_parse|multimodal", default="", index=False)
+    custom_tags = ListField(null=True, help_text="admin free-form tags shown alongside the model", default=list)
+    sort = IntegerField(null=False, help_text="display order, ascending", default=0, index=True)
+    status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
+
+    class Meta:
+        db_table = "model_catalog"
 
 
 class PromptTemplate(DataBaseModel):
@@ -1739,6 +1757,100 @@ def _update_tenant_llm_to_id_primary_key_postgres():
             DB.execute_sql("ALTER TABLE tenant_llm DROP COLUMN temp_id")
 
 
+def migrate_department_chat_factory():
+    """One-off, idempotent: move department-provisioned chat models off the shared
+    'OpenAI-API-Compatible' factory onto the dedicated department chat factory, so
+    department tokens can no longer collide with the global 'other models'
+    (auxiliary) config — which keeps using 'OpenAI-API-Compatible'.
+
+    tenant_llm's uniqueness key is (tenant_id, llm_factory, llm_name), without
+    model_type, so a model name present in both configs under the same factory
+    collapsed into one row whose token was whichever side wrote last. Only rows
+    that belong to a department's own model list are touched here; personal
+    OpenAI-API-Compatible models (stored with a '___OpenAI-API' suffix, not in any
+    department list) and global aux rows (non-chat model_type) are left untouched.
+    Existing dialog.llm_id references to migrated models are rewritten too.
+    """
+    try:
+        from api.db.services.department_llm_service import (
+            DEPARTMENT_CHAT_FACTORY,
+            OPENAI_COMPATIBLE_FACTORY,
+        )
+        from common.constants import LLMType
+
+        old_factory = OPENAI_COMPATIBLE_FACTORY
+        new_factory = DEPARTMENT_CHAT_FACTORY
+        if old_factory == new_factory:
+            return
+
+        old_suffix = "@" + old_factory
+        new_suffix = "@" + new_factory
+
+        names_by_dept: dict[str, set] = {}
+        for m in DepartmentLLMModel.select(DepartmentLLMModel.department_id, DepartmentLLMModel.llm_name):
+            names_by_dept.setdefault(m.department_id, set()).add(m.llm_name)
+        if not names_by_dept:
+            return
+
+        migrated_rows = 0
+        migrated_dialogs = 0
+        for user in User.select(User.id, User.department_id).where(User.department_id.is_null(False)):
+            names = names_by_dept.get(user.department_id)
+            if not names:
+                continue
+            name_list = list(names)
+            # Flip only this user's department chat rows; a distinct factory means
+            # the new (tenant_id, VLLM, name) key cannot collide with personal
+            # VLLM rows (those carry a '___VLLM' suffix).
+            try:
+                migrated_rows += (
+                    TenantLLM.update(llm_factory=new_factory)
+                    .where(
+                        TenantLLM.tenant_id == user.id,
+                        TenantLLM.llm_factory == old_factory,
+                        TenantLLM.model_type == LLMType.CHAT.value,
+                        TenantLLM.llm_name.in_(name_list),
+                    )
+                    .execute()
+                )
+            except Exception:
+                logging.exception("migrate_department_chat_factory: failed to move tenant_llm rows for user %s", user.id)
+
+            for d in Dialog.select(Dialog.id, Dialog.llm_id).where(
+                Dialog.tenant_id == user.id,
+                Dialog.llm_id.endswith(old_suffix),
+            ):
+                base = (d.llm_id or "")[: -len(old_suffix)]
+                if base in names:
+                    try:
+                        Dialog.update(llm_id=base + new_suffix).where(Dialog.id == d.id).execute()
+                        migrated_dialogs += 1
+                    except Exception:
+                        logging.exception("migrate_department_chat_factory: failed to rewrite dialog %s", d.id)
+
+        if migrated_rows or migrated_dialogs:
+            logging.info(
+                "migrate_department_chat_factory: moved %s tenant_llm rows and %s dialog refs to factory '%s'",
+                migrated_rows,
+                migrated_dialogs,
+                new_factory,
+            )
+        if migrated_rows:
+            # A prior collision may have overwritten global aux rows (same name +
+            # OpenAI-API-Compatible) with the department token, or left the name
+            # as a chat row that we've just moved away. Re-apply the global config
+            # once so auxiliary models are restored under their own token. No-op
+            # when nothing global is configured.
+            try:
+                from api.db.services.global_llm_service import apply_global_models_to_all_users
+
+                apply_global_models_to_all_users()
+            except Exception:
+                logging.exception("migrate_department_chat_factory: failed to re-apply global models")
+    except Exception:
+        logging.exception("migrate_department_chat_factory failed")
+
+
 def migrate_db():
     logging.disable(logging.ERROR)
     migrator = DatabaseMigrator[settings.DATABASE_TYPE.upper()].value(DB)
@@ -1823,6 +1935,8 @@ def migrate_db():
     alter_db_add_column(migrator, "connector", "department_id", CharField(max_length=32, null=True, help_text="department id for admin-managed department data sources", index=True))
     alter_db_add_column(migrator, "shared_conversation", "sort", IntegerField(null=False, help_text="display order within the share zone, ascending", default=0, index=True))
     alter_db_add_column(migrator, "prompt_template", "created_by", CharField(max_length=32, null=True, help_text="owner user id for personal-scope templates", index=True))
+    alter_db_add_column(migrator, "department_llm_model", "model_types", CharField(max_length=128, null=False, default="", help_text="admin-assigned comma-separated capability tags"))
+    migrate_department_chat_factory()
     logging.disable(logging.NOTSET)
     # this is after re-enabling logging to allow logging changed user emails
     migrate_add_unique_email(migrator)

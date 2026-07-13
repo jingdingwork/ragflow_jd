@@ -131,9 +131,12 @@ const {
   adminSyncDepartments,
   adminExportDepartments,
   adminFetchDepartmentModels,
+  adminDepartmentLlmConfigs,
   adminResyncAllDepartmentModels,
   adminGlobalLlm,
   adminFetchGlobalModels,
+  adminModelCatalog,
+  adminModelCatalogItem,
 
   adminChatHistoryStats,
   adminChatHistoryOverview,
@@ -248,9 +251,56 @@ export const exportDepartmentMembers = () =>
 export const syncDepartments = () =>
   request.post<ResponseData<DepartmentSyncStats>>(adminSyncDepartments);
 
+// Admin-assigned capability tags for a department model (classification only).
+export type ModelCapability = 'web_search' | 'image_parse' | 'multimodal';
+
+export const MODEL_CAPABILITIES: ModelCapability[] = [
+  'web_search',
+  'image_parse',
+  'multimodal',
+];
+
+// Maps each capability to its i18n key (labels live in locales/{zh,en}.ts).
+export const MODEL_CAPABILITY_I18N: Record<ModelCapability, string> = {
+  web_search: 'admin.modelCapWebSearch',
+  image_parse: 'admin.modelCapImageParse',
+  multimodal: 'admin.modelCapMultimodal',
+};
+
+// Admin-curated catalog of models exposed to end users.
+export type ModelCatalogItem = {
+  id: string;
+  llm_name: string;
+  capabilities: ModelCapability[];
+  custom_tags: string[];
+  sort: number;
+};
+
+export type ModelCatalogInput = {
+  llm_name: string;
+  capabilities: ModelCapability[];
+  custom_tags: string[];
+};
+
+export const listModelCatalog = () =>
+  request.get<ResponseData<ModelCatalogItem[]>>(adminModelCatalog);
+
+export const createModelCatalog = (params: ModelCatalogInput) =>
+  request.post<ResponseData<ModelCatalogItem>>(adminModelCatalog, params);
+
+export const updateModelCatalog = (id: string, params: ModelCatalogInput) =>
+  request.put<ResponseData<ModelCatalogItem>>(
+    adminModelCatalogItem(id),
+    params,
+  );
+
+export const deleteModelCatalog = (id: string) =>
+  request.delete<ResponseData<{ deleted: string }>>(adminModelCatalogItem(id));
+
 export type DepartmentLlmModel = {
   llm_name: string;
   enabled: boolean;
+  model_types?: ModelCapability[];
 };
 
 export type DepartmentLlmConfig = {
@@ -264,6 +314,20 @@ export const fetchDepartmentModels = (params: {
   api_base: string;
   api_key: string;
 }) => request.post<ResponseData<string[]>>(adminFetchDepartmentModels, params);
+
+export type DepartmentLlmConfigSummary = {
+  department_id: string;
+  department_name: string;
+  api_base: string;
+  enabled_count: number;
+  total_count: number;
+  models: DepartmentLlmModel[];
+};
+
+export const listDepartmentLlmConfigs = () =>
+  request.get<ResponseData<DepartmentLlmConfigSummary[]>>(
+    adminDepartmentLlmConfigs,
+  );
 
 export const getDepartmentLlm = (departmentId: string) =>
   request.get<ResponseData<DepartmentLlmConfig>>(
