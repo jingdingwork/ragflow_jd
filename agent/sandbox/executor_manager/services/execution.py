@@ -324,6 +324,9 @@ ALLOWED_ARTIFACT_EXTENSIONS = {
     ".csv": "text/csv",
     ".json": "application/json",
     ".html": "text/html",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".md": "text/markdown",
 }
 MAX_ARTIFACT_COUNT = 10
 MAX_ARTIFACT_SIZE = 10 * 1024 * 1024  # 10MB per file

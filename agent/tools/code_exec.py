@@ -282,8 +282,9 @@ def main() -> dict:
     plt.close(fig)
     return {"summary": "Chart saved to artifacts/chart.png"}
 
-Available Python packages: pandas, numpy, matplotlib, requests.
-Supported artifact file types: .png, .jpg, .jpeg, .svg, .pdf, .csv, .json, .html
+Available Python packages: pandas, numpy, matplotlib, requests, python-docx (import as `docx`), openpyxl, reportlab.
+Supported artifact file types: .png, .jpg, .jpeg, .svg, .pdf, .csv, .json, .html, .docx, .xlsx, .md
+To produce a Word document, use python-docx (`from docx import Document`) and save to `artifacts/xxx.docx` — it handles Chinese natively, no font setup needed. NEVER write text straight into a .docx/.pdf path with open()/write(); that produces a corrupt file.
 
 Collected artifacts are also parsed automatically and appended to the stable text output `content`. The content includes sections like `attachment1 (image): ...`, `attachment2 (pdf): ...`, so downstream nodes can consume a single text output without depending on unstable attachment-specific variables.
 

@@ -32,13 +32,16 @@ from .base import ExecutionResult, SandboxInstance, SandboxProvider, SandboxProv
 
 ALLOWED_ARTIFACT_EXTENSIONS = {
     ".csv",
+    ".docx",
     ".html",
     ".jpeg",
     ".jpg",
     ".json",
+    ".md",
     ".pdf",
     ".png",
     ".svg",
+    ".xlsx",
 }
 
 LOCAL_PYTHON_THREAD_ENV_VARS = (
@@ -246,6 +249,20 @@ class LocalProvider(SandboxProvider):
             value = os.environ.get(name)
             if value is not None:
                 env[name] = value
+        # Windows: subprocess env fully replaces os.environ, and a stripped env
+        # breaks winsock init (WinError 10106) and DNS (getaddrinfo failed) because
+        # SystemRoot is missing. Playwright also needs LOCALAPPDATA/USERPROFILE to
+        # locate its installed browsers. Pass through the essential system vars.
+        if os.name == "nt":
+            for name in (
+                "SystemRoot", "WINDIR", "SystemDrive", "TEMP", "TMP",
+                "USERPROFILE", "APPDATA", "LOCALAPPDATA", "NUMBER_OF_PROCESSORS",
+                "COMPUTERNAME", "PATHEXT", "PROGRAMFILES", "PROGRAMFILES(X86)",
+                "COMMONPROGRAMFILES", "PROGRAMDATA", "PLAYWRIGHT_BROWSERS_PATH",
+            ):
+                value = os.environ.get(name)
+                if value is not None:
+                    env[name] = value
         return env
 
     def _limit_child_process(self) -> None:

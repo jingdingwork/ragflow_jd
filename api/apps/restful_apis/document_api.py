@@ -1694,6 +1694,9 @@ ARTIFACT_CONTENT_TYPES = {
     ".csv": "text/csv",
     ".json": "application/json",
     ".html": "text/html",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".md": "text/markdown",
 }
 
 
