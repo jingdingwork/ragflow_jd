@@ -2,3 +2,8 @@ numpy
 pandas
 matplotlib
 requests
+python-docx
+reportlab
+openpyxl
+beautifulsoup4
+lxml

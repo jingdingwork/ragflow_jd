@@ -17,7 +17,7 @@ RUN if [ "$NEED_MIRROR" = 1 ]; then \
         export UV_INDEX_URL="https://pypi.org/simple"; \
     fi; \
     apt-get update && \
-    apt-get install -y --no-install-recommends curl gcc && \
+    apt-get install -y --no-install-recommends curl gcc fonts-noto-cjk && \
     mkdir -p /tmp/matplotlib && \
     uv pip install --system -r requirements.txt && \
     rm -rf /var/lib/apt/lists/*
