@@ -5,6 +5,7 @@ import { getExtension } from '@/utils/document-util';
 import { downloadFileFromBlob } from '@/utils/file-util';
 import request from '@/utils/request';
 import DOMPurify from 'dompurify';
+import { Download } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import Markdown from 'react-markdown';
 import SyntaxHighlighter from 'react-syntax-highlighter';
@@ -87,6 +88,7 @@ function ArtifactLink({
 
   return (
     <a href={href} className={className} onClick={handleClick}>
+      <Download />
       {children}
     </a>
   );
@@ -179,7 +181,11 @@ function MarkdownContent({
       text = t('chat.searching');
     }
     const nextText = replaceTextByOldReg(text);
-    return pipe(replaceThinkToSection, replaceRetrievingToSection, preprocessLaTeX)(nextText);
+    return pipe(
+      replaceThinkToSection,
+      replaceRetrievingToSection,
+      preprocessLaTeX,
+    )(nextText);
   }, [content, t]);
 
   useEffect(() => {

@@ -121,12 +121,28 @@
 }
 
 .artifactDownload {
-  display: inline-block;
-  margin-top: 4px;
-  font-size: 12px;
-  color: #1677ff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--accent-primary, #f39800);
   text-decoration: none;
+  border: 1px solid var(--accent-primary, #f39800);
+  border-radius: 8px;
+  background: rgba(243, 152, 0, 0.08);
+  transition: background 0.15s ease;
+  cursor: pointer;
   &:hover {
-    text-decoration: underline;
+    text-decoration: none;
+    background: rgba(243, 152, 0, 0.18);
+  }
+  svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
   }
 }
