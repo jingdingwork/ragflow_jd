@@ -895,9 +895,12 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
         # answers from its own knowledge and flags that the answer is not from the
         # knowledge base.
         system_content = (
-            "你是一个智能助手。本次未能在知识库中检索到与用户问题相关的内容。"
-            "请直接依据你自身的通用知识，准确、完整地回答用户的问题，并结合聊天历史。"
-            "请在回答的第一行单独给出提示：“⚠️ 以下内容来自模型的通用知识，并非知识库检索结果。”"
+            "你是一个智能助手。本次未能在公司知识库中检索到与用户问题相关的内容。"
+            "请尽力、准确、完整地回答用户的问题，并结合聊天历史。"
+            "如果你具备联网搜索/实时检索能力，请优先联网获取最新、准确的信息"
+            "（尤其是天气、新闻、股价、汇率等时效性问题），不要以“无法联网/没有实时数据”为由拒绝。"
+            "请在回答的第一行单独用一句话如实说明信息来源，例如："
+            "“⚠️ 以下内容来自联网搜索。”或“⚠️ 以下内容来自模型的通用知识，并非知识库检索结果。”"
         )
     else:
         system_content = prompt_config["system"].format(**kwargs)
