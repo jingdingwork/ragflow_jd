@@ -1000,6 +1000,7 @@ This auto-tagging feature enhances retrieval by adding another layer of domain-s
       noKnowledgeBase: 'No searchable knowledge base.',
       noAgent: 'No agent',
       selectAgent: 'Select agent',
+      thinking: 'Thinking',
       chatSupport: 'Chat Support',
       replyInstantly: 'We typically reply instantly',
       typeYourMessage: 'Type your message...',

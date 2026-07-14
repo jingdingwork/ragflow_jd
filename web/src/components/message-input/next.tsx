@@ -266,6 +266,7 @@ export function NextMessageInput({
             min-h-10 max-h-40 w-full p-0 overflow-auto
             !outline-none !border-transparent !bg-transparent !shadow-none !ring-transparent !ring-offset-transparent
           "
+          style={{ resize }}
           disabled={isUploading || disabled || sendLoading}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
@@ -302,7 +303,7 @@ export function NextMessageInput({
                 data-testid="chat-detail-thinking-toggle"
               >
                 <Atom />
-                <span>Thinking</span>
+                <span>{t('chat.thinking')}</span>
               </Button>
             )}
 
