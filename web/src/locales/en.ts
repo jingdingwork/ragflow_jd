@@ -1001,6 +1001,7 @@ This auto-tagging feature enhances retrieval by adding another layer of domain-s
       noAgent: 'No agent',
       selectAgent: 'Select agent',
       thinking: 'Thinking',
+      deepThinking: 'Deep thinking (off = fast reply)',
       chatSupport: 'Chat Support',
       replyInstantly: 'We typically reply instantly',
       typeYourMessage: 'Type your message...',

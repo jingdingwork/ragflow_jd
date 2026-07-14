@@ -49,6 +49,10 @@ class LLMParam(ComponentParamBase):
         self.output_structure = None
         self.cite = True
         self.visual_files_var = None
+        # Fast-reply / deep-thinking switch for this model node. None = keep the
+        # model's default; False = fast reply; True = deep think. Drives the
+        # model's native thinking (Bailian/Qwen3 enable_thinking) via gen_conf.
+        self.reasoning = None
 
     def check(self):
         self.check_decimal_float(float(self.temperature), "[Agent] Temperature")

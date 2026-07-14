@@ -1360,6 +1360,7 @@ NER：使用 spaCy NER 和基于规则的关键词提取来抽取实体和关系
       noAgent: '不使用智能体',
       selectAgent: '选择智能体',
       thinking: '深度思考',
+      deepThinking: '深度思考（关闭=快速回复）',
       chatSupport: '聊天支持',
       replyInstantly: '我们通常会即时回复',
       typeYourMessage: '输入您的消息...',

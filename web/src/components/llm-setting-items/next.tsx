@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
+import { Switch } from '../ui/switch';
 import { LLMFormField } from './llm-form-field';
 import { SliderInputSwitchFormField } from './slider';
 import { useHandleFreedomChange } from './use-watch-change';
@@ -64,6 +65,9 @@ export const LlmSettingSchema = {
   ...LLMIdFormField,
   ...LlmSettingFieldSchema,
   ...LlmSettingEnabledSchema,
+  // Fast-reply / deep-thinking switch. Undefined keeps the model default; false
+  // = fast reply; true = deep think. Drives Bailian/Qwen3 enable_thinking.
+  reasoning: z.boolean().optional(),
 };
 
 export function LlmSettingFieldItems({
@@ -141,6 +145,23 @@ export function LlmSettingFieldItems({
         testId={llmSelectTestId}
         optionTestIdPrefix={llmOptionTestIdPrefix}
       ></LLMFormField>
+      <FormField
+        control={form.control}
+        name={getFieldWithPrefix('reasoning')}
+        render={({ field }) => (
+          <FormItem className="flex justify-between items-center">
+            <FormLabel className="flex-1">{t('deepThinking')}</FormLabel>
+            <FormControl>
+              <Switch
+                checked={!!field.value}
+                onCheckedChange={field.onChange}
+                data-testid="llm-reasoning-switch"
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
       <FormField
         control={form.control}
         name={getFieldWithPrefix('parameter')}
