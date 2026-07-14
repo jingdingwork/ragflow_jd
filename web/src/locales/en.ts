@@ -3043,7 +3043,6 @@ Important structured information may include: names, dates, locations, events, k
       modelCapWebSearch: 'Web search',
       modelCapImageParse: 'Image parsing',
       modelCapMultimodal: 'Multimodal',
-      modelCapDeepThinking: 'Deep thinking (off = fast reply)',
       webSearchTest: 'Web search test',
       webSearchTesting: 'Testing…',
       webSearchSupported: 'Web search supported',

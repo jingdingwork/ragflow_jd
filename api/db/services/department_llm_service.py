@@ -52,10 +52,10 @@ DEPARTMENT_CHAT_IS_TOOLS = True
 
 # Admin-assigned capability tags for a department model. Pure classification
 # metadata (display/grouping); does not change how models are provisioned.
-# web_search    -> runtime injects Bailian/Qwen `enable_search` (model built-in web search)
-# deep_thinking -> runtime forces thinking mode on (Qwen3 `enable_thinking=true`); when
-#                  absent the model keeps its own default (fast reply for Qwen commercial)
-VALID_MODEL_TYPES = ("web_search", "image_parse", "multimodal", "deep_thinking")
+# web_search -> runtime injects Bailian/Qwen `enable_search` (model built-in web search).
+# Deep-thinking / fast-reply is NOT an admin capability: it is a per-chat user choice
+# (chat "深度思考" toggle) applied at request time in async_chat.
+VALID_MODEL_TYPES = ("web_search", "image_parse", "multimodal")
 
 
 def _parse_model_types(raw):

@@ -218,7 +218,6 @@ export default {
       modelCapWebSearch: '联网搜索',
       modelCapImageParse: '图片解析',
       modelCapMultimodal: '多模态',
-      modelCapDeepThinking: '深度思考（关闭=快速回复）',
       webSearchTest: '联网测试',
       webSearchTesting: '测试中…',
       webSearchSupported: '支持联网',

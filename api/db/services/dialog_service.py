@@ -86,20 +86,16 @@ def _should_use_web_search(prompt_config, internet=None):
     return normalized is True
 
 
-def _apply_model_capabilities(gen_conf, llm_name):
-    """Apply admin model-catalog capabilities (admin console → 系统配置 → 模型设置).
+def _apply_model_capabilities(gen_conf, llm_name, reasoning):
+    """Apply per-model admin capability (系统配置 → 模型设置) plus the per-chat thinking choice.
 
-    - ``web_search``: inject Bailian/Qwen ``enable_search`` so the model uses its own
-      built-in web search. This replaces the previous new-api gateway parameter
-      override and is scoped per model by the admin catalog, so non-supporting models
-      (e.g. deepseek) simply are not flagged and never receive the param.
-    - ``deep_thinking``: force thinking mode on (Qwen3 ``enable_thinking=true``). When
-      absent we drop the reasoning flag so the model keeps its own default (fast reply
-      for Qwen commercial) — never forcing ``enable_thinking=false``, which would also
-      disable ``enable_search`` on Bailian.
-
-    Reasoning is now driven purely by this per-model admin setting, not by any per-turn
-    request flag.
+    - ``web_search`` capability: inject Bailian/Qwen ``enable_search`` so the model uses
+      its own built-in web search. Scoped per model by the admin catalog, so
+      non-supporting models (e.g. deepseek) are simply not flagged.
+    - ``reasoning`` (per-chat user "深度思考" toggle) is tri-state: None means "leave the
+      model at its own default" (so ``enable_search`` keeps working); True/False is an
+      explicit user choice. The chat UI sends None by default and only True when the user
+      turns deep thinking on, so the default path never forces non-thinking mode.
     """
     from api.db.services.model_catalog_service import get_capabilities_by_name
 
@@ -115,8 +111,8 @@ def _apply_model_capabilities(gen_conf, llm_name):
         extra_body.setdefault("search_options", {"search_strategy": "turbo"})
         gen_conf["extra_body"] = extra_body
 
-    if "deep_thinking" in caps:
-        gen_conf["reasoning"] = True
+    if reasoning is not None:
+        gen_conf["reasoning"] = bool(reasoning)
     else:
         gen_conf.pop("reasoning", None)
     return gen_conf
@@ -350,7 +346,7 @@ async def async_chat_solo(dialog, messages, stream=True, reasoning=None):
         convert_last_user_msg_to_multimodal(msg, image_attachments, factory)
     gen_conf = dict(dialog.llm_setting or {})
     if llm_type == "chat":
-        gen_conf = _apply_model_capabilities(gen_conf, chat_mdl.model_config.get("llm_name"))
+        gen_conf = _apply_model_capabilities(gen_conf, chat_mdl.model_config.get("llm_name"), reasoning)
     else:
         # Vision models understand neither the thinking switch nor enable_search.
         gen_conf.pop("reasoning", None)
@@ -912,7 +908,7 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
     kwargs["knowledge"] = "\n------\n" + "\n\n------\n\n".join(knowledges)
     gen_conf = dict(dialog.llm_setting or {})
     if llm_type == "chat":
-        gen_conf = _apply_model_capabilities(gen_conf, chat_mdl.model_config.get("llm_name"))
+        gen_conf = _apply_model_capabilities(gen_conf, chat_mdl.model_config.get("llm_name"), reasoning)
     else:
         gen_conf.pop("reasoning", None)
 

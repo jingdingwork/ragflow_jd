@@ -253,17 +253,12 @@ export const syncDepartments = () =>
   request.post<ResponseData<DepartmentSyncStats>>(adminSyncDepartments);
 
 // Admin-assigned capability tags for a department model (classification only).
-export type ModelCapability =
-  | 'web_search'
-  | 'image_parse'
-  | 'multimodal'
-  | 'deep_thinking';
+export type ModelCapability = 'web_search' | 'image_parse' | 'multimodal';
 
 export const MODEL_CAPABILITIES: ModelCapability[] = [
   'web_search',
   'image_parse',
   'multimodal',
-  'deep_thinking',
 ];
 
 // Maps each capability to its i18n key (labels live in locales/{zh,en}.ts).
@@ -271,7 +266,6 @@ export const MODEL_CAPABILITY_I18N: Record<ModelCapability, string> = {
   web_search: 'admin.modelCapWebSearch',
   image_parse: 'admin.modelCapImageParse',
   multimodal: 'admin.modelCapMultimodal',
-  deep_thinking: 'admin.modelCapDeepThinking',
 };
 
 // Admin-curated catalog of models exposed to end users.
