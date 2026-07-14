@@ -39,6 +39,17 @@ OPENAI_COMPATIBLE_FACTORY = "OpenAI-API-Compatible"
 DEPARTMENT_CHAT_FACTORY = "VLLM"
 DEFAULT_MAX_TOKENS = 8192
 
+# Tool-calling switch for department-provisioned chat models. These are
+# OpenAI-compatible models (served via New API) and virtually all modern ones
+# support function/tool calling, which the agent canvas relies on (Retrieval,
+# CodeExec, etc.). Keep this True so re-provisioning does NOT silently disable
+# agent tools — otherwise is_tools gets re-encoded as False on every sync and
+# the model starts narrating tool calls as plain text instead of executing them.
+# If a specific model truly lacks tool support the worst case is graceful
+# degradation (narration), not a crash. Flip to False only if you must globally
+# disable tools for all department chat models.
+DEPARTMENT_CHAT_IS_TOOLS = True
+
 # Admin-assigned capability tags for a department model. Pure classification
 # metadata (display/grouping); does not change how models are provisioned.
 VALID_MODEL_TYPES = ("web_search", "image_parse", "multimodal")
@@ -106,7 +117,7 @@ class DepartmentLLMModelService(CommonService):
 
 def _upsert_user_model(user_id, api_base, api_key, llm_name):
     """Insert/update one OpenAI-compatible chat model on a user's tenant."""
-    encoded_key = TenantLLMService._encode_api_key_config(api_key or "", False)
+    encoded_key = TenantLLMService._encode_api_key_config(api_key or "", DEPARTMENT_CHAT_IS_TOOLS)
     row = {
         "tenant_id": user_id,
         "llm_factory": DEPARTMENT_CHAT_FACTORY,

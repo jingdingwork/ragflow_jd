@@ -1002,12 +1002,25 @@ async def search(dataset_id: str, tenant_id: str, req: dict):
     _question = question
     if langs:
         _question = await cross_languages(kb.tenant_id, None, _question, langs)
+    embd_model_config = None
     if kb.tenant_embd_id:
-        embd_model_config = get_model_config_by_id(kb.tenant_embd_id)
-    elif kb.embd_id:
-        embd_model_config = get_model_config_by_type_and_name(kb.tenant_id, LLMType.EMBEDDING, kb.embd_id)
-    else:
-        embd_model_config = get_tenant_default_model_by_type(kb.tenant_id, LLMType.EMBEDDING)
+        try:
+            embd_model_config = get_model_config_by_id(kb.tenant_embd_id)
+        except LookupError:
+            # tenant_embd_id can go stale when department/global models are
+            # re-provisioned (the old tenant_llm row is deleted and recreated
+            # with a new id), leaving a dangling numeric reference. Fall back to
+            # the name-based embd_id / tenant default instead of crashing the
+            # whole retrieval.
+            logging.warning(
+                "KB %s tenant_embd_id=%s not found; falling back to embd_id=%s",
+                kb.id, kb.tenant_embd_id, kb.embd_id,
+            )
+    if embd_model_config is None:
+        if kb.embd_id:
+            embd_model_config = get_model_config_by_type_and_name(kb.tenant_id, LLMType.EMBEDDING, kb.embd_id)
+        else:
+            embd_model_config = get_tenant_default_model_by_type(kb.tenant_id, LLMType.EMBEDDING)
     embd_mdl = LLMBundle(kb.tenant_id, embd_model_config)
 
     rerank_mdl = None
@@ -1368,12 +1381,25 @@ async def search_datasets(tenant_id: str, req: dict):
     _question = question
     if langs:
         _question = await cross_languages(kb.tenant_id, None, _question, langs)
+    embd_model_config = None
     if kb.tenant_embd_id:
-        embd_model_config = get_model_config_by_id(kb.tenant_embd_id)
-    elif kb.embd_id:
-        embd_model_config = get_model_config_by_type_and_name(kb.tenant_id, LLMType.EMBEDDING, kb.embd_id)
-    else:
-        embd_model_config = get_tenant_default_model_by_type(kb.tenant_id, LLMType.EMBEDDING)
+        try:
+            embd_model_config = get_model_config_by_id(kb.tenant_embd_id)
+        except LookupError:
+            # tenant_embd_id can go stale when department/global models are
+            # re-provisioned (the old tenant_llm row is deleted and recreated
+            # with a new id), leaving a dangling numeric reference. Fall back to
+            # the name-based embd_id / tenant default instead of crashing the
+            # whole retrieval.
+            logging.warning(
+                "KB %s tenant_embd_id=%s not found; falling back to embd_id=%s",
+                kb.id, kb.tenant_embd_id, kb.embd_id,
+            )
+    if embd_model_config is None:
+        if kb.embd_id:
+            embd_model_config = get_model_config_by_type_and_name(kb.tenant_id, LLMType.EMBEDDING, kb.embd_id)
+        else:
+            embd_model_config = get_tenant_default_model_by_type(kb.tenant_id, LLMType.EMBEDDING)
     embd_mdl = LLMBundle(kb.tenant_id, embd_model_config)
 
     rerank_mdl = None

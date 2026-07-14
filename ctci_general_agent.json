@@ -68,10 +68,10 @@
             "items": [
               {
                 "name": "知识库检索",
-                "description": "公司内部 / 业务 / 制度 / 项目 / 文档 / 流程等，只存在于公司知识库的问题。",
+                "description": "查询/检索公司内部【已有】的业务、制度、项目、文档、流程资料——是『查找已有内容』，不是『生成新文件』。",
                 "examples": [
                   {
-                    "value": "公司的请假制度是怎样的？\n这个项目的进度文档在哪？"
+                    "value": "公司的请假制度是怎样的？\n查一下知识库里关于保密的文件\n这个项目的进度文档在哪？"
                   }
                 ],
                 "uuid": "2292e1ac343046129b73d75ada5036ba"
@@ -88,10 +88,10 @@
               },
               {
                 "name": "计算与文件生成",
-                "description": "需要计算、数据处理、生成表格/图表，或生成 Word / PDF / Excel 文件。",
+                "description": "需要计算、数据处理、生成图表(柱状图/饼图/折线图)，或把内容生成/导出为 Word / PDF / Excel 文件。凡出现『生成 / 制作 / 导出 / 画一个』搭配『pdf / word / excel / 表格 / 图 / 报告 / 文档 / 文件』，或『把上面 / 前面的内容做成…』，一律归这里，即使上一句是知识库问题也要归这里。",
                 "examples": [
                   {
-                    "value": "帮我算一下这些数据的平均值。\n把上面的内容生成一份 Word 报告。"
+                    "value": "帮我算一下这些数据的平均值。\n把上面的内容生成一份 Word 报告。\n把上面内容生成pdf\n给我画一个销售额柱状图\n把刚才的结果导出成 excel"
                   }
                 ],
                 "uuid": "aafb1b71667e4b4ab208b914fb95dc84"
@@ -158,7 +158,7 @@
                 "role": "user"
               }
             ],
-            "sys_prompt": "# 角色：知识库检索专家\n你只负责回答公司内部 / 业务 / 制度 / 项目 / 文档 / 流程类问题。\n- 必须先调用 search_my_dateset 检索公司知识库，基于检索到的内容作答，并注明来源。\n- 知识库中查不到，就明确回复\"未在公司知识库中找到相关信息\"，绝不编造，也不要用通用知识硬答。\n- 简体中文、markdown 格式、条理清晰。",
+            "sys_prompt": "# 角色：知识库检索专家\n你只负责回答公司内部 / 业务 / 制度 / 项目 / 文档 / 流程类问题。\n- 必须先调用知识库检索工具(Retrieval)检索公司知识库，基于检索到的内容作答，并注明来源。\n\n# 检索关键词怎么给（很重要）\n- 查询词直接用用户问题里的【核心名词】，例如用户问\"知识库里关于保密的文件\"，就检索\"保密\"，不要拼成\"保密的文件\"\"保密资料清单\"这类带修饰词的长短语。\n- 严禁自行添加\"文件 / 资料 / 清单 / 相关\"等词，也不要改写、精简或猜测用户意图。\n- 若首次检索返回空，再用【更短的核心词】重试一次（只保留最关键的 1~2 个词）；两次都空，才回复\"未在公司知识库中找到相关信息\"。\n- 引用来源时必须【原样】使用检索结果返回的真实文件名/标题，严禁自造任何文档编号或 ID（例如 SEC-2023-001 这类编号一律禁止捏造）。\n- 绝不编造，绝不给\"模拟示例\"，也不要用通用知识硬答。\n- 简体中文、markdown 格式、条理清晰。\n\n# 生成文件兜底\n若用户要求把检索结果生成/导出为 pdf/word/excel/图表，用 execute_code 在 artifacts/ 目录生成文件并返回其下载链接，绝不要把代码或文件路径当文字发出来。关键：PDF 用 reportlab 且注册 UnicodeCIDFont('STSong-Light') 并对所有样式和表格设该字体；图表用 matplotlib 设 plt.rcParams['font.sans-serif']=['Noto Sans CJK SC','Microsoft YaHei','SimHei']，否则中文变方块。",
             "temperature": 0.2,
             "temperatureEnabled": true,
             "tools": [
@@ -170,7 +170,7 @@
                   "description": "检索公司内部知识库。",
                   "empty_response": "",
                   "kb_ids": [],
-                  "keywords_similarity_weight": 0.7,
+                  "keywords_similarity_weight": 0.3,
                   "outputs": {
                     "formalized_content": {
                       "type": "string",
@@ -178,10 +178,29 @@
                     }
                   },
                   "rerank_id": "",
-                  "similarity_threshold": 0.2,
+                  "similarity_threshold": 0.1,
                   "top_k": 1024,
                   "top_n": 8,
                   "use_kg": false
+                }
+              },
+              {
+                "component_name": "CodeExec",
+                "name": "CodeExec",
+                "params": {
+                  "arguments": {},
+                  "lang": "python",
+                  "outputs": {
+                    "result": {
+                      "type": "object",
+                      "value": ""
+                    },
+                    "attachments": {
+                      "type": "Array<String>",
+                      "value": []
+                    }
+                  },
+                  "script": "def main() -> dict:\n    return {\"result\": \"ok\"}"
                 }
               }
             ],
@@ -559,10 +578,30 @@
                 "role": "user"
               }
             ],
-            "sys_prompt": "# 角色：通用问答专家\n你负责常识、写作、润色、翻译、逻辑推理等无需外部数据的问题，直接用你自身的知识回答。\n- 明确说明\"以下为模型的通用知识，非公司资料，仅供参考\"。\n- 简体中文、markdown 格式、条理清晰。",
+            "sys_prompt": "# 角色：通用问答专家\n你负责常识、写作、润色、翻译、逻辑推理等无需外部数据的问题，直接用你自身的知识回答。\n- 明确说明\"以下为模型的通用知识，非公司资料，仅供参考\"。\n- 简体中文、markdown 格式、条理清晰。\n\n# 生成文件兜底\n若用户要求把内容生成/导出为 pdf/word/excel/图表，用 execute_code 在 artifacts/ 目录生成文件并返回其下载链接，绝不要把代码或文件路径当文字发出来。关键：PDF 用 reportlab 且注册 UnicodeCIDFont('STSong-Light') 并对所有样式和表格设该字体；图表用 matplotlib 设 plt.rcParams['font.sans-serif']=['Noto Sans CJK SC','Microsoft YaHei','SimHei']，否则中文变方块。",
             "temperature": 0.2,
             "temperatureEnabled": true,
-            "tools": [],
+            "tools": [
+              {
+                "component_name": "CodeExec",
+                "name": "CodeExec",
+                "params": {
+                  "arguments": {},
+                  "lang": "python",
+                  "outputs": {
+                    "result": {
+                      "type": "object",
+                      "value": ""
+                    },
+                    "attachments": {
+                      "type": "Array<String>",
+                      "value": []
+                    }
+                  },
+                  "script": "def main() -> dict:\n    return {\"result\": \"ok\"}"
+                }
+              }
+            ],
             "topPEnabled": false,
             "top_p": 0.3,
             "user_prompt": "",
@@ -592,6 +631,30 @@
             "content": [
               "{Agent:General@content}"
             ]
+          }
+        }
+      },
+      {
+        "id": "Tool:GenTools",
+        "type": "toolNode",
+        "dragging": false,
+        "selected": false,
+        "sourcePosition": "right",
+        "targetPosition": "left",
+        "measured": {
+          "height": 150,
+          "width": 200
+        },
+        "position": {
+          "x": 620,
+          "y": 940
+        },
+        "data": {
+          "label": "Tool",
+          "name": "flow.tool_Gen",
+          "form": {
+            "description": "This is an agent for a specific task.",
+            "user_prompt": "This is the order you need to send to the agent."
           }
         }
       },
@@ -738,6 +801,16 @@
         "source": "Agent:General",
         "sourceHandle": "start",
         "target": "Message:GenOut",
+        "targetHandle": "end",
+        "data": {
+          "isHovered": false
+        }
+      },
+      {
+        "id": "xy-edge__Agent:Generaltool-Tool:GenToolsend",
+        "source": "Agent:General",
+        "sourceHandle": "tool",
+        "target": "Tool:GenTools",
         "targetHandle": "end",
         "data": {
           "isHovered": false
