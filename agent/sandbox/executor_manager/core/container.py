@@ -92,7 +92,7 @@ async def create_container(name: str, language: SupportLanguage) -> bool:
         "--tmpfs",
         "/workspace:rw,exec,size=100M,uid=65534,gid=65534",
         "--tmpfs",
-        "/tmp:rw,exec,size=50M",
+        "/tmp:rw,exec,size=1024M",
         "--user",
         "nobody",
         "--workdir",

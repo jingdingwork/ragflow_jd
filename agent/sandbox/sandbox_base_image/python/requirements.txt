@@ -7,3 +7,4 @@ reportlab
 openpyxl
 beautifulsoup4
 lxml
+playwright
