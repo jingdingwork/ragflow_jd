@@ -136,7 +136,6 @@ const {
   adminGlobalLlm,
   adminFetchGlobalModels,
   adminModelCatalog,
-  adminModelCatalogWebSearchTest,
   adminModelCatalogItem,
 
   adminChatHistoryStats,
@@ -297,18 +296,6 @@ export const updateModelCatalog = (id: string, params: ModelCatalogInput) =>
 
 export const deleteModelCatalog = (id: string) =>
   request.delete<ResponseData<{ deleted: string }>>(adminModelCatalogItem(id));
-
-export type WebSearchTestResult = {
-  llm_name: string;
-  supported: boolean;
-  answer: string;
-};
-
-export const testModelWebSearch = (llm_name: string) =>
-  request.post<ResponseData<WebSearchTestResult>>(
-    adminModelCatalogWebSearchTest,
-    { llm_name },
-  );
 
 export type DepartmentLlmModel = {
   llm_name: string;

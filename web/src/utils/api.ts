@@ -343,7 +343,6 @@ export default {
   adminGlobalLlm: `${restAPIv1}/admin/global-llm`,
   adminFetchGlobalModels: `${restAPIv1}/admin/global-llm/fetch-models`,
   adminModelCatalog: `${restAPIv1}/admin/model-catalog`,
-  adminModelCatalogWebSearchTest: `${restAPIv1}/admin/model-catalog/web-search-test`,
   adminModelCatalogItem: (id: string) =>
     `${restAPIv1}/admin/model-catalog/${id}`,
 

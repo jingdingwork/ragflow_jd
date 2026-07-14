@@ -409,25 +409,6 @@ def get_department_config(department_id):
     }
 
 
-def get_credentials_for_model(llm_name):
-    """Resolve a callable (api_base, api_key) for a chat model by bare name.
-
-    Scans department tokens for the first one whose model list includes this model,
-    so the admin web-search test can actually call the provider. Returns
-    ``(api_base, api_key)`` or ``(None, None)`` when the model is not configured.
-    """
-    bare = (llm_name or "").split("@")[0].strip().lower()
-    if not bare:
-        return None, None
-    for token in DepartmentLLMService.get_all():
-        if not token.api_base:
-            continue
-        models = DepartmentLLMModelService.query(department_id=token.department_id)
-        if any((m.llm_name or "").strip().lower() == bare for m in models):
-            return token.api_base, token.api_key
-    return None, None
-
-
 def list_department_configs():
     """
     Return every department that has a model token configured, each with its
