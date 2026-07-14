@@ -73,7 +73,9 @@ export const useSendSharedMessage = () => {
         quote: true,
         question: message.content,
         session_id: get(derivedMessages, '0.session_id'),
-        reasoning: enableThinking,
+        // Omit reasoning unless thinking is explicitly on, so the model keeps its
+        // default (and provider-side web search stays available). See send hooks.
+        reasoning: enableThinking || undefined,
         internet: enableInternet,
       });
 

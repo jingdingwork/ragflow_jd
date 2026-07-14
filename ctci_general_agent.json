@@ -1,827 +1,827 @@
 {
-  "graph": {
-    "nodes": [
-      {
-        "id": "begin",
-        "type": "beginNode",
-        "dragging": false,
-        "selected": false,
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "measured": {
-          "height": 48,
-          "width": 200
-        },
-        "position": {
-          "x": 40,
-          "y": 320
-        },
-        "data": {
-          "label": "Begin",
-          "name": "begin",
-          "form": {
-            "enablePrologue": true,
-            "inputs": {},
-            "mode": "conversational",
-            "prologue": "你好，我是京鼎通用智能助手。我会先识别你的意图，再分派给对应的专家：知识库检索 / 联网与网页抓取 / 计算与文件生成 / 通用问答。请问有什么可以帮你？"
+ "graph": {
+  "nodes": [
+   {
+    "id": "begin",
+    "type": "beginNode",
+    "dragging": false,
+    "selected": false,
+    "sourcePosition": "right",
+    "targetPosition": "left",
+    "measured": {
+     "height": 48,
+     "width": 200
+    },
+    "position": {
+     "x": 40,
+     "y": 320
+    },
+    "data": {
+     "label": "Begin",
+     "name": "begin",
+     "form": {
+      "enablePrologue": true,
+      "inputs": {},
+      "mode": "conversational",
+      "prologue": "你好，我是京鼎通用智能助手。我会先识别你的意图，再分派给对应的专家：知识库检索 / 联网与网页抓取 / 计算与文件生成 / 通用问答。请问有什么可以帮你？"
+     }
+    }
+   },
+   {
+    "id": "Categorize:Intent",
+    "type": "categorizeNode",
+    "dragging": false,
+    "selected": false,
+    "sourcePosition": "right",
+    "targetPosition": "left",
+    "measured": {
+     "height": 260,
+     "width": 240
+    },
+    "position": {
+     "x": 300,
+     "y": 300
+    },
+    "data": {
+     "label": "Categorize",
+     "name": "意图识别",
+     "form": {
+      "llm_id": "__REPLACE_WITH_YOUR_CHAT_MODEL@VLLM__",
+      "message_history_window_size": 5,
+      "query": "sys.query",
+      "parameter": "Precise",
+      "temperature": 0.1,
+      "temperatureEnabled": false,
+      "topPEnabled": false,
+      "top_p": 0.3,
+      "presencePenaltyEnabled": false,
+      "presence_penalty": 0.4,
+      "frequencyPenaltyEnabled": false,
+      "frequency_penalty": 0.7,
+      "maxTokensEnabled": false,
+      "max_tokens": 256,
+      "outputs": {
+       "category_name": {
+        "type": "string"
+       }
+      },
+      "items": [
+       {
+        "name": "知识库检索",
+        "description": "查询/检索公司内部【已归档、已存在】的资料:制度、流程、项目、技术文档、规范、报告、合同等。仅限库里已有的静态内容。【绝不包含】天气、气温、新闻、股价、汇率、比分、以及任何带“今天/现在/最新/实时/此刻”的时效性问题——这些一律不归此类。",
+        "examples": [
+         {
+          "value": "公司的请假制度是怎样的?\n这一款知识库存在本周的文件\n给出项目改进文档草稿"
+         }
+        ],
+        "uuid": "2292e1ac343046129b73d75ada5036ba"
+       },
+       {
+        "name": "联网与网页抓取",
+        "description": "需要【实时 / 时效性】的外部信息,或抓取某个网页的内容。凡涉及:天气、气温、天气预报、新闻、热点、股价、汇率、赛事比分、最新政策/价格/版本,或问题里带“今天/现在/当前/最新/实时/此刻/近期”的,【一律走这里,严禁用知识库回答】。也包括“帮我抓取/打开某网页并总结”。",
+        "examples": [
+         {
+          "value": "北京今天的天气怎么样?\n现在几点了\n最新的AI行业新闻有哪些\n今天A股行情如何\n帮我抓取这个网页的内容并总结"
+         }
+        ],
+        "uuid": "a9ba158621774c68917c8038ed1f747c"
+       },
+       {
+        "name": "计算与文件生成",
+        "description": "需要计算、数据处理、生成图表(柱状图/饼图/折线图)，或把内容生成/导出为 Word / PDF / Excel 文件。凡出现『生成 / 制作 / 导出 / 画一个』搭配『pdf / word / excel / 表格 / 图 / 报告 / 文档 / 文件』，或『把上面 / 前面的内容做成…』，一律归这里，即使上一句是知识库问题也要归这里。",
+        "examples": [
+         {
+          "value": "帮我算一下这些数据的平均值。\n把上面的内容生成一份 Word 报告。\n把上面内容生成pdf\n给我画一个销售额柱状图\n把刚才的结果导出成 excel"
+         }
+        ],
+        "uuid": "aafb1b71667e4b4ab208b914fb95dc84"
+       },
+       {
+        "name": "通用问答",
+        "description": "常识、写作、润色、翻译、逻辑推理等无需外部数据的问题（默认兜底）。",
+        "examples": [
+         {
+          "value": "帮我写一段祝福语。\n解释一下什么是区块链。"
+         }
+        ],
+        "uuid": "28ca1d294d7f438d9879015394a66162"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "id": "Agent:KB",
+    "type": "agentNode",
+    "dragging": false,
+    "selected": false,
+    "sourcePosition": "right",
+    "targetPosition": "left",
+    "measured": {
+     "height": 87,
+     "width": 200
+    },
+    "position": {
+     "x": 640,
+     "y": 40
+    },
+    "data": {
+     "label": "Agent",
+     "name": "知识库检索专家",
+     "form": {
+      "delay_after_error": 1,
+      "description": "",
+      "exception_comment": "",
+      "exception_default_value": "",
+      "exception_goto": [],
+      "exception_method": null,
+      "frequencyPenaltyEnabled": false,
+      "frequency_penalty": 0.7,
+      "llm_id": "__REPLACE_WITH_YOUR_CHAT_MODEL@VLLM__",
+      "maxTokensEnabled": false,
+      "max_retries": 3,
+      "max_rounds": 6,
+      "max_tokens": 256,
+      "mcp": [],
+      "message_history_window_size": 12,
+      "outputs": {
+       "content": {
+        "type": "string",
+        "value": ""
+       }
+      },
+      "presencePenaltyEnabled": false,
+      "presence_penalty": 0.4,
+      "prompts": [
+       {
+        "content": "{sys.query}",
+        "role": "user"
+       }
+      ],
+      "sys_prompt": "# 角色：知识库检索专家\n你只负责回答公司内部 / 业务 / 制度 / 项目 / 文档 / 流程类问题。\n- 必须先调用知识库检索工具(Retrieval)检索公司知识库，基于检索到的内容作答，并注明来源。\n\n# 检索关键词怎么给（很重要）\n- 查询词直接用用户问题里的【核心名词】，例如用户问\"知识库里关于保密的文件\"，就检索\"保密\"，不要拼成\"保密的文件\"\"保密资料清单\"这类带修饰词的长短语。\n- 严禁自行添加\"文件 / 资料 / 清单 / 相关\"等词，也不要改写、精简或猜测用户意图。\n- 若首次检索返回空，再用【更短的核心词】重试一次（只保留最关键的 1~2 个词）；两次都空，才回复\"未在公司知识库中找到相关信息\"。\n- 引用来源时必须【原样】使用检索结果返回的真实文件名/标题，严禁自造任何文档编号或 ID（例如 SEC-2023-001 这类编号一律禁止捏造）。\n- 绝不编造，绝不给\"模拟示例\"，也不要用通用知识硬答。\n- 简体中文、markdown 格式、条理清晰。\n\n# 生成文件兜底\n若用户要求把检索结果生成/导出为 pdf/word/excel/图表，用 execute_code 在 artifacts/ 目录生成文件并返回其下载链接，绝不要把代码或文件路径当文字发出来。关键：PDF 用 reportlab 且注册 UnicodeCIDFont('STSong-Light') 并对所有样式和表格设该字体；图表用 matplotlib 设 图表中文字体【不要硬写字体名】(服务器上 Microsoft YaHei/Noto Sans CJK SC 常不存在→方块)：用 matplotlib.font_manager 配合 glob 在 /usr/share/fonts 下递归找 DroidSansFallback 或 NotoSansCJK 字体文件(_fp=next((h for pat in ['DroidSansFallback','NotoSansCJK','wqy'] for h in glob.glob(f'/usr/share/fonts/**/*{pat}*.tt*',recursive=True)),None))，font_manager.fontManager.addfont(_fp) 后 plt.rcParams['font.sans-serif']=[font_manager.FontProperties(fname=_fp).get_name()]，否则中文变方块。\n\n# 输出纪律\n- 只输出给用户看的最终结果，不要把思考过程、内心独白或整段代码打印出来。\n- 简洁作答、不长篇复述，减少上下文占用以保持多轮记忆连贯。",
+      "temperature": 0.2,
+      "temperatureEnabled": true,
+      "tools": [
+       {
+        "component_name": "Retrieval",
+        "name": "Retrieval",
+        "params": {
+         "cross_languages": [],
+         "description": "检索公司内部知识库。",
+         "empty_response": "",
+         "kb_ids": [],
+         "keywords_similarity_weight": 0.3,
+         "outputs": {
+          "formalized_content": {
+           "type": "string",
+           "value": ""
           }
+         },
+         "rerank_id": "",
+         "similarity_threshold": 0.1,
+         "top_k": 1024,
+         "top_n": 8,
+         "use_kg": false
         }
-      },
-      {
-        "id": "Categorize:Intent",
-        "type": "categorizeNode",
-        "dragging": false,
-        "selected": false,
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "measured": {
-          "height": 260,
-          "width": 240
-        },
-        "position": {
-          "x": 300,
-          "y": 300
-        },
-        "data": {
-          "label": "Categorize",
-          "name": "意图识别",
-          "form": {
-            "llm_id": "__REPLACE_WITH_YOUR_CHAT_MODEL@VLLM__",
-            "message_history_window_size": 5,
-            "query": "sys.query",
-            "parameter": "Precise",
-            "temperature": 0.1,
-            "temperatureEnabled": false,
-            "topPEnabled": false,
-            "top_p": 0.3,
-            "presencePenaltyEnabled": false,
-            "presence_penalty": 0.4,
-            "frequencyPenaltyEnabled": false,
-            "frequency_penalty": 0.7,
-            "maxTokensEnabled": false,
-            "max_tokens": 256,
-            "outputs": {
-              "category_name": {
-                "type": "string"
-              }
-            },
-            "items": [
-              {
-                "name": "知识库检索",
-                "description": "查询/检索公司内部【已有】的业务、制度、项目、文档、流程资料——是『查找已有内容』，不是『生成新文件』。",
-                "examples": [
-                  {
-                    "value": "公司的请假制度是怎样的？\n查一下知识库里关于保密的文件\n这个项目的进度文档在哪？"
-                  }
-                ],
-                "uuid": "2292e1ac343046129b73d75ada5036ba"
-              },
-              {
-                "name": "联网与网页抓取",
-                "description": "外部公开信息、新闻、时效数据，或需要抓取某个网页的内容。",
-                "examples": [
-                  {
-                    "value": "今天有什么科技新闻？\n帮我抓取这个网页的内容并总结。"
-                  }
-                ],
-                "uuid": "a9ba158621774c68917c8038ed1f747c"
-              },
-              {
-                "name": "计算与文件生成",
-                "description": "需要计算、数据处理、生成图表(柱状图/饼图/折线图)，或把内容生成/导出为 Word / PDF / Excel 文件。凡出现『生成 / 制作 / 导出 / 画一个』搭配『pdf / word / excel / 表格 / 图 / 报告 / 文档 / 文件』，或『把上面 / 前面的内容做成…』，一律归这里，即使上一句是知识库问题也要归这里。",
-                "examples": [
-                  {
-                    "value": "帮我算一下这些数据的平均值。\n把上面的内容生成一份 Word 报告。\n把上面内容生成pdf\n给我画一个销售额柱状图\n把刚才的结果导出成 excel"
-                  }
-                ],
-                "uuid": "aafb1b71667e4b4ab208b914fb95dc84"
-              },
-              {
-                "name": "通用问答",
-                "description": "常识、写作、润色、翻译、逻辑推理等无需外部数据的问题（默认兜底）。",
-                "examples": [
-                  {
-                    "value": "帮我写一段祝福语。\n解释一下什么是区块链。"
-                  }
-                ],
-                "uuid": "28ca1d294d7f438d9879015394a66162"
-              }
-            ]
+       },
+       {
+        "component_name": "CodeExec",
+        "name": "CodeExec",
+        "params": {
+         "arguments": {},
+         "lang": "python",
+         "outputs": {
+          "result": {
+           "type": "object",
+           "value": ""
+          },
+          "attachments": {
+           "type": "Array<String>",
+           "value": []
           }
+         },
+         "script": "def main() -> dict:\n    return {\"result\": \"ok\"}"
         }
+       }
+      ],
+      "topPEnabled": false,
+      "top_p": 0.3,
+      "user_prompt": "",
+      "visual_files_var": ""
+     }
+    }
+   },
+   {
+    "id": "Message:KBOut",
+    "type": "messageNode",
+    "dragging": false,
+    "selected": false,
+    "sourcePosition": "right",
+    "targetPosition": "left",
+    "measured": {
+     "height": 56,
+     "width": 200
+    },
+    "position": {
+     "x": 960,
+     "y": 50
+    },
+    "data": {
+     "label": "Message",
+     "name": "知识库回复",
+     "form": {
+      "content": [
+       "{Agent:KB@content}"
+      ]
+     }
+    }
+   },
+   {
+    "id": "Tool:KBTools",
+    "type": "toolNode",
+    "dragging": false,
+    "selected": false,
+    "sourcePosition": "right",
+    "targetPosition": "left",
+    "measured": {
+     "height": 150,
+     "width": 200
+    },
+    "position": {
+     "x": 620,
+     "y": 190
+    },
+    "data": {
+     "label": "Tool",
+     "name": "flow.tool_KB",
+     "form": {
+      "description": "This is an agent for a specific task.",
+      "user_prompt": "This is the order you need to send to the agent."
+     }
+    }
+   },
+   {
+    "id": "Agent:Web",
+    "type": "agentNode",
+    "dragging": false,
+    "selected": false,
+    "sourcePosition": "right",
+    "targetPosition": "left",
+    "measured": {
+     "height": 87,
+     "width": 200
+    },
+    "position": {
+     "x": 640,
+     "y": 290
+    },
+    "data": {
+     "label": "Agent",
+     "name": "联网/网页抓取专家",
+     "form": {
+      "delay_after_error": 1,
+      "description": "",
+      "exception_comment": "",
+      "exception_default_value": "",
+      "exception_goto": [],
+      "exception_method": null,
+      "frequencyPenaltyEnabled": false,
+      "frequency_penalty": 0.7,
+      "llm_id": "__REPLACE_WITH_YOUR_CHAT_MODEL@VLLM__",
+      "maxTokensEnabled": false,
+      "max_retries": 3,
+      "max_rounds": 6,
+      "max_tokens": 256,
+      "mcp": [],
+      "message_history_window_size": 12,
+      "outputs": {
+       "content": {
+        "type": "string",
+        "value": ""
+       }
       },
-      {
-        "id": "Agent:KB",
-        "type": "agentNode",
-        "dragging": false,
-        "selected": false,
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "measured": {
-          "height": 87,
-          "width": 200
-        },
-        "position": {
-          "x": 640,
-          "y": 40
-        },
-        "data": {
-          "label": "Agent",
-          "name": "知识库检索专家",
-          "form": {
-            "delay_after_error": 1,
-            "description": "",
-            "exception_comment": "",
-            "exception_default_value": "",
-            "exception_goto": [],
-            "exception_method": null,
-            "frequencyPenaltyEnabled": false,
-            "frequency_penalty": 0.7,
-            "llm_id": "__REPLACE_WITH_YOUR_CHAT_MODEL@VLLM__",
-            "maxTokensEnabled": false,
-            "max_retries": 3,
-            "max_rounds": 6,
-            "max_tokens": 256,
-            "mcp": [],
-            "message_history_window_size": 12,
-            "outputs": {
-              "content": {
-                "type": "string",
-                "value": ""
-              }
-            },
-            "presencePenaltyEnabled": false,
-            "presence_penalty": 0.4,
-            "prompts": [
-              {
-                "content": "{sys.query}",
-                "role": "user"
-              }
-            ],
-            "sys_prompt": "# 角色：知识库检索专家\n你只负责回答公司内部 / 业务 / 制度 / 项目 / 文档 / 流程类问题。\n- 必须先调用知识库检索工具(Retrieval)检索公司知识库，基于检索到的内容作答，并注明来源。\n\n# 检索关键词怎么给（很重要）\n- 查询词直接用用户问题里的【核心名词】，例如用户问\"知识库里关于保密的文件\"，就检索\"保密\"，不要拼成\"保密的文件\"\"保密资料清单\"这类带修饰词的长短语。\n- 严禁自行添加\"文件 / 资料 / 清单 / 相关\"等词，也不要改写、精简或猜测用户意图。\n- 若首次检索返回空，再用【更短的核心词】重试一次（只保留最关键的 1~2 个词）；两次都空，才回复\"未在公司知识库中找到相关信息\"。\n- 引用来源时必须【原样】使用检索结果返回的真实文件名/标题，严禁自造任何文档编号或 ID（例如 SEC-2023-001 这类编号一律禁止捏造）。\n- 绝不编造，绝不给\"模拟示例\"，也不要用通用知识硬答。\n- 简体中文、markdown 格式、条理清晰。\n\n# 生成文件兜底\n若用户要求把检索结果生成/导出为 pdf/word/excel/图表，用 execute_code 在 artifacts/ 目录生成文件并返回其下载链接，绝不要把代码或文件路径当文字发出来。关键：PDF 用 reportlab 且注册 UnicodeCIDFont('STSong-Light') 并对所有样式和表格设该字体；图表用 matplotlib 设 图表中文字体【不要硬写字体名】(服务器上 Microsoft YaHei/Noto Sans CJK SC 常不存在→方块)：用 matplotlib.font_manager 配合 glob 在 /usr/share/fonts 下递归找 DroidSansFallback 或 NotoSansCJK 字体文件(_fp=next((h for pat in ['DroidSansFallback','NotoSansCJK','wqy'] for h in glob.glob(f'/usr/share/fonts/**/*{pat}*.tt*',recursive=True)),None))，font_manager.fontManager.addfont(_fp) 后 plt.rcParams['font.sans-serif']=[font_manager.FontProperties(fname=_fp).get_name()]，否则中文变方块。\n\n# 输出纪律\n- 只输出给用户看的最终结果，不要把思考过程、内心独白或整段代码打印出来。\n- 简洁作答、不长篇复述，减少上下文占用以保持多轮记忆连贯。",
-            "temperature": 0.2,
-            "temperatureEnabled": true,
-            "tools": [
-              {
-                "component_name": "Retrieval",
-                "name": "Retrieval",
-                "params": {
-                  "cross_languages": [],
-                  "description": "检索公司内部知识库。",
-                  "empty_response": "",
-                  "kb_ids": [],
-                  "keywords_similarity_weight": 0.3,
-                  "outputs": {
-                    "formalized_content": {
-                      "type": "string",
-                      "value": ""
-                    }
-                  },
-                  "rerank_id": "",
-                  "similarity_threshold": 0.1,
-                  "top_k": 1024,
-                  "top_n": 8,
-                  "use_kg": false
-                }
-              },
-              {
-                "component_name": "CodeExec",
-                "name": "CodeExec",
-                "params": {
-                  "arguments": {},
-                  "lang": "python",
-                  "outputs": {
-                    "result": {
-                      "type": "object",
-                      "value": ""
-                    },
-                    "attachments": {
-                      "type": "Array<String>",
-                      "value": []
-                    }
-                  },
-                  "script": "def main() -> dict:\n    return {\"result\": \"ok\"}"
-                }
-              }
-            ],
-            "topPEnabled": false,
-            "top_p": 0.3,
-            "user_prompt": "",
-            "visual_files_var": ""
+      "presencePenaltyEnabled": false,
+      "presence_penalty": 0.4,
+      "prompts": [
+       {
+        "content": "{sys.query}",
+        "role": "user"
+       }
+      ],
+      "sys_prompt": "# 角色：联网与网页抓取专家\n你负责获取互联网公开信息并作答。\n- 先用 duckduckgo_search 找线索和来源 URL。\n- 抓取网页正文时【优先用 Playwright 真实浏览器】：能绕过大部分反爬、支持 JS 动态页，带真实 UA：\n  def main() -> dict:\n      from playwright.sync_api import sync_playwright\n      url = \"URL\"\n      with sync_playwright() as p:\n          b = p.chromium.launch(headless=True, args=[\"--no-sandbox\", \"--disable-blink-features=AutomationControlled\"])\n          ctx = b.new_context(user_agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36\", locale=\"zh-CN\")\n          pg = ctx.new_page()\n          try:\n              pg.goto(url, wait_until=\"domcontentloaded\", timeout=45000)\n              pg.wait_for_timeout(1500)\n              text = pg.inner_text(\"body\")\n          except Exception as e:\n              text = f\"抓取失败: {e}\"\n          b.close()\n      return {\"content\": text[:8000]}\n- Playwright 不可用或超时，退回 requests + BeautifulSoup（带同样的 UA 头）抓静态页。\n- 抓不到时如实说明错误类型（403 被拦 / 超时 / 无法访问），不要编造内容。\n- 基于真实搜索/抓取结果作答并注明来源；简体中文、markdown 格式。\n\n# 生成文件兜底\n若用户要求把抓取/搜索到的内容生成 pdf/word/excel/图表，用 execute_code 生成到 artifacts/ 目录并返回下载链接，绝不把代码或路径当文字发出来。\n- PDF【必须】用 reportlab 内置中文字体：pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))。它无需任何字体文件、中文+数字+英文全覆盖，并对所有样式(Title/Heading/BodyText)和表格 TableStyle 都设成 'STSong-Light'。\n- 【严禁】去找系统 TTF/TTC 字体（NotoSansCJK.ttc / DroidSansFallbackFull.ttf / bkai00mp.ttf 等）——TTC 会报 postscript outlines not supported，TTF 子集化会让中文或数字变成空字符/方块。STSong-Light 没有这些问题。\n- 图表用 matplotlib 设 图表中文字体【不要硬写字体名】(服务器上 Microsoft YaHei/Noto Sans CJK SC 常不存在→方块)：用 matplotlib.font_manager 配合 glob 在 /usr/share/fonts 下递归找 DroidSansFallback 或 NotoSansCJK 字体文件(_fp=next((h for pat in ['DroidSansFallback','NotoSansCJK','wqy'] for h in glob.glob(f'/usr/share/fonts/**/*{pat}*.tt*',recursive=True)),None))，font_manager.fontManager.addfont(_fp) 后 plt.rcParams['font.sans-serif']=[font_manager.FontProperties(fname=_fp).get_name()]，plt.rcParams['axes.unicode_minus']=False。\n\n# 输出纪律\n- 只输出给用户看的最终结果，不要把思考过程、内心独白或整段代码打印出来。\n- 简洁作答、不长篇复述，减少上下文占用以保持多轮记忆连贯。",
+      "temperature": 0.2,
+      "temperatureEnabled": true,
+      "tools": [
+       {
+        "component_name": "DuckDuckGo",
+        "name": "DuckDuckGo",
+        "params": {
+         "channel": "text",
+         "outputs": {
+          "formalized_content": {
+           "type": "string",
+           "value": ""
           }
+         },
+         "top_n": 10
         }
-      },
-      {
-        "id": "Message:KBOut",
-        "type": "messageNode",
-        "dragging": false,
-        "selected": false,
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "measured": {
-          "height": 56,
-          "width": 200
-        },
-        "position": {
-          "x": 960,
-          "y": 50
-        },
-        "data": {
-          "label": "Message",
-          "name": "知识库回复",
-          "form": {
-            "content": [
-              "{Agent:KB@content}"
-            ]
+       },
+       {
+        "component_name": "CodeExec",
+        "name": "CodeExec",
+        "params": {
+         "arguments": {},
+         "lang": "python",
+         "outputs": {
+          "result": {
+           "type": "object",
+           "value": ""
+          },
+          "attachments": {
+           "type": "Array<String>",
+           "value": []
           }
+         },
+         "script": "def main() -> dict:\n    return {\"result\": \"ok\"}"
         }
+       }
+      ],
+      "topPEnabled": false,
+      "top_p": 0.3,
+      "user_prompt": "",
+      "visual_files_var": ""
+     }
+    }
+   },
+   {
+    "id": "Message:WebOut",
+    "type": "messageNode",
+    "dragging": false,
+    "selected": false,
+    "sourcePosition": "right",
+    "targetPosition": "left",
+    "measured": {
+     "height": 56,
+     "width": 200
+    },
+    "position": {
+     "x": 960,
+     "y": 300
+    },
+    "data": {
+     "label": "Message",
+     "name": "联网回复",
+     "form": {
+      "content": [
+       "{Agent:Web@content}"
+      ]
+     }
+    }
+   },
+   {
+    "id": "Tool:WebTools",
+    "type": "toolNode",
+    "dragging": false,
+    "selected": false,
+    "sourcePosition": "right",
+    "targetPosition": "left",
+    "measured": {
+     "height": 150,
+     "width": 200
+    },
+    "position": {
+     "x": 620,
+     "y": 440
+    },
+    "data": {
+     "label": "Tool",
+     "name": "flow.tool_Web",
+     "form": {
+      "description": "This is an agent for a specific task.",
+      "user_prompt": "This is the order you need to send to the agent."
+     }
+    }
+   },
+   {
+    "id": "Agent:Doc",
+    "type": "agentNode",
+    "dragging": false,
+    "selected": false,
+    "sourcePosition": "right",
+    "targetPosition": "left",
+    "measured": {
+     "height": 87,
+     "width": 200
+    },
+    "position": {
+     "x": 640,
+     "y": 540
+    },
+    "data": {
+     "label": "Agent",
+     "name": "计算/生成文件专家",
+     "form": {
+      "delay_after_error": 1,
+      "description": "",
+      "exception_comment": "",
+      "exception_default_value": "",
+      "exception_goto": [],
+      "exception_method": null,
+      "frequencyPenaltyEnabled": false,
+      "frequency_penalty": 0.7,
+      "llm_id": "__REPLACE_WITH_YOUR_CHAT_MODEL@VLLM__",
+      "maxTokensEnabled": false,
+      "max_retries": 3,
+      "max_rounds": 6,
+      "max_tokens": 256,
+      "mcp": [],
+      "message_history_window_size": 12,
+      "outputs": {
+       "content": {
+        "type": "string",
+        "value": ""
+       }
       },
-      {
-        "id": "Tool:KBTools",
-        "type": "toolNode",
-        "dragging": false,
-        "selected": false,
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "measured": {
-          "height": 150,
-          "width": 200
-        },
-        "position": {
-          "x": 620,
-          "y": 190
-        },
-        "data": {
-          "label": "Tool",
-          "name": "flow.tool_KB",
-          "form": {
-            "description": "This is an agent for a specific task.",
-            "user_prompt": "This is the order you need to send to the agent."
+      "presencePenaltyEnabled": false,
+      "presence_penalty": 0.4,
+      "prompts": [
+       {
+        "content": "{sys.query}",
+        "role": "user"
+       }
+      ],
+      "sys_prompt": "# 角色：计算、图表与文件生成专家\n你负责计算、数据处理、生成分析图表（柱状图/饼图/折线图），以及生成 Word/PDF/Excel 文件，统一用 execute_code。\n\n# 先判断用户要什么输出形式，再决定怎么做：\n- 只要文字结论/分析 → 直接用 markdown 回答，不生成文件。\n- 要图表 → 用 matplotlib 生成 .png（见下）。\n- 要文档/报告 → 生成 .docx（默认）或 .pdf。\n- 要表格数据 → 生成 .xlsx（openpyxl）。\n用户没明说时，默认给 markdown 结论，并主动问一句是否需要导出图表或文件。\n\n# 通用规则\n- 文件一律存到 artifacts/ 目录，文件名与内容相关；main() 必须返回 dict。\n- 严禁把文本直接 open().write() 到 .docx/.pdf 路径（那是坏文件）。\n- 生成报告时内容要充实、结构完整（标题 + 分节 + 要点或表格），不要只写一两句。\n\n## 分析图表（.png）——中文标签必须设字体，否则变方块\ndef main() -> dict:\n    import matplotlib\n    matplotlib.use('Agg')\n    import matplotlib.pyplot as plt\n    import glob\n    from matplotlib import font_manager\n    # 别硬写字体名（服务器上 Microsoft YaHei/Noto Sans CJK SC 未必存在→方块）；自动找真实字体文件并注册\n    _fp = next((h for pat in ['DroidSansFallback','NotoSansCJK','wqy','uming','ukai'] for h in glob.glob(f'/usr/share/fonts/**/*{pat}*.tt*', recursive=True)), None)\n    if _fp:\n        font_manager.fontManager.addfont(_fp)\n        plt.rcParams['font.sans-serif'] = [font_manager.FontProperties(fname=_fp).get_name()]\n    plt.rcParams['axes.unicode_minus'] = False\n    fig, ax = plt.subplots(figsize=(8, 5))\n    ax.bar(['一月', '二月', '三月'], [30, 45, 28], color='#F39800')   # 柱状图\n    ax.set_title('季度销售额')\n    # 饼图改用：ax.pie([40, 35, 25], labels=['甲', '乙', '丙'], autopct='%1.1f%%')\n    # 折线图改用：ax.plot(['一月', '二月', '三月'], [30, 45, 28], marker='o')\n    fig.savefig('artifacts/chart.png', dpi=150, bbox_inches='tight')\n    plt.close(fig)\n    return {\"summary\": \"已生成 artifacts/chart.png\"}\n\n## Word（.docx）——中文原生，无需设字体\ndef main() -> dict:\n    from docx import Document\n    doc = Document()\n    doc.add_heading('测试报告', level=0)\n    doc.add_heading('一、概述', level=1)\n    doc.add_paragraph('这里是正文，中文直接写即可。')\n    table = doc.add_table(rows=1, cols=3)\n    table.style = 'Table Grid'\n    h = table.rows[0].cells\n    h[0].text, h[1].text, h[2].text = '序号', '名称', '状态'\n    r = table.add_row().cells\n    r[0].text, r[1].text, r[2].text = '1', '示例项目', '完成'\n    doc.save('artifacts/report.docx')\n    return {\"summary\": \"已生成 artifacts/report.docx\"}\n\n## PDF（.pdf）——必须注册并全程使用中文字体 STSong-Light，否则中文变方块\ndef main() -> dict:\n    from reportlab.lib.pagesizes import A4\n    from reportlab.lib.units import mm\n    from reportlab.lib import colors\n    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle\n    from reportlab.pdfbase import pdfmetrics\n    from reportlab.pdfbase.cidfonts import UnicodeCIDFont\n    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle\n    pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))\n    CN = 'STSong-Light'\n    styles = getSampleStyleSheet()\n    for s in styles.byName.values():\n        s.fontName = CN\n    title = ParagraphStyle('T', parent=styles['Title'], fontName=CN)\n    h2 = ParagraphStyle('H2', parent=styles['Heading2'], fontName=CN)\n    body = ParagraphStyle('B', parent=styles['BodyText'], fontName=CN, fontSize=12, leading=18)\n    doc = SimpleDocTemplate('artifacts/report.pdf', pagesize=A4, topMargin=20*mm, bottomMargin=20*mm)\n    story = [Paragraph('测试报告', title), Spacer(1, 8*mm),\n             Paragraph('一、概述', h2),\n             Paragraph('这里是正文，中文正常显示。', body), Spacer(1, 4*mm)]\n    data = [['序号', '名称', '状态'], ['1', '示例项目', '完成']]\n    tbl = Table(data, hAlign='LEFT')\n    tbl.setStyle(TableStyle([\n        ('FONTNAME', (0,0), (-1,-1), CN),\n        ('FONTSIZE', (0,0), (-1,-1), 11),\n        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1F4E79')),\n        ('TEXTCOLOR', (0,0), (-1,0), colors.white),\n        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),\n        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),\n    ]))\n    story.append(tbl)\n    doc.build(story)\n    return {\"summary\": \"已生成 artifacts/report.pdf\"}\n关键：图表/PDF 的中文都要设字体（matplotlib 用 Microsoft YaHei/SimHei；PDF 用 STSong-Light 且表格 TableStyle 也要 FONTNAME），漏了就是方块。\n\n# 输出纪律\n- 只输出给用户看的最终结果，不要把思考过程、内心独白或整段代码打印出来。\n- 简洁作答、不长篇复述，减少上下文占用以保持多轮记忆连贯。",
+      "temperature": 0.2,
+      "temperatureEnabled": true,
+      "tools": [
+       {
+        "component_name": "CodeExec",
+        "name": "CodeExec",
+        "params": {
+         "arguments": {},
+         "lang": "python",
+         "outputs": {
+          "result": {
+           "type": "object",
+           "value": ""
+          },
+          "attachments": {
+           "type": "Array<String>",
+           "value": []
           }
+         },
+         "script": "def main() -> dict:\n    return {\"result\": \"ok\"}"
         }
+       }
+      ],
+      "topPEnabled": false,
+      "top_p": 0.3,
+      "user_prompt": "",
+      "visual_files_var": ""
+     }
+    }
+   },
+   {
+    "id": "Message:DocOut",
+    "type": "messageNode",
+    "dragging": false,
+    "selected": false,
+    "sourcePosition": "right",
+    "targetPosition": "left",
+    "measured": {
+     "height": 56,
+     "width": 200
+    },
+    "position": {
+     "x": 960,
+     "y": 550
+    },
+    "data": {
+     "label": "Message",
+     "name": "文件回复",
+     "form": {
+      "content": [
+       "{Agent:Doc@content}"
+      ]
+     }
+    }
+   },
+   {
+    "id": "Tool:DocTools",
+    "type": "toolNode",
+    "dragging": false,
+    "selected": false,
+    "sourcePosition": "right",
+    "targetPosition": "left",
+    "measured": {
+     "height": 150,
+     "width": 200
+    },
+    "position": {
+     "x": 620,
+     "y": 690
+    },
+    "data": {
+     "label": "Tool",
+     "name": "flow.tool_Doc",
+     "form": {
+      "description": "This is an agent for a specific task.",
+      "user_prompt": "This is the order you need to send to the agent."
+     }
+    }
+   },
+   {
+    "id": "Agent:General",
+    "type": "agentNode",
+    "dragging": false,
+    "selected": false,
+    "sourcePosition": "right",
+    "targetPosition": "left",
+    "measured": {
+     "height": 87,
+     "width": 200
+    },
+    "position": {
+     "x": 640,
+     "y": 790
+    },
+    "data": {
+     "label": "Agent",
+     "name": "通用问答专家",
+     "form": {
+      "delay_after_error": 1,
+      "description": "",
+      "exception_comment": "",
+      "exception_default_value": "",
+      "exception_goto": [],
+      "exception_method": null,
+      "frequencyPenaltyEnabled": false,
+      "frequency_penalty": 0.7,
+      "llm_id": "__REPLACE_WITH_YOUR_CHAT_MODEL@VLLM__",
+      "maxTokensEnabled": false,
+      "max_retries": 3,
+      "max_rounds": 6,
+      "max_tokens": 256,
+      "mcp": [],
+      "message_history_window_size": 12,
+      "outputs": {
+       "content": {
+        "type": "string",
+        "value": ""
+       }
       },
-      {
-        "id": "Agent:Web",
-        "type": "agentNode",
-        "dragging": false,
-        "selected": false,
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "measured": {
-          "height": 87,
-          "width": 200
-        },
-        "position": {
-          "x": 640,
-          "y": 290
-        },
-        "data": {
-          "label": "Agent",
-          "name": "联网/网页抓取专家",
-          "form": {
-            "delay_after_error": 1,
-            "description": "",
-            "exception_comment": "",
-            "exception_default_value": "",
-            "exception_goto": [],
-            "exception_method": null,
-            "frequencyPenaltyEnabled": false,
-            "frequency_penalty": 0.7,
-            "llm_id": "__REPLACE_WITH_YOUR_CHAT_MODEL@VLLM__",
-            "maxTokensEnabled": false,
-            "max_retries": 3,
-            "max_rounds": 6,
-            "max_tokens": 256,
-            "mcp": [],
-            "message_history_window_size": 12,
-            "outputs": {
-              "content": {
-                "type": "string",
-                "value": ""
-              }
-            },
-            "presencePenaltyEnabled": false,
-            "presence_penalty": 0.4,
-            "prompts": [
-              {
-                "content": "{sys.query}",
-                "role": "user"
-              }
-            ],
-            "sys_prompt": "# 角色：联网与网页抓取专家\n你负责获取互联网公开信息并作答。\n- 先用 duckduckgo_search 找线索和来源 URL。\n- 抓取网页正文时【优先用 Playwright 真实浏览器】：能绕过大部分反爬、支持 JS 动态页，带真实 UA：\n  def main() -> dict:\n      from playwright.sync_api import sync_playwright\n      url = \"URL\"\n      with sync_playwright() as p:\n          b = p.chromium.launch(headless=True, args=[\"--no-sandbox\", \"--disable-blink-features=AutomationControlled\"])\n          ctx = b.new_context(user_agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36\", locale=\"zh-CN\")\n          pg = ctx.new_page()\n          try:\n              pg.goto(url, wait_until=\"domcontentloaded\", timeout=45000)\n              pg.wait_for_timeout(1500)\n              text = pg.inner_text(\"body\")\n          except Exception as e:\n              text = f\"抓取失败: {e}\"\n          b.close()\n      return {\"content\": text[:8000]}\n- Playwright 不可用或超时，退回 requests + BeautifulSoup（带同样的 UA 头）抓静态页。\n- 抓不到时如实说明错误类型（403 被拦 / 超时 / 无法访问），不要编造内容。\n- 基于真实搜索/抓取结果作答并注明来源；简体中文、markdown 格式。\n\n# 生成文件兜底\n若用户要求把抓取/搜索到的内容生成 pdf/word/excel/图表，用 execute_code 生成到 artifacts/ 目录并返回下载链接，绝不把代码或路径当文字发出来。\n- PDF【必须】用 reportlab 内置中文字体：pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))。它无需任何字体文件、中文+数字+英文全覆盖，并对所有样式(Title/Heading/BodyText)和表格 TableStyle 都设成 'STSong-Light'。\n- 【严禁】去找系统 TTF/TTC 字体（NotoSansCJK.ttc / DroidSansFallbackFull.ttf / bkai00mp.ttf 等）——TTC 会报 postscript outlines not supported，TTF 子集化会让中文或数字变成空字符/方块。STSong-Light 没有这些问题。\n- 图表用 matplotlib 设 图表中文字体【不要硬写字体名】(服务器上 Microsoft YaHei/Noto Sans CJK SC 常不存在→方块)：用 matplotlib.font_manager 配合 glob 在 /usr/share/fonts 下递归找 DroidSansFallback 或 NotoSansCJK 字体文件(_fp=next((h for pat in ['DroidSansFallback','NotoSansCJK','wqy'] for h in glob.glob(f'/usr/share/fonts/**/*{pat}*.tt*',recursive=True)),None))，font_manager.fontManager.addfont(_fp) 后 plt.rcParams['font.sans-serif']=[font_manager.FontProperties(fname=_fp).get_name()]，plt.rcParams['axes.unicode_minus']=False。\n\n# 输出纪律\n- 只输出给用户看的最终结果，不要把思考过程、内心独白或整段代码打印出来。\n- 简洁作答、不长篇复述，减少上下文占用以保持多轮记忆连贯。",
-            "temperature": 0.2,
-            "temperatureEnabled": true,
-            "tools": [
-              {
-                "component_name": "DuckDuckGo",
-                "name": "DuckDuckGo",
-                "params": {
-                  "channel": "text",
-                  "outputs": {
-                    "formalized_content": {
-                      "type": "string",
-                      "value": ""
-                    }
-                  },
-                  "top_n": 10
-                }
-              },
-              {
-                "component_name": "CodeExec",
-                "name": "CodeExec",
-                "params": {
-                  "arguments": {},
-                  "lang": "python",
-                  "outputs": {
-                    "result": {
-                      "type": "object",
-                      "value": ""
-                    },
-                    "attachments": {
-                      "type": "Array<String>",
-                      "value": []
-                    }
-                  },
-                  "script": "def main() -> dict:\n    return {\"result\": \"ok\"}"
-                }
-              }
-            ],
-            "topPEnabled": false,
-            "top_p": 0.3,
-            "user_prompt": "",
-            "visual_files_var": ""
+      "presencePenaltyEnabled": false,
+      "presence_penalty": 0.4,
+      "prompts": [
+       {
+        "content": "{sys.query}",
+        "role": "user"
+       }
+      ],
+      "sys_prompt": "# 角色：通用问答专家\n你负责常识、写作、润色、翻译、逻辑推理等无需外部数据的问题，直接用你自身的知识回答。\n- 明确说明\"以下为模型的通用知识，非公司资料，仅供参考\"。\n- 简体中文、markdown 格式、条理清晰。\n\n# 生成文件兜底\n若用户要求把内容生成/导出为 pdf/word/excel/图表，用 execute_code 在 artifacts/ 目录生成文件并返回其下载链接，绝不要把代码或文件路径当文字发出来。关键：PDF 用 reportlab 且注册 UnicodeCIDFont('STSong-Light') 并对所有样式和表格设该字体；图表用 matplotlib 设 图表中文字体【不要硬写字体名】(服务器上 Microsoft YaHei/Noto Sans CJK SC 常不存在→方块)：用 matplotlib.font_manager 配合 glob 在 /usr/share/fonts 下递归找 DroidSansFallback 或 NotoSansCJK 字体文件(_fp=next((h for pat in ['DroidSansFallback','NotoSansCJK','wqy'] for h in glob.glob(f'/usr/share/fonts/**/*{pat}*.tt*',recursive=True)),None))，font_manager.fontManager.addfont(_fp) 后 plt.rcParams['font.sans-serif']=[font_manager.FontProperties(fname=_fp).get_name()]，否则中文变方块。\n\n# 输出纪律\n- 只输出给用户看的最终结果，不要把思考过程、内心独白或整段代码打印出来。\n- 简洁作答、不长篇复述，减少上下文占用以保持多轮记忆连贯。",
+      "temperature": 0.2,
+      "temperatureEnabled": true,
+      "tools": [
+       {
+        "component_name": "CodeExec",
+        "name": "CodeExec",
+        "params": {
+         "arguments": {},
+         "lang": "python",
+         "outputs": {
+          "result": {
+           "type": "object",
+           "value": ""
+          },
+          "attachments": {
+           "type": "Array<String>",
+           "value": []
           }
+         },
+         "script": "def main() -> dict:\n    return {\"result\": \"ok\"}"
         }
-      },
-      {
-        "id": "Message:WebOut",
-        "type": "messageNode",
-        "dragging": false,
-        "selected": false,
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "measured": {
-          "height": 56,
-          "width": 200
-        },
-        "position": {
-          "x": 960,
-          "y": 300
-        },
-        "data": {
-          "label": "Message",
-          "name": "联网回复",
-          "form": {
-            "content": [
-              "{Agent:Web@content}"
-            ]
-          }
-        }
-      },
-      {
-        "id": "Tool:WebTools",
-        "type": "toolNode",
-        "dragging": false,
-        "selected": false,
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "measured": {
-          "height": 150,
-          "width": 200
-        },
-        "position": {
-          "x": 620,
-          "y": 440
-        },
-        "data": {
-          "label": "Tool",
-          "name": "flow.tool_Web",
-          "form": {
-            "description": "This is an agent for a specific task.",
-            "user_prompt": "This is the order you need to send to the agent."
-          }
-        }
-      },
-      {
-        "id": "Agent:Doc",
-        "type": "agentNode",
-        "dragging": false,
-        "selected": false,
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "measured": {
-          "height": 87,
-          "width": 200
-        },
-        "position": {
-          "x": 640,
-          "y": 540
-        },
-        "data": {
-          "label": "Agent",
-          "name": "计算/生成文件专家",
-          "form": {
-            "delay_after_error": 1,
-            "description": "",
-            "exception_comment": "",
-            "exception_default_value": "",
-            "exception_goto": [],
-            "exception_method": null,
-            "frequencyPenaltyEnabled": false,
-            "frequency_penalty": 0.7,
-            "llm_id": "__REPLACE_WITH_YOUR_CHAT_MODEL@VLLM__",
-            "maxTokensEnabled": false,
-            "max_retries": 3,
-            "max_rounds": 6,
-            "max_tokens": 256,
-            "mcp": [],
-            "message_history_window_size": 12,
-            "outputs": {
-              "content": {
-                "type": "string",
-                "value": ""
-              }
-            },
-            "presencePenaltyEnabled": false,
-            "presence_penalty": 0.4,
-            "prompts": [
-              {
-                "content": "{sys.query}",
-                "role": "user"
-              }
-            ],
-            "sys_prompt": "# 角色：计算、图表与文件生成专家\n你负责计算、数据处理、生成分析图表（柱状图/饼图/折线图），以及生成 Word/PDF/Excel 文件，统一用 execute_code。\n\n# 先判断用户要什么输出形式，再决定怎么做：\n- 只要文字结论/分析 → 直接用 markdown 回答，不生成文件。\n- 要图表 → 用 matplotlib 生成 .png（见下）。\n- 要文档/报告 → 生成 .docx（默认）或 .pdf。\n- 要表格数据 → 生成 .xlsx（openpyxl）。\n用户没明说时，默认给 markdown 结论，并主动问一句是否需要导出图表或文件。\n\n# 通用规则\n- 文件一律存到 artifacts/ 目录，文件名与内容相关；main() 必须返回 dict。\n- 严禁把文本直接 open().write() 到 .docx/.pdf 路径（那是坏文件）。\n- 生成报告时内容要充实、结构完整（标题 + 分节 + 要点或表格），不要只写一两句。\n\n## 分析图表（.png）——中文标签必须设字体，否则变方块\ndef main() -> dict:\n    import matplotlib\n    matplotlib.use('Agg')\n    import matplotlib.pyplot as plt\n    import glob\n    from matplotlib import font_manager\n    # 别硬写字体名（服务器上 Microsoft YaHei/Noto Sans CJK SC 未必存在→方块）；自动找真实字体文件并注册\n    _fp = next((h for pat in ['DroidSansFallback','NotoSansCJK','wqy','uming','ukai'] for h in glob.glob(f'/usr/share/fonts/**/*{pat}*.tt*', recursive=True)), None)\n    if _fp:\n        font_manager.fontManager.addfont(_fp)\n        plt.rcParams['font.sans-serif'] = [font_manager.FontProperties(fname=_fp).get_name()]\n    plt.rcParams['axes.unicode_minus'] = False\n    fig, ax = plt.subplots(figsize=(8, 5))\n    ax.bar(['一月', '二月', '三月'], [30, 45, 28], color='#F39800')   # 柱状图\n    ax.set_title('季度销售额')\n    # 饼图改用：ax.pie([40, 35, 25], labels=['甲', '乙', '丙'], autopct='%1.1f%%')\n    # 折线图改用：ax.plot(['一月', '二月', '三月'], [30, 45, 28], marker='o')\n    fig.savefig('artifacts/chart.png', dpi=150, bbox_inches='tight')\n    plt.close(fig)\n    return {\"summary\": \"已生成 artifacts/chart.png\"}\n\n## Word（.docx）——中文原生，无需设字体\ndef main() -> dict:\n    from docx import Document\n    doc = Document()\n    doc.add_heading('测试报告', level=0)\n    doc.add_heading('一、概述', level=1)\n    doc.add_paragraph('这里是正文，中文直接写即可。')\n    table = doc.add_table(rows=1, cols=3)\n    table.style = 'Table Grid'\n    h = table.rows[0].cells\n    h[0].text, h[1].text, h[2].text = '序号', '名称', '状态'\n    r = table.add_row().cells\n    r[0].text, r[1].text, r[2].text = '1', '示例项目', '完成'\n    doc.save('artifacts/report.docx')\n    return {\"summary\": \"已生成 artifacts/report.docx\"}\n\n## PDF（.pdf）——必须注册并全程使用中文字体 STSong-Light，否则中文变方块\ndef main() -> dict:\n    from reportlab.lib.pagesizes import A4\n    from reportlab.lib.units import mm\n    from reportlab.lib import colors\n    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle\n    from reportlab.pdfbase import pdfmetrics\n    from reportlab.pdfbase.cidfonts import UnicodeCIDFont\n    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle\n    pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))\n    CN = 'STSong-Light'\n    styles = getSampleStyleSheet()\n    for s in styles.byName.values():\n        s.fontName = CN\n    title = ParagraphStyle('T', parent=styles['Title'], fontName=CN)\n    h2 = ParagraphStyle('H2', parent=styles['Heading2'], fontName=CN)\n    body = ParagraphStyle('B', parent=styles['BodyText'], fontName=CN, fontSize=12, leading=18)\n    doc = SimpleDocTemplate('artifacts/report.pdf', pagesize=A4, topMargin=20*mm, bottomMargin=20*mm)\n    story = [Paragraph('测试报告', title), Spacer(1, 8*mm),\n             Paragraph('一、概述', h2),\n             Paragraph('这里是正文，中文正常显示。', body), Spacer(1, 4*mm)]\n    data = [['序号', '名称', '状态'], ['1', '示例项目', '完成']]\n    tbl = Table(data, hAlign='LEFT')\n    tbl.setStyle(TableStyle([\n        ('FONTNAME', (0,0), (-1,-1), CN),\n        ('FONTSIZE', (0,0), (-1,-1), 11),\n        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1F4E79')),\n        ('TEXTCOLOR', (0,0), (-1,0), colors.white),\n        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),\n        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),\n    ]))\n    story.append(tbl)\n    doc.build(story)\n    return {\"summary\": \"已生成 artifacts/report.pdf\"}\n关键：图表/PDF 的中文都要设字体（matplotlib 用 Microsoft YaHei/SimHei；PDF 用 STSong-Light 且表格 TableStyle 也要 FONTNAME），漏了就是方块。\n\n# 输出纪律\n- 只输出给用户看的最终结果，不要把思考过程、内心独白或整段代码打印出来。\n- 简洁作答、不长篇复述，减少上下文占用以保持多轮记忆连贯。",
-            "temperature": 0.2,
-            "temperatureEnabled": true,
-            "tools": [
-              {
-                "component_name": "CodeExec",
-                "name": "CodeExec",
-                "params": {
-                  "arguments": {},
-                  "lang": "python",
-                  "outputs": {
-                    "result": {
-                      "type": "object",
-                      "value": ""
-                    },
-                    "attachments": {
-                      "type": "Array<String>",
-                      "value": []
-                    }
-                  },
-                  "script": "def main() -> dict:\n    return {\"result\": \"ok\"}"
-                }
-              }
-            ],
-            "topPEnabled": false,
-            "top_p": 0.3,
-            "user_prompt": "",
-            "visual_files_var": ""
-          }
-        }
-      },
-      {
-        "id": "Message:DocOut",
-        "type": "messageNode",
-        "dragging": false,
-        "selected": false,
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "measured": {
-          "height": 56,
-          "width": 200
-        },
-        "position": {
-          "x": 960,
-          "y": 550
-        },
-        "data": {
-          "label": "Message",
-          "name": "文件回复",
-          "form": {
-            "content": [
-              "{Agent:Doc@content}"
-            ]
-          }
-        }
-      },
-      {
-        "id": "Tool:DocTools",
-        "type": "toolNode",
-        "dragging": false,
-        "selected": false,
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "measured": {
-          "height": 150,
-          "width": 200
-        },
-        "position": {
-          "x": 620,
-          "y": 690
-        },
-        "data": {
-          "label": "Tool",
-          "name": "flow.tool_Doc",
-          "form": {
-            "description": "This is an agent for a specific task.",
-            "user_prompt": "This is the order you need to send to the agent."
-          }
-        }
-      },
-      {
-        "id": "Agent:General",
-        "type": "agentNode",
-        "dragging": false,
-        "selected": false,
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "measured": {
-          "height": 87,
-          "width": 200
-        },
-        "position": {
-          "x": 640,
-          "y": 790
-        },
-        "data": {
-          "label": "Agent",
-          "name": "通用问答专家",
-          "form": {
-            "delay_after_error": 1,
-            "description": "",
-            "exception_comment": "",
-            "exception_default_value": "",
-            "exception_goto": [],
-            "exception_method": null,
-            "frequencyPenaltyEnabled": false,
-            "frequency_penalty": 0.7,
-            "llm_id": "__REPLACE_WITH_YOUR_CHAT_MODEL@VLLM__",
-            "maxTokensEnabled": false,
-            "max_retries": 3,
-            "max_rounds": 6,
-            "max_tokens": 256,
-            "mcp": [],
-            "message_history_window_size": 12,
-            "outputs": {
-              "content": {
-                "type": "string",
-                "value": ""
-              }
-            },
-            "presencePenaltyEnabled": false,
-            "presence_penalty": 0.4,
-            "prompts": [
-              {
-                "content": "{sys.query}",
-                "role": "user"
-              }
-            ],
-            "sys_prompt": "# 角色：通用问答专家\n你负责常识、写作、润色、翻译、逻辑推理等无需外部数据的问题，直接用你自身的知识回答。\n- 明确说明\"以下为模型的通用知识，非公司资料，仅供参考\"。\n- 简体中文、markdown 格式、条理清晰。\n\n# 生成文件兜底\n若用户要求把内容生成/导出为 pdf/word/excel/图表，用 execute_code 在 artifacts/ 目录生成文件并返回其下载链接，绝不要把代码或文件路径当文字发出来。关键：PDF 用 reportlab 且注册 UnicodeCIDFont('STSong-Light') 并对所有样式和表格设该字体；图表用 matplotlib 设 图表中文字体【不要硬写字体名】(服务器上 Microsoft YaHei/Noto Sans CJK SC 常不存在→方块)：用 matplotlib.font_manager 配合 glob 在 /usr/share/fonts 下递归找 DroidSansFallback 或 NotoSansCJK 字体文件(_fp=next((h for pat in ['DroidSansFallback','NotoSansCJK','wqy'] for h in glob.glob(f'/usr/share/fonts/**/*{pat}*.tt*',recursive=True)),None))，font_manager.fontManager.addfont(_fp) 后 plt.rcParams['font.sans-serif']=[font_manager.FontProperties(fname=_fp).get_name()]，否则中文变方块。\n\n# 输出纪律\n- 只输出给用户看的最终结果，不要把思考过程、内心独白或整段代码打印出来。\n- 简洁作答、不长篇复述，减少上下文占用以保持多轮记忆连贯。",
-            "temperature": 0.2,
-            "temperatureEnabled": true,
-            "tools": [
-              {
-                "component_name": "CodeExec",
-                "name": "CodeExec",
-                "params": {
-                  "arguments": {},
-                  "lang": "python",
-                  "outputs": {
-                    "result": {
-                      "type": "object",
-                      "value": ""
-                    },
-                    "attachments": {
-                      "type": "Array<String>",
-                      "value": []
-                    }
-                  },
-                  "script": "def main() -> dict:\n    return {\"result\": \"ok\"}"
-                }
-              }
-            ],
-            "topPEnabled": false,
-            "top_p": 0.3,
-            "user_prompt": "",
-            "visual_files_var": ""
-          }
-        }
-      },
-      {
-        "id": "Message:GenOut",
-        "type": "messageNode",
-        "dragging": false,
-        "selected": false,
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "measured": {
-          "height": 56,
-          "width": 200
-        },
-        "position": {
-          "x": 960,
-          "y": 800
-        },
-        "data": {
-          "label": "Message",
-          "name": "通用回复",
-          "form": {
-            "content": [
-              "{Agent:General@content}"
-            ]
-          }
-        }
-      },
-      {
-        "id": "Tool:GenTools",
-        "type": "toolNode",
-        "dragging": false,
-        "selected": false,
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "measured": {
-          "height": 150,
-          "width": 200
-        },
-        "position": {
-          "x": 620,
-          "y": 940
-        },
-        "data": {
-          "label": "Tool",
-          "name": "flow.tool_Gen",
-          "form": {
-            "description": "This is an agent for a specific task.",
-            "user_prompt": "This is the order you need to send to the agent."
-          }
-        }
-      },
-      {
-        "id": "Note:Intro",
-        "type": "noteNode",
-        "dragging": false,
-        "selected": false,
-        "dragHandle": ".note-drag-handle",
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "width": 380,
-        "height": 230,
-        "measured": {
-          "height": 230,
-          "width": 380
-        },
-        "position": {
-          "x": 280,
-          "y": 30
-        },
-        "data": {
-          "label": "Note",
-          "name": "说明",
-          "form": {
-            "text": "入口『意图识别』(Categorize) 把问题分派给 4 个专家分支，每个专家独立 prompt+工具，可单独调优：\n· 知识库检索(Retrieval)\n· 联网与网页抓取(DuckDuckGo + Playwright/execute_code)\n· 计算与文件生成(execute_code, Word/PDF)\n· 通用问答(无工具)\n\n导入后：① 意图识别 + 4 个 Agent 共 5 处都要设模型 deepseek-v4-pro@VLLM；② 知识库检索分支的 Retrieval 里勾选知识库；③ 浏览器抓取需先执行 playwright install chromium。"
-          }
-        }
-      }
-    ],
-    "edges": [
-      {
-        "id": "xy-edge__beginstart-Categorize:Intentend",
-        "source": "begin",
-        "sourceHandle": "start",
-        "target": "Categorize:Intent",
-        "targetHandle": "end",
-        "data": {
-          "isHovered": false
-        }
-      },
-      {
-        "id": "xy-edge__Categorize:Intent2292e1ac343046129b73d75ada5036ba-Agent:KBend",
-        "source": "Categorize:Intent",
-        "sourceHandle": "2292e1ac343046129b73d75ada5036ba",
-        "target": "Agent:KB",
-        "targetHandle": "end",
-        "data": {
-          "isHovered": false
-        }
-      },
-      {
-        "id": "xy-edge__Agent:KBstart-Message:KBOutend",
-        "source": "Agent:KB",
-        "sourceHandle": "start",
-        "target": "Message:KBOut",
-        "targetHandle": "end",
-        "data": {
-          "isHovered": false
-        }
-      },
-      {
-        "id": "xy-edge__Agent:KBtool-Tool:KBToolsend",
-        "source": "Agent:KB",
-        "sourceHandle": "tool",
-        "target": "Tool:KBTools",
-        "targetHandle": "end",
-        "data": {
-          "isHovered": false
-        }
-      },
-      {
-        "id": "xy-edge__Categorize:Intenta9ba158621774c68917c8038ed1f747c-Agent:Webend",
-        "source": "Categorize:Intent",
-        "sourceHandle": "a9ba158621774c68917c8038ed1f747c",
-        "target": "Agent:Web",
-        "targetHandle": "end",
-        "data": {
-          "isHovered": false
-        }
-      },
-      {
-        "id": "xy-edge__Agent:Webstart-Message:WebOutend",
-        "source": "Agent:Web",
-        "sourceHandle": "start",
-        "target": "Message:WebOut",
-        "targetHandle": "end",
-        "data": {
-          "isHovered": false
-        }
-      },
-      {
-        "id": "xy-edge__Agent:Webtool-Tool:WebToolsend",
-        "source": "Agent:Web",
-        "sourceHandle": "tool",
-        "target": "Tool:WebTools",
-        "targetHandle": "end",
-        "data": {
-          "isHovered": false
-        }
-      },
-      {
-        "id": "xy-edge__Categorize:Intentaafb1b71667e4b4ab208b914fb95dc84-Agent:Docend",
-        "source": "Categorize:Intent",
-        "sourceHandle": "aafb1b71667e4b4ab208b914fb95dc84",
-        "target": "Agent:Doc",
-        "targetHandle": "end",
-        "data": {
-          "isHovered": false
-        }
-      },
-      {
-        "id": "xy-edge__Agent:Docstart-Message:DocOutend",
-        "source": "Agent:Doc",
-        "sourceHandle": "start",
-        "target": "Message:DocOut",
-        "targetHandle": "end",
-        "data": {
-          "isHovered": false
-        }
-      },
-      {
-        "id": "xy-edge__Agent:Doctool-Tool:DocToolsend",
-        "source": "Agent:Doc",
-        "sourceHandle": "tool",
-        "target": "Tool:DocTools",
-        "targetHandle": "end",
-        "data": {
-          "isHovered": false
-        }
-      },
-      {
-        "id": "xy-edge__Categorize:Intent28ca1d294d7f438d9879015394a66162-Agent:Generalend",
-        "source": "Categorize:Intent",
-        "sourceHandle": "28ca1d294d7f438d9879015394a66162",
-        "target": "Agent:General",
-        "targetHandle": "end",
-        "data": {
-          "isHovered": false
-        }
-      },
-      {
-        "id": "xy-edge__Agent:Generalstart-Message:GenOutend",
-        "source": "Agent:General",
-        "sourceHandle": "start",
-        "target": "Message:GenOut",
-        "targetHandle": "end",
-        "data": {
-          "isHovered": false
-        }
-      },
-      {
-        "id": "xy-edge__Agent:Generaltool-Tool:GenToolsend",
-        "source": "Agent:General",
-        "sourceHandle": "tool",
-        "target": "Tool:GenTools",
-        "targetHandle": "end",
-        "data": {
-          "isHovered": false
-        }
-      }
-    ]
-  },
-  "globals": {
-    "sys.conversation_turns": 0,
-    "sys.files": [],
-    "sys.query": "",
-    "sys.user_id": ""
-  }
+       }
+      ],
+      "topPEnabled": false,
+      "top_p": 0.3,
+      "user_prompt": "",
+      "visual_files_var": ""
+     }
+    }
+   },
+   {
+    "id": "Message:GenOut",
+    "type": "messageNode",
+    "dragging": false,
+    "selected": false,
+    "sourcePosition": "right",
+    "targetPosition": "left",
+    "measured": {
+     "height": 56,
+     "width": 200
+    },
+    "position": {
+     "x": 960,
+     "y": 800
+    },
+    "data": {
+     "label": "Message",
+     "name": "通用回复",
+     "form": {
+      "content": [
+       "{Agent:General@content}"
+      ]
+     }
+    }
+   },
+   {
+    "id": "Tool:GenTools",
+    "type": "toolNode",
+    "dragging": false,
+    "selected": false,
+    "sourcePosition": "right",
+    "targetPosition": "left",
+    "measured": {
+     "height": 150,
+     "width": 200
+    },
+    "position": {
+     "x": 620,
+     "y": 940
+    },
+    "data": {
+     "label": "Tool",
+     "name": "flow.tool_Gen",
+     "form": {
+      "description": "This is an agent for a specific task.",
+      "user_prompt": "This is the order you need to send to the agent."
+     }
+    }
+   },
+   {
+    "id": "Note:Intro",
+    "type": "noteNode",
+    "dragging": false,
+    "selected": false,
+    "dragHandle": ".note-drag-handle",
+    "sourcePosition": "right",
+    "targetPosition": "left",
+    "width": 380,
+    "height": 230,
+    "measured": {
+     "height": 230,
+     "width": 380
+    },
+    "position": {
+     "x": 280,
+     "y": 30
+    },
+    "data": {
+     "label": "Note",
+     "name": "说明",
+     "form": {
+      "text": "入口『意图识别』(Categorize) 把问题分派给 4 个专家分支，每个专家独立 prompt+工具，可单独调优：\n· 知识库检索(Retrieval)\n· 联网与网页抓取(DuckDuckGo + Playwright/execute_code)\n· 计算与文件生成(execute_code, Word/PDF)\n· 通用问答(无工具)\n\n导入后：① 意图识别 + 4 个 Agent 共 5 处都要设模型 deepseek-v4-pro@VLLM；② 知识库检索分支的 Retrieval 里勾选知识库；③ 浏览器抓取需先执行 playwright install chromium。"
+     }
+    }
+   }
+  ],
+  "edges": [
+   {
+    "id": "xy-edge__beginstart-Categorize:Intentend",
+    "source": "begin",
+    "sourceHandle": "start",
+    "target": "Categorize:Intent",
+    "targetHandle": "end",
+    "data": {
+     "isHovered": false
+    }
+   },
+   {
+    "id": "xy-edge__Categorize:Intent2292e1ac343046129b73d75ada5036ba-Agent:KBend",
+    "source": "Categorize:Intent",
+    "sourceHandle": "2292e1ac343046129b73d75ada5036ba",
+    "target": "Agent:KB",
+    "targetHandle": "end",
+    "data": {
+     "isHovered": false
+    }
+   },
+   {
+    "id": "xy-edge__Agent:KBstart-Message:KBOutend",
+    "source": "Agent:KB",
+    "sourceHandle": "start",
+    "target": "Message:KBOut",
+    "targetHandle": "end",
+    "data": {
+     "isHovered": false
+    }
+   },
+   {
+    "id": "xy-edge__Agent:KBtool-Tool:KBToolsend",
+    "source": "Agent:KB",
+    "sourceHandle": "tool",
+    "target": "Tool:KBTools",
+    "targetHandle": "end",
+    "data": {
+     "isHovered": false
+    }
+   },
+   {
+    "id": "xy-edge__Categorize:Intenta9ba158621774c68917c8038ed1f747c-Agent:Webend",
+    "source": "Categorize:Intent",
+    "sourceHandle": "a9ba158621774c68917c8038ed1f747c",
+    "target": "Agent:Web",
+    "targetHandle": "end",
+    "data": {
+     "isHovered": false
+    }
+   },
+   {
+    "id": "xy-edge__Agent:Webstart-Message:WebOutend",
+    "source": "Agent:Web",
+    "sourceHandle": "start",
+    "target": "Message:WebOut",
+    "targetHandle": "end",
+    "data": {
+     "isHovered": false
+    }
+   },
+   {
+    "id": "xy-edge__Agent:Webtool-Tool:WebToolsend",
+    "source": "Agent:Web",
+    "sourceHandle": "tool",
+    "target": "Tool:WebTools",
+    "targetHandle": "end",
+    "data": {
+     "isHovered": false
+    }
+   },
+   {
+    "id": "xy-edge__Categorize:Intentaafb1b71667e4b4ab208b914fb95dc84-Agent:Docend",
+    "source": "Categorize:Intent",
+    "sourceHandle": "aafb1b71667e4b4ab208b914fb95dc84",
+    "target": "Agent:Doc",
+    "targetHandle": "end",
+    "data": {
+     "isHovered": false
+    }
+   },
+   {
+    "id": "xy-edge__Agent:Docstart-Message:DocOutend",
+    "source": "Agent:Doc",
+    "sourceHandle": "start",
+    "target": "Message:DocOut",
+    "targetHandle": "end",
+    "data": {
+     "isHovered": false
+    }
+   },
+   {
+    "id": "xy-edge__Agent:Doctool-Tool:DocToolsend",
+    "source": "Agent:Doc",
+    "sourceHandle": "tool",
+    "target": "Tool:DocTools",
+    "targetHandle": "end",
+    "data": {
+     "isHovered": false
+    }
+   },
+   {
+    "id": "xy-edge__Categorize:Intent28ca1d294d7f438d9879015394a66162-Agent:Generalend",
+    "source": "Categorize:Intent",
+    "sourceHandle": "28ca1d294d7f438d9879015394a66162",
+    "target": "Agent:General",
+    "targetHandle": "end",
+    "data": {
+     "isHovered": false
+    }
+   },
+   {
+    "id": "xy-edge__Agent:Generalstart-Message:GenOutend",
+    "source": "Agent:General",
+    "sourceHandle": "start",
+    "target": "Message:GenOut",
+    "targetHandle": "end",
+    "data": {
+     "isHovered": false
+    }
+   },
+   {
+    "id": "xy-edge__Agent:Generaltool-Tool:GenToolsend",
+    "source": "Agent:General",
+    "sourceHandle": "tool",
+    "target": "Tool:GenTools",
+    "targetHandle": "end",
+    "data": {
+     "isHovered": false
+    }
+   }
+  ]
+ },
+ "globals": {
+  "sys.conversation_turns": 0,
+  "sys.files": [],
+  "sys.query": "",
+  "sys.user_id": ""
+ }
 }

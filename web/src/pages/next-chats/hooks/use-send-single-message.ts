@@ -77,7 +77,9 @@ export function useSendSingleMessage({
               : (derivedMessages ?? [])),
             message,
           ],
-          reasoning: enableThinking,
+          // Omit reasoning unless thinking is explicitly on, so the model keeps its
+          // default (and provider-side web search stays available). See send hooks.
+          reasoning: enableThinking || undefined,
           internet: enableInternet,
           ...params,
         },

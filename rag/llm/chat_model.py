@@ -79,9 +79,12 @@ def _apply_model_family_policies(
 
     # Qwen3 hybrid family (Bailian/Model Studio): `enable_thinking` selects thinking
     # vs. fast reply. It is not an OpenAI parameter, so it travels in `extra_body`.
-    # Pure-thinking variants (e.g. qwen3-vl-32b-thinking) always reason and reject the
-    # switch, so they are left at their default.
-    if "qwen3" in model_name_lower and "thinking" not in model_name_lower:
+    # Only inject it when the caller explicitly set the toggle (reasoning is not None);
+    # otherwise leave the model at its own default. Forcing enable_thinking=False on an
+    # unset toggle would silently drop thinking mode AND the model's built-in web-search
+    # plugin (Bailian only runs it in thinking mode). Pure-thinking variants
+    # (e.g. qwen3-vl-32b-thinking) always reason and reject the switch, so skip them too.
+    if reasoning is not None and "qwen3" in model_name_lower and "thinking" not in model_name_lower:
         extra_body = dict(sanitized_gen_conf.get("extra_body") or {})
         extra_body["enable_thinking"] = bool(reasoning)
         sanitized_gen_conf["extra_body"] = extra_body

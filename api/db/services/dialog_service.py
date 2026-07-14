@@ -272,7 +272,7 @@ def _strip_rag_system_prompt(system: str) -> str:
     return ""
 
 
-async def async_chat_solo(dialog, messages, stream=True, reasoning=False):
+async def async_chat_solo(dialog, messages, stream=True, reasoning=None):
     llm_type = TenantLLMService.llm_id2llm_type(dialog.llm_id)
     attachments = ""
     image_attachments = []
@@ -315,8 +315,14 @@ async def async_chat_solo(dialog, messages, stream=True, reasoning=False):
     gen_conf = dict(dialog.llm_setting or {})
     if llm_type == "chat":
         # Only chat models understand the thinking switch; vision models would
-        # forward the unknown key straight to their API.
-        gen_conf["reasoning"] = bool(reasoning)
+        # forward the unknown key straight to their API. reasoning is tri-state:
+        # None means "leave the model at its own default" (so provider-side
+        # switches like Bailian's enable_search keep working); True/False is an
+        # explicit user choice from the chat UI.
+        if reasoning is not None:
+            gen_conf["reasoning"] = bool(reasoning)
+        else:
+            gen_conf.pop("reasoning", None)
     if stream:
         if llm_type == "chat":
             stream_iter = chat_mdl.async_chat_streamly_delta(system_content, msg, gen_conf)
@@ -656,7 +662,7 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
     # The chat UI's "Thinking" toggle. It drives the model's native thinking switch
     # (e.g. Bailian/Qwen3 `enable_thinking`); off means fast reply. DeepResearcher is
     # a separate feature, gated only by the dialog's own `prompt_config["reasoning"]`.
-    reasoning = bool(kwargs.get("reasoning"))
+    reasoning = kwargs.get("reasoning")
     if not dialog.kb_ids and not use_web_search:
         async for ans in async_chat_solo(dialog, messages, stream, reasoning=reasoning):
             yield ans
@@ -875,8 +881,13 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
     kwargs["knowledge"] = "\n------\n" + "\n\n------\n\n".join(knowledges)
     gen_conf = dict(dialog.llm_setting or {})
     if llm_type == "chat":
-        # See async_chat_solo: the switch is meaningless to vision models.
-        gen_conf["reasoning"] = reasoning
+        # See async_chat_solo: the switch is meaningless to vision models, and
+        # None must stay unset so the model keeps its own default (which is what
+        # provider-side web-search relies on).
+        if reasoning is not None:
+            gen_conf["reasoning"] = bool(reasoning)
+        else:
+            gen_conf.pop("reasoning", None)
 
     if no_kb_hit:
         # KB miss: replace the KB-grounded prompt (which would force a "not found

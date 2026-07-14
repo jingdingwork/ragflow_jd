@@ -130,7 +130,10 @@ export const useSendMessage = (controller: AbortController) => {
               : (derivedMessages ?? [])),
             message,
           ],
-          reasoning: enableThinking,
+          // Only send an explicit reasoning flag when the user turned thinking on.
+          // Sending `false` by default would force the model into non-thinking mode
+          // and disable provider-side web search (e.g. Bailian enable_search).
+          reasoning: enableThinking || undefined,
           internet: enableInternet,
         },
         controller,
