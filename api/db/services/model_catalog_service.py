@@ -13,6 +13,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
+from peewee import fn
+
 from api.db.db_models import DB, ModelCatalog
 from api.db.services.common_service import CommonService
 from api.db.services.department_llm_service import (
@@ -89,6 +91,28 @@ def get_public_catalog():
         ModelCatalog.sort.asc(), ModelCatalog.llm_name.asc()
     )
     return [_to_dict(r) for r in rows]
+
+
+@DB.connection_context()
+def get_capabilities_by_name(llm_name: str) -> set:
+    """Return the set of capability tags configured for a model in the catalog.
+
+    Matched by bare model name (case-insensitive). The runtime chat name may carry a
+    ``name@factory`` suffix, so we strip it before matching. Returns an empty set when
+    the model is not catalogued, so callers can treat "no config" as "no capability".
+    """
+    name = (llm_name or "").strip()
+    if not name:
+        return set()
+    name = name.split("@")[0].strip()
+    row = (
+        ModelCatalogService.model.select(ModelCatalog.capabilities)
+        .where(fn.LOWER(ModelCatalog.llm_name) == name.lower())
+        .first()
+    )
+    if not row:
+        return set()
+    return set(_parse_model_types(getattr(row, "capabilities", "")))
 
 
 def create_model(llm_name, capabilities, custom_tags):

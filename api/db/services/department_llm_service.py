@@ -52,7 +52,9 @@ DEPARTMENT_CHAT_IS_TOOLS = True
 
 # Admin-assigned capability tags for a department model. Pure classification
 # metadata (display/grouping); does not change how models are provisioned.
-VALID_MODEL_TYPES = ("web_search", "image_parse", "multimodal")
+# web_search  -> runtime injects Bailian/Qwen `enable_search` (model built-in web search)
+# fast_reply  -> exposes the chat "fast reply / default" choice to users for this model
+VALID_MODEL_TYPES = ("web_search", "image_parse", "multimodal", "fast_reply")
 
 
 def _parse_model_types(raw):

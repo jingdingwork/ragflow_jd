@@ -86,6 +86,39 @@ def _should_use_web_search(prompt_config, internet=None):
     return normalized is True
 
 
+def _apply_model_capabilities(gen_conf, llm_name, reasoning):
+    """Apply admin model-catalog capabilities to the outgoing generation config.
+
+    - ``web_search``: inject Bailian/Qwen ``enable_search`` so the model uses its own
+      built-in web search. This replaces the previous new-api gateway parameter
+      override and is scoped per model by the admin catalog, so non-supporting models
+      (e.g. deepseek) simply are not flagged and never receive the param.
+    - ``fast_reply``: only when a model is flagged fast-reply-capable do we honour the
+      chat "fast / default" choice (``reasoning``). For every other model we drop the
+      flag and let the model keep its own default, so we never force non-thinking mode
+      (which on Bailian would also disable ``enable_search``).
+    """
+    from api.db.services.model_catalog_service import get_capabilities_by_name
+
+    try:
+        caps = get_capabilities_by_name(llm_name)
+    except Exception as e:
+        logging.warning("model capability lookup failed for %s: %s", llm_name, e)
+        caps = set()
+
+    if "web_search" in caps:
+        extra_body = dict(gen_conf.get("extra_body") or {})
+        extra_body.setdefault("enable_search", True)
+        extra_body.setdefault("search_options", {"search_strategy": "turbo"})
+        gen_conf["extra_body"] = extra_body
+
+    if "fast_reply" in caps and reasoning is not None:
+        gen_conf["reasoning"] = bool(reasoning)
+    else:
+        gen_conf.pop("reasoning", None)
+    return gen_conf
+
+
 def _resolve_reference_metadata(config, request_payload=None):
     return resolve_reference_metadata_preferences(request_payload or {}, config)
 
@@ -314,15 +347,10 @@ async def async_chat_solo(dialog, messages, stream=True, reasoning=None):
         convert_last_user_msg_to_multimodal(msg, image_attachments, factory)
     gen_conf = dict(dialog.llm_setting or {})
     if llm_type == "chat":
-        # Only chat models understand the thinking switch; vision models would
-        # forward the unknown key straight to their API. reasoning is tri-state:
-        # None means "leave the model at its own default" (so provider-side
-        # switches like Bailian's enable_search keep working); True/False is an
-        # explicit user choice from the chat UI.
-        if reasoning is not None:
-            gen_conf["reasoning"] = bool(reasoning)
-        else:
-            gen_conf.pop("reasoning", None)
+        gen_conf = _apply_model_capabilities(gen_conf, chat_mdl.model_config.get("llm_name"), reasoning)
+    else:
+        # Vision models understand neither the thinking switch nor enable_search.
+        gen_conf.pop("reasoning", None)
     if stream:
         if llm_type == "chat":
             stream_iter = chat_mdl.async_chat_streamly_delta(system_content, msg, gen_conf)
@@ -881,13 +909,9 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
     kwargs["knowledge"] = "\n------\n" + "\n\n------\n\n".join(knowledges)
     gen_conf = dict(dialog.llm_setting or {})
     if llm_type == "chat":
-        # See async_chat_solo: the switch is meaningless to vision models, and
-        # None must stay unset so the model keeps its own default (which is what
-        # provider-side web-search relies on).
-        if reasoning is not None:
-            gen_conf["reasoning"] = bool(reasoning)
-        else:
-            gen_conf.pop("reasoning", None)
+        gen_conf = _apply_model_capabilities(gen_conf, chat_mdl.model_config.get("llm_name"), reasoning)
+    else:
+        gen_conf.pop("reasoning", None)
 
     if no_kb_hit:
         # KB miss: replace the KB-grounded prompt (which would force a "not found

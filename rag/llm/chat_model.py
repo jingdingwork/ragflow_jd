@@ -77,13 +77,13 @@ def _apply_model_family_policies(
     # valid API parameter, so drop it here regardless of the model family.
     reasoning = sanitized_gen_conf.pop("reasoning", None)
 
-    # Qwen3 hybrid family (Bailian/Model Studio): `enable_thinking` selects thinking
-    # vs. fast reply. It is not an OpenAI parameter, so it travels in `extra_body`.
-    # Only inject it when the caller explicitly set the toggle (reasoning is not None);
-    # otherwise leave the model at its own default. Forcing enable_thinking=False on an
-    # unset toggle would silently drop thinking mode AND the model's built-in web-search
-    # plugin (Bailian only runs it in thinking mode). Pure-thinking variants
-    # (e.g. qwen3-vl-32b-thinking) always reason and reject the switch, so skip them too.
+    # Qwen3 hybrid family (Bailian/Model Studio): `enable_thinking` selects thinking vs
+    # fast reply. It is not an OpenAI parameter, so it travels in `extra_body`. reasoning
+    # is tri-state: None means "leave the model at its own default" (so the built-in
+    # web-search plugin stays alive); True/False is an explicit fast/deep choice. The
+    # caller (chat: dialog_service) only passes a non-None value for models the admin
+    # flagged fast-reply-capable, so default chats never force non-thinking mode.
+    # Pure-thinking variants (e.g. qwen3-vl-32b-thinking) always reason, so skip them.
     if reasoning is not None and "qwen3" in model_name_lower and "thinking" not in model_name_lower:
         extra_body = dict(sanitized_gen_conf.get("extra_body") or {})
         extra_body["enable_thinking"] = bool(reasoning)

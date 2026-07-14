@@ -187,6 +187,7 @@ export default {
   forkSharedConversation: (sharedId: string) =>
     `${restAPIv1}/shared-conversations/${sharedId}/fork`,
   completionUrl: `${restAPIv1}/chat/completions`,
+  webSearchTest: `${restAPIv1}/chats/web-search-test`,
   chatsTts: `${restAPIv1}/chat/audio/speech`,
   searchCompletion: (searchId: string) =>
     `${restAPIv1}/searches/${searchId}/completions`,
