@@ -288,6 +288,18 @@ def delete_model_catalog(catalog_id):
         return error_response(str(e), 500)
 
 
+@admin_bp.route("/model-catalog/web-search-test", methods=["POST"])
+@login_required
+@check_admin_auth
+def model_catalog_web_search_test():
+    try:
+        data = request.get_json() or {}
+        result = ModelCatalogMgr.web_search_test(data.get("llm_name", ""))
+        return success_response(result, "Web search test", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
 @admin_bp.route("/prompts", methods=["GET"])
 @login_required
 @check_admin_auth

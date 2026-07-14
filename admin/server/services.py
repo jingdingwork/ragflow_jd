@@ -582,6 +582,53 @@ class ModelCatalogMgr:
     def delete_model(catalog_id):
         return delete_catalog_model(catalog_id)
 
+    _WEB_SEARCH_PROBE = (
+        "请务必先联网搜索，再回答下面两个问题："
+        "1) 今天的日期（年-月-日）是几号？"
+        "2) 给出今天的一条新闻标题及其来源网址。"
+        "如果你无法联网或拿不到实时数据，请只回复一句话：我无法联网。"
+    )
+
+    @staticmethod
+    def web_search_test(llm_name):
+        """Probe whether a catalogued model can actually perform built-in web search.
+
+        Resolves the model's provider credentials from a department config, forces
+        ``enable_search`` on and asks a live-info question, returning the raw answer so
+        the admin can judge support before flagging ``web_search`` on the model.
+        """
+        from api.db.services.department_llm_service import get_credentials_for_model
+
+        name = (llm_name or "").strip()
+        if not name:
+            return {"llm_name": name, "supported": False, "answer": "缺少模型名"}
+        api_base, api_key = get_credentials_for_model(name)
+        if not api_base:
+            return {
+                "llm_name": name,
+                "supported": False,
+                "answer": "未找到该模型的可用配置（请先在部门模型配置里配置并启用该模型）",
+            }
+        try:
+            from openai import OpenAI
+
+            client = OpenAI(api_key=api_key or "EMPTY", base_url=api_base, timeout=60)
+            resp = client.chat.completions.create(
+                model=name.split("@")[0],
+                messages=[{"role": "user", "content": ModelCatalogMgr._WEB_SEARCH_PROBE}],
+                temperature=0.2,
+                extra_body={"enable_search": True, "search_options": {"search_strategy": "turbo"}},
+            )
+            answer = (resp.choices[0].message.content or "").strip()
+        except Exception as e:
+            logging.warning("web_search_test failed for %s: %s", name, e)
+            return {"llm_name": name, "supported": False, "answer": f"调用失败：{e}"}
+
+        supported = bool(answer) and not any(
+            k in answer for k in ("我无法联网", "无法联网", "无法获取实时", "没有联网", "不具备联网")
+        )
+        return {"llm_name": name, "supported": supported, "answer": answer}
+
 
 class GlobalLLMMgr:
     """Global "other models" config: one provider + one model per auxiliary type,

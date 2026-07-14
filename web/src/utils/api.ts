@@ -187,7 +187,6 @@ export default {
   forkSharedConversation: (sharedId: string) =>
     `${restAPIv1}/shared-conversations/${sharedId}/fork`,
   completionUrl: `${restAPIv1}/chat/completions`,
-  webSearchTest: `${restAPIv1}/chats/web-search-test`,
   chatsTts: `${restAPIv1}/chat/audio/speech`,
   searchCompletion: (searchId: string) =>
     `${restAPIv1}/searches/${searchId}/completions`,
@@ -344,6 +343,7 @@ export default {
   adminGlobalLlm: `${restAPIv1}/admin/global-llm`,
   adminFetchGlobalModels: `${restAPIv1}/admin/global-llm/fetch-models`,
   adminModelCatalog: `${restAPIv1}/admin/model-catalog`,
+  adminModelCatalogWebSearchTest: `${restAPIv1}/admin/model-catalog/web-search-test`,
   adminModelCatalogItem: (id: string) =>
     `${restAPIv1}/admin/model-catalog/${id}`,
 

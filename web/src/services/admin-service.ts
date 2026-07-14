@@ -136,6 +136,7 @@ const {
   adminGlobalLlm,
   adminFetchGlobalModels,
   adminModelCatalog,
+  adminModelCatalogWebSearchTest,
   adminModelCatalogItem,
 
   adminChatHistoryStats,
@@ -256,13 +257,13 @@ export type ModelCapability =
   | 'web_search'
   | 'image_parse'
   | 'multimodal'
-  | 'fast_reply';
+  | 'deep_thinking';
 
 export const MODEL_CAPABILITIES: ModelCapability[] = [
   'web_search',
   'image_parse',
   'multimodal',
-  'fast_reply',
+  'deep_thinking',
 ];
 
 // Maps each capability to its i18n key (labels live in locales/{zh,en}.ts).
@@ -270,7 +271,7 @@ export const MODEL_CAPABILITY_I18N: Record<ModelCapability, string> = {
   web_search: 'admin.modelCapWebSearch',
   image_parse: 'admin.modelCapImageParse',
   multimodal: 'admin.modelCapMultimodal',
-  fast_reply: 'admin.modelCapFastReply',
+  deep_thinking: 'admin.modelCapDeepThinking',
 };
 
 // Admin-curated catalog of models exposed to end users.
@@ -302,6 +303,18 @@ export const updateModelCatalog = (id: string, params: ModelCatalogInput) =>
 
 export const deleteModelCatalog = (id: string) =>
   request.delete<ResponseData<{ deleted: string }>>(adminModelCatalogItem(id));
+
+export type WebSearchTestResult = {
+  llm_name: string;
+  supported: boolean;
+  answer: string;
+};
+
+export const testModelWebSearch = (llm_name: string) =>
+  request.post<ResponseData<WebSearchTestResult>>(
+    adminModelCatalogWebSearchTest,
+    { llm_name },
+  );
 
 export type DepartmentLlmModel = {
   llm_name: string;

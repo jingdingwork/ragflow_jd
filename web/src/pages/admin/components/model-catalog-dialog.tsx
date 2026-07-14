@@ -23,7 +23,9 @@ import {
   MODEL_CAPABILITY_I18N,
   ModelCapability,
   ModelCatalogItem,
+  WebSearchTestResult,
   createModelCatalog,
+  testModelWebSearch,
   updateModelCatalog,
 } from '@/services/admin-service';
 
@@ -45,6 +47,9 @@ export function ModelCatalogDialog({
   const [capabilities, setCapabilities] = useState<ModelCapability[]>([]);
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [testResult, setTestResult] = useState<WebSearchTestResult | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -52,7 +57,25 @@ export function ModelCatalogDialog({
     setCapabilities(item?.capabilities ?? []);
     setCustomTags(item?.custom_tags ?? []);
     setTagInput('');
+    setTestResult(null);
   }, [open, item]);
+
+  const testMutation = useMutation({
+    mutationKey: ['admin/model-catalog/web-search-test', name],
+    mutationFn: async () => {
+      const trimmed = name.trim();
+      if (!trimmed) {
+        message.warning(t('admin.modelCatalogName'));
+        return null;
+      }
+      const res = await testModelWebSearch(trimmed);
+      return (res?.data?.data ?? null) as WebSearchTestResult | null;
+    },
+    onSuccess: (data) => {
+      if (data) setTestResult(data);
+    },
+    retry: false,
+  });
 
   const toggleCapability = (cap: ModelCapability) => {
     setCapabilities((prev) =>
@@ -137,6 +160,36 @@ export function ModelCatalogDialog({
                 );
               })}
             </div>
+            <div className="flex items-center gap-3 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={testMutation.isPending || !name.trim()}
+                onClick={() => testMutation.mutate()}
+              >
+                {testMutation.isPending
+                  ? t('admin.webSearchTesting')
+                  : t('admin.webSearchTest')}
+              </Button>
+              {testResult && (
+                <span
+                  className={cn(
+                    'text-sm font-medium',
+                    testResult.supported ? 'text-green-600' : 'text-red-500',
+                  )}
+                >
+                  {testResult.supported
+                    ? t('admin.webSearchSupported')
+                    : t('admin.webSearchUnsupported')}
+                </span>
+              )}
+            </div>
+            {testResult && (
+              <div className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md border border-border-default bg-bg-card p-3 text-sm text-text-secondary">
+                {testResult.answer}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

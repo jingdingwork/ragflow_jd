@@ -22,7 +22,6 @@ import { useFetchKnowledgeMetadataKeys } from '@/hooks/use-knowledge-request';
 import { getDirAttribute } from '@/utils/text-direction';
 import { useEffect, useMemo } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
-import { WebSearchTestButton } from './web-search-test-button';
 
 export default function ChatBasicSetting() {
   const { t } = useTranslate('chat');
@@ -137,7 +136,6 @@ export default function ChatBasicSetting() {
       ></SwitchFormField>
       <TOCEnhanceFormField name="prompt_config.toc_enhance"></TOCEnhanceFormField>
       <TavilyFormField></TavilyFormField>
-      <WebSearchTestButton></WebSearchTestButton>
       <KnowledgeBaseFormField key={kbSyncKey}></KnowledgeBaseFormField>
       <MetadataFilter></MetadataFilter>
       <FormField

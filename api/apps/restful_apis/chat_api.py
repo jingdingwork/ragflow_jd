@@ -274,58 +274,6 @@ def _apply_prompt_defaults(req, user=None):
         prompt_config["parameters"] = [{"key": "knowledge", "optional": False}]
 
 
-_WEB_SEARCH_PROBE = (
-    "请务必先联网搜索，再回答下面两个问题："
-    "1) 今天的日期（年-月-日）是几号？"
-    "2) 给出今天的一条新闻标题及其来源网址。"
-    "如果你无法联网或拿不到实时数据，请只回复一句话：我无法联网。"
-)
-
-
-@manager.route("/chats/web-search-test", methods=["POST"])  # noqa: F821
-@login_required
-async def web_search_test():
-    """Probe whether a chat model can actually perform built-in web search.
-
-    Forces Bailian/Qwen ``enable_search`` on (independent of the model catalog) and
-    asks a live-info question, returning the raw answer so the operator can judge
-    whether the model really supports web search before flagging it in the catalog.
-    """
-    try:
-        req = await get_request_json()
-        llm_id = (req.get("llm_id") or "").strip()
-        if not llm_id:
-            return get_data_error_result(message="`llm_id` is required")
-        try:
-            model_config = get_model_config_by_type_and_name(current_user.id, LLMType.CHAT, llm_id)
-        except Exception as e:
-            return get_json_result(data={"llm_id": llm_id, "supported": False, "answer": f"模型不可用：{e}"})
-
-        chat_mdl = LLMBundle(current_user.id, model_config)
-        gen_conf = {
-            "temperature": 0.2,
-            "extra_body": {
-                "enable_search": True,
-                "search_options": {"search_strategy": "turbo"},
-            },
-        }
-        try:
-            answer = await chat_mdl.async_chat("", [{"role": "user", "content": _WEB_SEARCH_PROBE}], gen_conf)
-        except Exception as e:
-            # A hard failure usually means the provider rejects enable_search for this
-            # model — report it as "not supported" rather than a 500 so the UI can show it.
-            logging.warning("web_search_test call failed for %s: %s", llm_id, e)
-            return get_json_result(data={"llm_id": llm_id, "supported": False, "answer": f"调用失败：{e}"})
-
-        if isinstance(answer, tuple):
-            answer = answer[0]
-        answer = (answer or "").strip()
-        supported = bool(answer) and not any(k in answer for k in ("我无法联网", "无法联网", "无法获取实时", "没有联网", "不具备联网"))
-        return get_json_result(data={"llm_id": llm_id, "supported": supported, "answer": answer})
-    except Exception as e:
-        return server_error_response(e)
-
-
 @manager.route("/chats", methods=["POST"])  # noqa: F821
 @login_required
 async def create():
