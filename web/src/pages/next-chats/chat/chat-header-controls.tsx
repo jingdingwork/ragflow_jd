@@ -12,7 +12,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { AgentCategory } from '@/constants/agent';
 import { LlmModelType } from '@/constants/knowledge';
+import { useFetchAgentList } from '@/hooks/use-agent-request';
 import { useFetchChat, usePatchChat } from '@/hooks/use-chat-request';
 import { useFetchKnowledgeList } from '@/hooks/use-knowledge-request';
 import {
@@ -22,7 +24,7 @@ import {
   useFetchModelTags,
 } from '@/hooks/use-llm-request';
 import { cn } from '@/lib/utils';
-import { Check, ChevronDown, Library } from 'lucide-react';
+import { Bot, Check, ChevronDown, Library } from 'lucide-react';
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
@@ -248,15 +250,95 @@ function ChatModelSelect({
   );
 }
 
+// Agent picker. Selecting a published agent makes this chat route every turn to
+// that agent's canvas (seeded with the chat's own history); the built-in model +
+// knowledge-base controls no longer apply and are hidden. "" clears it back to
+// the normal RAG chat.
+function ChatAgentSelect({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: { label: string; value: string }[];
+  onChange: (value: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+
+  const currentLabel = useMemo(
+    () => options.find((o) => o.value === value)?.label ?? t('chat.noAgent'),
+    [options, value, t],
+  );
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            'h-9 gap-2 px-3 font-normal bg-bg-input border-border-button max-w-[240px]',
+            value && 'border-accent-primary text-accent-primary',
+          )}
+        >
+          <Bot className="size-4 shrink-0" />
+          <span className="truncate">{currentLabel}</span>
+          <ChevronDown className="size-3.5 text-text-secondary shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 p-0">
+        <Command>
+          <CommandInput placeholder={t('chat.selectAgent')} />
+          <CommandList>
+            <CommandEmpty>{t('common.noDataFound')}</CommandEmpty>
+            <CommandGroup>
+              {[{ label: t('chat.noAgent'), value: '' }, ...options].map(
+                (opt) => {
+                  const selected = opt.value === value;
+                  return (
+                    <CommandItem
+                      key={opt.value || '__none__'}
+                      value={opt.label}
+                      onSelect={() => {
+                        onChange(opt.value);
+                        setOpen(false);
+                      }}
+                      className={cn(
+                        'cursor-pointer flex items-center gap-2',
+                        selected && 'bg-bg-card',
+                      )}
+                    >
+                      <span className="truncate">{opt.label}</span>
+                      {selected && (
+                        <Check className="size-4 ml-auto shrink-0 text-accent-primary" />
+                      )}
+                    </CommandItem>
+                  );
+                },
+              )}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 /**
  * Quick model + knowledge-base controls shown in the chat header (top-right), so
  * the user can switch the chat model and retrieval scope without opening the
  * settings panel or the multiple-models view. Both persist to the dialog.
+ *
+ * An agent picker sits alongside: pick a published agent and the chat is driven
+ * by that agent instead of the RAG pipeline (model + KB pickers hidden, since the
+ * agent carries its own model and retrieval config).
  */
 export function ChatHeaderControls() {
   const { id } = useParams();
   const { data } = useFetchChat();
   const { patchChat } = usePatchChat();
+
+  const agentId = (data as { agent_id?: string })?.agent_id ?? '';
 
   const modelOptions = useComposeLlmOptionsByModelTypes([LlmModelType.Chat]);
   const tagsMap = useFetchModelTags();
@@ -265,6 +347,18 @@ export function ChatHeaderControls() {
   const kbOptions = useMemo(
     () => list.map((k) => ({ label: k.name, value: k.id })),
     [list],
+  );
+
+  const { data: agentData } = useFetchAgentList({
+    canvas_category: AgentCategory.AgentCanvas,
+  });
+  const agentOptions = useMemo(
+    () =>
+      (agentData?.canvas ?? []).map((a) => ({
+        label: a.title,
+        value: a.id,
+      })),
+    [agentData],
   );
 
   const selectedKbIds = useMemo(
@@ -288,18 +382,35 @@ export function ChatHeaderControls() {
     [id, patchChat],
   );
 
+  const handleAgentChange = useCallback(
+    (nextAgentId: string) => {
+      if (!id || nextAgentId === agentId) return;
+      patchChat({ chatId: id, params: { agent_id: nextAgentId || null } });
+    },
+    [id, agentId, patchChat],
+  );
+
   return (
     <div className="flex items-center gap-2">
-      <ChatModelSelect
-        value={data.llm_id}
-        options={modelOptions as unknown as ModelOptionGroup[]}
-        tagsMap={tagsMap}
-        onChange={handleModelChange}
-      />
-      <ChatKbSelect
-        value={selectedKbIds}
-        options={kbOptions}
-        onApply={handleKbApply}
+      {!agentId && (
+        <>
+          <ChatModelSelect
+            value={data.llm_id}
+            options={modelOptions as unknown as ModelOptionGroup[]}
+            tagsMap={tagsMap}
+            onChange={handleModelChange}
+          />
+          <ChatKbSelect
+            value={selectedKbIds}
+            options={kbOptions}
+            onApply={handleKbApply}
+          />
+        </>
+      )}
+      <ChatAgentSelect
+        value={agentId}
+        options={agentOptions}
+        onChange={handleAgentChange}
       />
     </div>
   );

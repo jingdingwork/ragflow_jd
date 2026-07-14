@@ -998,6 +998,8 @@ This auto-tagging feature enhances retrieval by adding another layer of domain-s
       knowledgeCount: '{{count}} knowledge bases',
       selectKnowledgeBases: 'Select knowledge bases',
       noKnowledgeBase: 'No searchable knowledge base.',
+      noAgent: 'No agent',
+      selectAgent: 'Select agent',
       chatSupport: 'Chat Support',
       replyInstantly: 'We typically reply instantly',
       typeYourMessage: 'Type your message...',

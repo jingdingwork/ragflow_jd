@@ -564,9 +564,80 @@ def repair_bad_citation_formats(answer: str, kbinfos: dict, idx: set):
     return answer, idx
 
 
+async def _async_chat_via_agent(dialog, messages, stream=True, **kwargs):
+    """Drive this chat with a published agent (``dialog.agent_id``) instead of the
+    built-in RAG pipeline.
+
+    The chat owns the session: we build a fresh canvas from the agent's DSL, seed
+    its history from THIS chat's conversation messages, and run it statelessly for
+    the current turn. The agent keeps NO separate conversation/API4Conversation —
+    persistence stays with the chat's own ``Conversation`` record. Output is
+    re-shaped into the same ``{"answer", "reference", ...}`` events async_chat
+    yields, so all existing callers/UI keep working unchanged.
+    """
+    import json as _json
+    from agent.canvas import Canvas
+    from api.db.services.canvas_service import UserCanvasService
+
+    e, cvs = UserCanvasService.get_by_id(dialog.agent_id)
+    if not e or not cvs:
+        yield {"answer": "所选智能体不存在或已被删除，请在聊天设置里重新选择。", "reference": {}, "audio_binary": None, "final": True}
+        return
+
+    dsl = cvs.dsl if isinstance(cvs.dsl, str) else _json.dumps(cvs.dsl, ensure_ascii=False)
+    canvas = Canvas(dsl, dialog.tenant_id, dialog.agent_id, canvas_id=dialog.agent_id)
+    canvas.reset()
+
+    # Seed canvas history from the chat's own messages (everything except the
+    # current user turn, which canvas.run appends). Keep only user/assistant.
+    seeded = []
+    for m in messages[:-1]:
+        role = m.get("role")
+        content = m.get("content", "") or ""
+        if role == "assistant":
+            # Drop reasoning blocks that were streamed into earlier answers so the
+            # re-fed history stays lean (keeps the multi-turn window meaningful).
+            content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+        if role in ("user", "assistant") and content:
+            seeded.append((role, content))
+    canvas.history = seeded
+
+    query = messages[-1].get("content", "") if messages else ""
+    user_id = kwargs.get("user_id") or ""
+    answer = ""
+    try:
+        async for ev in canvas.run(query=query, user_id=user_id):
+            if not isinstance(ev, dict) or ev.get("event") != "message":
+                continue
+            data = ev.get("data") or {}
+            if data.get("start_to_think"):
+                answer += "<think>"
+            answer += data.get("content", "") or ""
+            if data.get("end_to_think"):
+                answer += "</think>"
+            yield {"answer": answer, "reference": {}, "audio_binary": None, "final": False}
+    except Exception as ex:
+        logging.exception("agent-backed chat failed")
+        raise ex
+
+    reference = {"chunks": [], "doc_aggs": []}
+    try:
+        reference = canvas.get_reference() or reference
+    except Exception:
+        pass
+    yield {"answer": answer, "reference": reference, "audio_binary": None, "prompt": "", "created_at": time.time()}
+
+
 async def async_chat(dialog, messages, stream=True, **kwargs):
     logging.debug("Begin async_chat")
     assert messages[-1]["role"] == "user", "The last content of this conversation is not from user."
+    # Agent-backed chat: when the dialog points at a published agent, hand the
+    # whole turn to that agent's canvas (seeded with this chat's history) instead
+    # of the RAG pipeline below. The chat keeps ownership of the conversation.
+    if getattr(dialog, "agent_id", None):
+        async for ans in _async_chat_via_agent(dialog, messages, stream, **kwargs):
+            yield ans
+        return
     use_web_search = _should_use_web_search(dialog.prompt_config, kwargs.get("internet"))
     logging.debug("web_search kb=%s tavily=%s internet=%r enabled=%s", bool(dialog.kb_ids), bool(dialog.prompt_config.get("tavily_api_key")), kwargs.get("internet"), use_web_search)
     # The chat UI's "Thinking" toggle. It drives the model's native thinking switch

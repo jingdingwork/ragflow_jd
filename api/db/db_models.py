@@ -1130,6 +1130,11 @@ class Dialog(DataBaseModel):
     rerank_id = CharField(max_length=128, null=False, help_text="default rerank model ID")
     tenant_rerank_id = IntegerField(null=True, help_text="id in tenant_llm", index=True)
     kb_ids = JSONField(null=False, default=[])
+    # When set, this chat is driven by a published agent (user_canvas) instead of
+    # the built-in RAG pipeline: each turn is routed to the agent canvas, seeded
+    # with THIS chat's conversation history. The chat owns the session; the agent
+    # keeps NO separate conversation of its own.
+    agent_id = CharField(max_length=32, null=True, help_text="published agent (user_canvas) id driving this chat", index=True)
     status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
 
     class Meta:
@@ -1914,6 +1919,7 @@ def migrate_db():
     alter_db_add_column(migrator, "knowledgebase", "tenant_embd_id", IntegerField(null=True, help_text="id in tenant_llm", index=True))
     alter_db_add_column(migrator, "dialog", "tenant_llm_id", IntegerField(null=True, help_text="id in tenant_llm", index=True))
     alter_db_add_column(migrator, "dialog", "tenant_rerank_id", IntegerField(null=True, help_text="id in tenant_llm", index=True))
+    alter_db_add_column(migrator, "dialog", "agent_id", CharField(max_length=32, null=True, help_text="published agent (user_canvas) id driving this chat", index=True))
     alter_db_add_column(migrator, "memory", "tenant_embd_id", IntegerField(null=True, help_text="id in tenant_llm", index=True))
     alter_db_add_column(migrator, "memory", "tenant_llm_id", IntegerField(null=True, help_text="id in tenant_llm", index=True))
     alter_db_add_column(migrator, "user_canvas_version", "release", BooleanField(null=False, help_text="is released", default=False, index=True))
