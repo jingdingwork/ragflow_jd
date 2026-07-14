@@ -49,6 +49,7 @@ from api.db.services.model_catalog_service import (
     create_model as create_catalog_model,
     update_model as update_catalog_model,
     delete_model as delete_catalog_model,
+    sync_from_configured_models as sync_catalog_models,
 )
 from api.db.joint_services.user_account_service import create_new_user, delete_user_data
 from api.db.services.canvas_service import UserCanvasService
@@ -581,6 +582,10 @@ class ModelCatalogMgr:
     @staticmethod
     def delete_model(catalog_id):
         return delete_catalog_model(catalog_id)
+
+    @staticmethod
+    def sync_models():
+        return sync_catalog_models()
 
 
 class GlobalLLMMgr:

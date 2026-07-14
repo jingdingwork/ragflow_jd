@@ -21,6 +21,7 @@ from api.db.services.department_llm_service import (
     VALID_MODEL_TYPES,
     _parse_model_types,
     _serialize_model_types,
+    list_department_configs,
 )
 from common.constants import StatusEnum
 from common.misc_utils import get_uuid
@@ -113,6 +114,45 @@ def get_capabilities_by_name(llm_name: str) -> set:
     if not row:
         return set()
     return set(_parse_model_types(getattr(row, "capabilities", "")))
+
+
+@DB.connection_context()
+def sync_from_configured_models():
+    """Pull every chat model configured under department LLM settings into the catalog.
+
+    Adds catalog rows for model names not yet present (empty capabilities/tags so the
+    admin can tag them); existing rows keep their capabilities/tags untouched. Nothing
+    is removed — stale entries are deleted manually. Returns add/total counts.
+    """
+    existing_rows = list(ModelCatalogService.model.select())
+    existing_lower = {(r.llm_name or "").strip().lower() for r in existing_rows}
+    max_sort = max([r.sort or 0 for r in existing_rows], default=0)
+
+    # Unique configured model names across all department configs (keep first casing).
+    configured = {}
+    for cfg in list_department_configs():
+        for m in cfg.get("models", []):
+            name = (m.get("llm_name") or "").strip()
+            if name and name.lower() not in configured:
+                configured[name.lower()] = name
+
+    added = 0
+    for low, name in configured.items():
+        if low in existing_lower:
+            continue
+        max_sort += 1
+        ModelCatalogService.insert(
+            id=get_uuid(),
+            llm_name=name,
+            capabilities=_serialize_model_types([]),
+            custom_tags=[],
+            sort=max_sort,
+            status=StatusEnum.VALID.value,
+        )
+        existing_lower.add(low)
+        added += 1
+
+    return {"added": added, "configured": len(configured), "total": len(existing_lower)}
 
 
 def create_model(llm_name, capabilities, custom_tags):

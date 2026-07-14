@@ -3047,6 +3047,8 @@ Important structured information may include: names, dates, locations, events, k
       modelCapabilitiesTip: 'Click to tag this model’s capability types',
       add: 'Add',
       modelCatalogAdd: 'Add model',
+      modelCatalogSync: 'Sync configured models',
+      modelCatalogSyncDone: 'Synced, {{added}} model(s) added',
       modelCatalogEdit: 'Edit model',
       modelCatalogName: 'Model name',
       modelCustomTags: 'Custom tags',

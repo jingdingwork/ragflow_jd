@@ -222,6 +222,8 @@ export default {
       modelCapabilitiesTip: '点击为该模型标记能力类型',
       add: '添加',
       modelCatalogAdd: '添加模型',
+      modelCatalogSync: '同步已配置模型',
+      modelCatalogSyncDone: '已同步，新增 {{added}} 个模型',
       modelCatalogEdit: '编辑模型',
       modelCatalogName: '模型名称',
       modelCustomTags: '自定义标签',

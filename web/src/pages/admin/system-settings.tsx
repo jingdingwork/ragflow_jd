@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 import {
+  LucideDownloadCloud,
   LucidePencil,
   LucidePlus,
   LucideRefreshCw,
@@ -47,6 +48,7 @@ import {
   ModelCatalogItem,
   deleteModelCatalog,
   listModelCatalog,
+  syncModelCatalog,
 } from '@/services/admin-service';
 
 import { GlobalLlmDialog } from './components/global-llm-dialog';
@@ -85,6 +87,23 @@ function ModelSettingsPane() {
     setEditOpen(true);
   };
 
+  const syncMutation = useMutation({
+    mutationKey: ['admin/model-catalog/sync'],
+    mutationFn: async () => {
+      const res = await syncModelCatalog();
+      return res?.data;
+    },
+    onSuccess: (res) => {
+      if (res?.code === 0) {
+        message.success(
+          t('admin.modelCatalogSyncDone', { added: res.data?.added ?? 0 }),
+        );
+        refetch();
+      }
+    },
+    retry: false,
+  });
+
   const deleteMutation = useMutation({
     mutationKey: ['admin/model-catalog/delete'],
     mutationFn: async (id: string) => {
@@ -114,7 +133,16 @@ function ModelSettingsPane() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="highlighted" onClick={openCreate}>
+          <ButtonLoading
+            size="sm"
+            variant="highlighted"
+            loading={syncMutation.isPending}
+            onClick={() => syncMutation.mutate()}
+          >
+            <LucideDownloadCloud className="size-4 mr-1" />
+            {t('admin.modelCatalogSync')}
+          </ButtonLoading>
+          <Button size="sm" variant="outline" onClick={openCreate}>
             <LucidePlus className="size-4 mr-1" />
             {t('admin.modelCatalogAdd')}
           </Button>

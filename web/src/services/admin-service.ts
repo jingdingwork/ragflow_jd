@@ -136,6 +136,7 @@ const {
   adminGlobalLlm,
   adminFetchGlobalModels,
   adminModelCatalog,
+  adminModelCatalogSync,
   adminModelCatalogItem,
 
   adminChatHistoryStats,
@@ -296,6 +297,15 @@ export const updateModelCatalog = (id: string, params: ModelCatalogInput) =>
 
 export const deleteModelCatalog = (id: string) =>
   request.delete<ResponseData<{ deleted: string }>>(adminModelCatalogItem(id));
+
+export type ModelCatalogSyncResult = {
+  added: number;
+  configured: number;
+  total: number;
+};
+
+export const syncModelCatalog = () =>
+  request.post<ResponseData<ModelCatalogSyncResult>>(adminModelCatalogSync);
 
 export type DepartmentLlmModel = {
   llm_name: string;

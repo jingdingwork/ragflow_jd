@@ -277,6 +277,17 @@ def update_model_catalog(catalog_id):
         return error_response(str(e), 500)
 
 
+@admin_bp.route("/model-catalog/sync", methods=["POST"])
+@login_required
+@check_admin_auth
+def sync_model_catalog():
+    try:
+        result = ModelCatalogMgr.sync_models()
+        return success_response(result, "Sync model catalog", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
 @admin_bp.route("/model-catalog/<catalog_id>", methods=["DELETE"])
 @login_required
 @check_admin_auth

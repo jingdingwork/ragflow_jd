@@ -343,6 +343,7 @@ export default {
   adminGlobalLlm: `${restAPIv1}/admin/global-llm`,
   adminFetchGlobalModels: `${restAPIv1}/admin/global-llm/fetch-models`,
   adminModelCatalog: `${restAPIv1}/admin/model-catalog`,
+  adminModelCatalogSync: `${restAPIv1}/admin/model-catalog/sync`,
   adminModelCatalogItem: (id: string) =>
     `${restAPIv1}/admin/model-catalog/${id}`,
 
