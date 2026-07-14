@@ -588,6 +588,19 @@ async def _async_chat_via_agent(dialog, messages, stream=True, **kwargs):
     canvas = Canvas(dsl, dialog.tenant_id, dialog.agent_id, canvas_id=dialog.agent_id)
     canvas.reset()
 
+    # Fast-reply / deep-thinking switch: propagate the chat's "Thinking" toggle to
+    # every model node in the agent so it drives the model's native thinking
+    # (enable_thinking). Off => fast reply (also the main lever for slow responses).
+    reasoning = kwargs.get("reasoning")
+    if reasoning is not None:
+        for comp in canvas.components.values():
+            param = getattr(comp.get("obj"), "_param", None)
+            if param is not None and hasattr(param, "gen_conf"):
+                try:
+                    param.reasoning = bool(reasoning)
+                except Exception:
+                    pass
+
     # Seed canvas history from the chat's own messages (everything except the
     # current user turn, which canvas.run appends). Keep only user/assistant.
     seeded = []

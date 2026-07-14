@@ -77,6 +77,12 @@ class LLMParam(ComponentParamBase):
             conf["presence_penalty"] = float(self.presence_penalty)
         if float(self.frequency_penalty) > 0 and get_attr("frequencyPenaltyEnabled"):
             conf["frequency_penalty"] = float(self.frequency_penalty)
+        # Runtime fast-reply / deep-thinking switch. When set (e.g. propagated from
+        # the chat's "Thinking" toggle), it drives the model's native thinking
+        # (Bailian/Qwen3 `enable_thinking`): False = fast reply, True = deep think.
+        r = get_attr("reasoning")
+        if r is not None:
+            conf["reasoning"] = bool(r)
         return conf
 
 
