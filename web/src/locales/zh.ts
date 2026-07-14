@@ -112,6 +112,59 @@ export default {
       memories: '记忆',
       apps: '应用',
     },
+    tour: {
+      helpButton: '使用指导',
+      next: '下一步',
+      prev: '上一步',
+      done: '知道了',
+      home: {
+        welcomeTitle: '欢迎使用京鼎智能平台',
+        welcomeDesc:
+          '花一分钟了解一下平台的主要功能，随时可以点右上角的问号重新查看。',
+        navTitle: '顶部导航',
+        navDesc: '在这里切换 聊天、知识库、智能体、应用 等核心模块。',
+        datasetsTitle: '知识库',
+        datasetsDesc:
+          '这里展示你可访问的知识库，点击卡片进入查看文档与检索内容。',
+        appsTitle: '应用与更多',
+        appsDesc:
+          '快速进入最近的聊天、智能体与记忆等内容，点右上角标签可切换。',
+        helpTitle: '随时重看指导',
+        helpDesc: '忘记怎么用了？点这个问号，就能重新打开当前页面的使用指导。',
+      },
+      chat: {
+        welcomeTitle: '开始与模型对话',
+        welcomeDesc:
+          '这是聊天页面，你可以在这里直接向模型提问、切换模型和知识库。',
+        sessionsTitle: '会话列表',
+        sessionsDesc: '左侧是你的历史会话，可新建、切换或删除会话。',
+        controlsTitle: '模型与知识库',
+        controlsDesc:
+          '在这里切换对话使用的模型、绑定的知识库范围，或选择一个智能体来接管对话。',
+        inputTitle: '输入框',
+        inputDesc: '在这里输入问题并发送，支持上传文件作为参考。',
+        helpTitle: '随时重看指导',
+        helpDesc: '点右上角的问号，可以重新打开本页的使用指导。',
+      },
+      agents: {
+        welcomeTitle: '智能体',
+        welcomeDesc: '智能体可以把多步骤的工作流编排成一个可复用的自动化助手。',
+        createTitle: '新建智能体',
+        createDesc: '从空白创建、套用模板，或导入 JSON 文件来快速搭建智能体。',
+        manageTitle: '管理智能体',
+        manageDesc: '这里列出你的智能体，可搜索、编辑、运行或删除。',
+        helpTitle: '随时重看指导',
+        helpDesc: '点右上角的问号，可以重新打开本页的使用指导。',
+      },
+      apps: {
+        welcomeTitle: '应用中心',
+        welcomeDesc: '这里汇集了你被授权使用的应用。',
+        listTitle: '打开或下载应用',
+        listDesc: 'Web 应用点击即可在线打开，客户端应用可下载最新安装包使用。',
+        helpTitle: '随时重看指导',
+        helpDesc: '点右上角的问号，可以重新打开本页的使用指导。',
+      },
+    },
     applications: {
       loading: '加载中...',
       empty: '暂无可访问的应用',

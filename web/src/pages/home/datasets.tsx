@@ -25,7 +25,7 @@ export function Datasets() {
   const { navigateToDatasetList } = useNavigatePage();
 
   return (
-    <section>
+    <section data-tour="home-datasets">
       <header>
         <h2 className="leading-8 text-2xl font-semibold mb-2.5">
           {/* <IconFont name="data" className="size-8"></IconFont> */}

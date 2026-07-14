@@ -135,7 +135,7 @@ const GlobalNavbar = supportsCssAnchor
       );
 
       return (
-        <nav>
+        <nav data-tour="global-nav">
           <ul className="relative flex items-center p-1 bg-bg-card rounded-full border border-border-button">
             {visibleMenuItems.map(
               ({ path, name, icon: Icon, submenu, ...props }) => {
@@ -202,7 +202,7 @@ const GlobalNavbar = supportsCssAnchor
       }, [pathname]);
 
       return (
-        <nav>
+        <nav data-tour="global-nav">
           <ul className="flex items-center p-1 bg-bg-card rounded-full border border-border-button">
             {visibleMenuItems.map(
               ({ path, name, icon: Icon, submenu, ...props }) => {

@@ -129,6 +129,70 @@ export default {
       memories: 'Memory',
       apps: 'Apps',
     },
+    tour: {
+      helpButton: 'Getting started',
+      next: 'Next',
+      prev: 'Back',
+      done: 'Got it',
+      home: {
+        welcomeTitle: 'Welcome to the CTCI intelligent platform',
+        welcomeDesc:
+          'Take a minute to see the main features. You can reopen this guide anytime from the help icon at the top right.',
+        navTitle: 'Top navigation',
+        navDesc:
+          'Switch between the core modules here: chat, datasets, agents and apps.',
+        datasetsTitle: 'Datasets',
+        datasetsDesc:
+          'Datasets you can access are shown here. Click a card to view its documents and retrieved content.',
+        appsTitle: 'Apps and more',
+        appsDesc:
+          'Jump into recent chats, agents and memories. Use the tabs to switch between them.',
+        helpTitle: 'Reopen the guide anytime',
+        helpDesc:
+          'Forgot how something works? Click this help icon to reopen the guide for the current page.',
+      },
+      chat: {
+        welcomeTitle: 'Start chatting with a model',
+        welcomeDesc:
+          'This is the chat page, where you can ask the model questions and switch models or datasets.',
+        sessionsTitle: 'Conversations',
+        sessionsDesc:
+          'Your conversation history lives on the left. Create, switch or delete conversations here.',
+        controlsTitle: 'Model and datasets',
+        controlsDesc:
+          'Switch the chat model and the bound dataset scope here, or pick an agent to take over the conversation.',
+        inputTitle: 'Message box',
+        inputDesc:
+          'Type your question and send it here. You can also attach files for reference.',
+        helpTitle: 'Reopen the guide anytime',
+        helpDesc:
+          'Click the help icon at the top right to reopen the guide for this page.',
+      },
+      agents: {
+        welcomeTitle: 'Agents',
+        welcomeDesc:
+          'Agents orchestrate multi-step workflows into a reusable automated assistant.',
+        createTitle: 'Create an agent',
+        createDesc:
+          'Start from scratch, use a template, or import a JSON file to build an agent quickly.',
+        manageTitle: 'Manage agents',
+        manageDesc:
+          'Your agents are listed here — search, edit, run or delete them.',
+        helpTitle: 'Reopen the guide anytime',
+        helpDesc:
+          'Click the help icon at the top right to reopen the guide for this page.',
+      },
+      apps: {
+        welcomeTitle: 'App center',
+        welcomeDesc: 'The apps you are authorized to use are gathered here.',
+        listTitle: 'Open or download apps',
+        listDesc:
+          'Web apps open online with one click; desktop apps let you download the latest installer.',
+        helpTitle: 'Reopen the guide anytime',
+        helpDesc:
+          'Click the help icon at the top right to reopen the guide for this page.',
+      },
+    },
     applications: {
       loading: 'Loading...',
       empty: 'No applications available to you yet',

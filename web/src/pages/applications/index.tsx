@@ -137,7 +137,7 @@ function ApplicationsPortal() {
   };
 
   return (
-    <section className="size-full p-6 overflow-auto">
+    <section className="size-full p-6 overflow-auto" data-tour="apps-list">
       <h1 className="text-2xl font-bold mb-6">{t('header.apps')}</h1>
 
       {isLoading ? (

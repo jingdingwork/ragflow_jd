@@ -122,7 +122,7 @@ export function SingleChatBox({
         <div ref={scrollRef} />
       </div>
 
-      <div className="p-5 pt-0">
+      <div className="p-5 pt-0" data-tour="chat-input">
         <NextMessageInput
           disabled={disabled}
           sendDisabled={sendDisabled}
