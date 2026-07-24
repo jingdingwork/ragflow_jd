@@ -372,6 +372,7 @@ export function MultipleChatBox({
           }
           stopOutputMessage={stopOutputMessage}
           onUpload={handleUploadFile}
+          showUploadIcon={false}
           showReasoning
           showInternet={showInternet}
           removeFile={removeFile}

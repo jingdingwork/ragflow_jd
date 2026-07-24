@@ -31,7 +31,7 @@ import {
 } from '@tanstack/react-query';
 import { useDebounce } from 'ahooks';
 import { omit } from 'lodash';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import {
   useGetPaginationWithRouter,
@@ -195,6 +195,57 @@ export const useFetchNextKnowledgeListByPage = () => {
     loading,
     filterValue,
     handleFilterSubmit,
+  };
+};
+
+/** Visibility bucket used to split the dataset portal into two sections. */
+export type DatasetScope = 'company' | 'dept';
+
+/**
+ * Paginated dataset list restricted to one visibility bucket.
+ *
+ * The company-wide and department sections are rendered side by side but each
+ * keeps its own page cursor, so pagination stays server-side and correct instead
+ * of grouping whatever happened to land on the current page. The search string
+ * and owner filter are owned by the page and passed in, shared by both sections.
+ */
+export const useFetchKnowledgeListByScope = (
+  scope: DatasetScope,
+  keywords: string,
+  ownerIds?: string[],
+  pageSize = 12,
+) => {
+  const [page, setPage] = useState(1);
+
+  const { data, isFetching: loading } = useQuery<IDatasetListResult>({
+    queryKey: [
+      KnowledgeApiAction.FetchKnowledgeListByPage,
+      { scope, keywords, ownerIds, page, pageSize },
+    ],
+    initialData: { kbs: [], total_datasets: 0 },
+    gcTime: 0,
+    queryFn: async () => {
+      const { data } = await listDataset({
+        page_size: pageSize,
+        page,
+        ext: { keywords, owner_ids: ownerIds, scope },
+      });
+      return { kbs: data?.data, total_datasets: data?.total_datasets };
+    },
+  });
+
+  // A narrowed search can leave the cursor past the end of the result set.
+  useEffect(() => {
+    setPage(1);
+  }, [keywords, ownerIds, scope]);
+
+  return {
+    kbs: data?.kbs ?? [],
+    total: data?.total_datasets ?? 0,
+    page,
+    pageSize,
+    setPage,
+    loading,
   };
 };
 

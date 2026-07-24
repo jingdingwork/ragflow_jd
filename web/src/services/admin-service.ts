@@ -681,6 +681,13 @@ export type EsChunkSearchResult = {
 export const esListKnowledgebases = () =>
   request.get<ResponseData<EsKnowledgebase[]>>(adminEsListKnowledgebases);
 
+/** Promote / demote a knowledge base to company-wide visibility (admin only). */
+export const setKbCompanyLevel = (kbId: string, enabled: boolean) =>
+  request.put<ResponseData<{ id: string; name: string; permission: string }>>(
+    api.adminKbCompanyLevel(kbId),
+    { enabled },
+  );
+
 export const esGetKbStats = (kbId: string) =>
   request.get<ResponseData<EsKbStats>>(api.adminEsKbStats(kbId));
 

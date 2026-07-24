@@ -24,6 +24,7 @@ from api.db.services.application_service import (
     ApplicationService,
     ApplicationVersionService,
     APP_PACKAGE_BUCKET,
+    build_department_app_map,
     resolve_visible_app_ids,
     list_versions,
 )
@@ -76,6 +77,79 @@ def my_applications():
             )
         apps.sort(key=lambda a: (a["sort"] or 0, a["name"] or ""))
         return get_json_result(data=apps)
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route("/application/catalog", methods=["GET"])  # noqa: F821
+@login_required
+def application_catalog():
+    """
+    Department → application catalog for the user portal.
+
+    Returns every department together with the applications available to it, so a
+    user can browse other departments read-only. Each application carries an
+    ``accessible`` flag: only the ones the current user may actually open or
+    download expose their ``url`` / installation packages.
+    """
+    try:
+        department_id = getattr(current_user, "department_id", None)
+        accessible_ids = resolve_visible_app_ids(department_id)
+        departments, dept_app_ids, public_app_ids = build_department_app_map()
+
+        referenced = set(public_app_ids)
+        for ids in dept_app_ids.values():
+            referenced |= ids
+        if not referenced:
+            return get_json_result(
+                data={
+                    "departments": [],
+                    "applications": [],
+                    "public_app_ids": [],
+                    "my_department_id": department_id,
+                }
+            )
+
+        apps = []
+        valid_ids = set()
+        for app in ApplicationService.get_by_ids(list(referenced)):
+            if app.status != StatusEnum.VALID.value:
+                continue
+            valid_ids.add(app.id)
+            accessible = app.id in accessible_ids
+            versions = list_versions(app.id) if accessible else []
+            latest = next((v for v in versions if v.is_latest), versions[0] if versions else None)
+            apps.append(
+                {
+                    "id": app.id,
+                    "name": app.name,
+                    "description": app.description,
+                    "icon": app.icon,
+                    "app_type": app.app_type,
+                    # Withhold the entry point from users without permission.
+                    "url": app.url if accessible else None,
+                    "sort": app.sort,
+                    "visibility": app.visibility,
+                    "accessible": accessible,
+                    "latest_version": _version_to_dict(latest) if latest else None,
+                    "versions": [_version_to_dict(v) for v in versions],
+                }
+            )
+        apps.sort(key=lambda a: (a["sort"] or 0, a["name"] or ""))
+
+        # Company-wide applications are listed under their own node on the client,
+        # so a department only carries what was authorized on it (or an ancestor).
+        for dept in departments:
+            dept["app_ids"] = sorted(dept_app_ids.get(dept["id"], set()) & valid_ids)
+
+        return get_json_result(
+            data={
+                "departments": departments,
+                "applications": apps,
+                "public_app_ids": sorted(public_app_ids & valid_ids),
+                "my_department_id": department_id,
+            }
+        )
     except Exception as e:
         return server_error_response(e)
 

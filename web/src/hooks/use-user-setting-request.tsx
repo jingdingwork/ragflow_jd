@@ -72,10 +72,13 @@ export const useFetchUserInfo = (): ResponseGetType<IUserInfo> => {
 };
 
 /**
- * Whether the current user may OPERATE on knowledge bases (create datasets,
- * upload documents, run parsing, edit/delete chunks & docs, …). Only department
- * admins may operate; regular employees get a read-only experience (search /
- * view). Mirrors the backend `KnowledgebaseService.manageable` gate.
+ * Whether the current user may CREATE knowledge bases. Only department admins
+ * may; regular employees get a read-only experience (search / view).
+ *
+ * This is the account-level gate. To decide whether a *specific* dataset can be
+ * operated on (upload, parse, edit chunks…), read `manageable` off the dataset
+ * detail instead — a company-wide dataset is governed by its creator alone, so
+ * being a department admin is not enough.
  */
 export const useCanManageKnowledge = (): boolean => {
   const { data } = useFetchUserInfo();

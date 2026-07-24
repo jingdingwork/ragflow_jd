@@ -31,6 +31,8 @@ export interface IFetchKnowledgeListRequestParams {
     keywords?: string;
     owner_ids?: string[];
     parser_id?: string;
+    /** Visibility bucket: 'company' (company-wide) or 'dept' (everything else). */
+    scope?: string;
   };
 }
 

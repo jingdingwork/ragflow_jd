@@ -23,7 +23,30 @@ export type UserApplication = {
   versions: UserApplicationVersion[];
 };
 
+export type CatalogApplication = UserApplication & {
+  visibility: 'all' | 'dept';
+  /** Whether the current user may actually open / download this application. */
+  accessible: boolean;
+};
+
+export type CatalogDepartment = {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  /** Applications available to this department (own + inherited from ancestors). */
+  app_ids: string[];
+};
+
+export type ApplicationCatalog = {
+  departments: CatalogDepartment[];
+  applications: CatalogApplication[];
+  public_app_ids: string[];
+  my_department_id: string | null;
+};
+
 export const getMyApplications = () => request.get(api.myApplications);
+
+export const getApplicationCatalog = () => request.get(api.applicationCatalog);
 
 export const downloadApplicationPackage = async (
   id: string,

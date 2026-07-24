@@ -61,6 +61,7 @@ class KnowledgebaseService(CommonService):
         for a given user, combined with a valid-status constraint.
 
         Visibility rules:
+        - Company KBs (`permission == TenantPermission.COMPANY`) — visible to everyone
         - Team KBs (`permission == TenantPermission.TEAM`) owned by any tenant in `joined_tenant_ids`
         - Department KBs (`permission == TenantPermission.DEPARTMENT`) of the user's own department
         - KBs owned by the current user (`tenant_id == user_id`)
@@ -69,6 +70,7 @@ class KnowledgebaseService(CommonService):
         visibility = (
             (cls.model.tenant_id.in_(joined_tenant_ids) & (cls.model.permission == TenantPermission.TEAM.value))
             | (cls.model.tenant_id == user_id)
+            | (cls.model.permission == TenantPermission.COMPANY.value)
         )
         user_dept_id = cls._user_department_id(user_id)
         if user_dept_id:
@@ -85,6 +87,10 @@ class KnowledgebaseService(CommonService):
 
         Allowed when the user is the creator, OR is a department admin and the
         dataset is department-visible within that admin's own department.
+
+        A company-wide dataset is governed by its creator alone: promoting it
+        only widens *who can read it*, so everyone else — including department
+        admins — gets the same read-only experience a regular employee has.
 
         Args:
             kb_id (str): The dataset id to check.
@@ -463,7 +469,7 @@ class KnowledgebaseService(CommonService):
     @classmethod
     @DB.connection_context()
     def get_list(cls, joined_tenant_ids, user_id,
-                 page_number, items_per_page, orderby, desc, id, name, keywords, parser_id=None):
+                 page_number, items_per_page, orderby, desc, id, name, keywords, parser_id=None, scope=None):
         # Get list of knowledge bases with filtering and pagination
         # Args:
         #     joined_tenant_ids: List of tenant IDs
@@ -476,6 +482,9 @@ class KnowledgebaseService(CommonService):
         #     name: Optional name filter
         #     keywords: Optional keywords filter
         #     parser_id: Optional parser ID filter
+        #     scope: Optional visibility bucket, "company" or "dept" (everything
+        #            else the user can see), so the portal can paginate the
+        #            company-wide and department sections independently
         # Returns:
         #     List of knowledge bases
         #     Total count of knowledge bases
@@ -488,6 +497,10 @@ class KnowledgebaseService(CommonService):
             kbs = kbs.where(fn.LOWER(cls.model.name).contains(keywords.lower()))
         if parser_id:
             kbs = kbs.where(cls.model.parser_id == parser_id)
+        if scope == TenantPermission.COMPANY.value:
+            kbs = kbs.where(cls.model.permission == TenantPermission.COMPANY.value)
+        elif scope == "dept":
+            kbs = kbs.where(cls.model.permission != TenantPermission.COMPANY.value)
 
         kbs = kbs.where(cls._visibility_and_status_filter(joined_tenant_ids, user_id))
 
@@ -518,6 +531,10 @@ class KnowledgebaseService(CommonService):
             return False
 
         if kb.tenant_id == user_id:
+            return True
+
+        # Company-wide KB: readable by every user, whatever their department.
+        if kb.permission == TenantPermission.COMPANY.value:
             return True
 
         # Department-visible KB: accessible to users of the same department

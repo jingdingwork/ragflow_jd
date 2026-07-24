@@ -29,6 +29,10 @@ class TenantPermission(StrEnum):
     ME = 'me'
     TEAM = 'team'
     DEPARTMENT = 'department'
+    # Company-wide: visible to every user regardless of department. Only the admin
+    # console may set/clear it (see admin `KbPermissionMgr`); the user-facing API
+    # never accepts it.
+    COMPANY = 'company'
 
 
 class SerializedType(IntEnum):

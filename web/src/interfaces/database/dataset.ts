@@ -34,6 +34,11 @@ export interface IDataset {
   pagerank: number;
   parser_config: Parserconfig;
   permission: string;
+  /**
+   * Whether the current user may operate this dataset's data (upload, parse,
+   * edit chunks…). Returned by the dataset detail endpoint only.
+   */
+  manageable?: boolean;
   pipeline_id: string;
   raptor_task_finish_at: string;
   raptor_task_id: string;

@@ -148,6 +148,10 @@ async def create(tenant_id: str = None):
     if err is not None:
         return get_error_argument_result(err)
 
+    # Company-wide visibility is granted from the admin console only.
+    if req.get("permission") == "company":
+        return get_error_argument_result("Company-wide datasets can only be set by an administrator.")
+
     try:
         if not tenant_id:
             tenant_id = current_user.id

@@ -2,21 +2,48 @@ import { SelectWithSearch } from '@/components/originui/select-with-search';
 import { RAGFlowFormItem } from '@/components/ragflow-form';
 import { PermissionRole } from '@/constants/permission';
 import { useMemo } from 'react';
+import { useFormContext, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 export function PermissionFormField() {
   const { t } = useTranslation();
+  const { control } = useFormContext();
+  const permission = useWatch({ control, name: 'permission' });
+  // Company-wide visibility is granted by an administrator in the admin console;
+  // the user side can only display it (the backend pins the value on save too).
+  const isCompany = permission === PermissionRole.Company;
+
   const teamOptions = useMemo(() => {
     return (
       Object.values(PermissionRole)
         // "team" is hidden from the UI; only "me" / "department" are offered.
-        .filter((x) => x !== PermissionRole.Team)
+        // "company" is admin-only, so it is never selectable here.
+        .filter(
+          (x) => x !== PermissionRole.Team && x !== PermissionRole.Company,
+        )
         .map((x) => ({
           label: t('knowledgeConfiguration.' + x),
           value: x,
         }))
     );
   }, [t]);
+
+  if (isCompany) {
+    return (
+      <RAGFlowFormItem
+        name="permission"
+        label={t('knowledgeConfiguration.permissions')}
+        tooltip={t('knowledgeConfiguration.companyTip')}
+        horizontal
+      >
+        {() => (
+          <div className="flex h-9 items-center rounded-md border border-border-default bg-bg-card px-3 text-sm text-text-secondary">
+            {t('knowledgeConfiguration.company')}
+          </div>
+        )}
+      </RAGFlowFormItem>
+    );
+  }
 
   return (
     <RAGFlowFormItem

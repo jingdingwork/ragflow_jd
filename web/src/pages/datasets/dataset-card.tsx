@@ -2,6 +2,7 @@ import { HomeCard } from '@/components/home-card';
 import { MoreButton } from '@/components/more-button';
 import { SharedBadge } from '@/components/shared-badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { PermissionRole } from '@/constants/permission';
 import { useNavigatePage } from '@/hooks/logic-hooks/navigate-hooks';
 import { IDataset } from '@/interfaces/database/dataset';
 import { t } from 'i18next';
@@ -11,11 +12,14 @@ import { useRenameDataset } from './use-rename-dataset';
 
 export type DatasetCardProps = {
   dataset: IDataset;
+  /** Off inside the dataset portal, where the section header already says it. */
+  showCompanyBadge?: boolean;
 } & Pick<ReturnType<typeof useRenameDataset>, 'showDatasetRenameModal'>;
 
 export function DatasetCard({
   dataset,
   showDatasetRenameModal,
+  showCompanyBadge = true,
 }: DatasetCardProps) {
   const { navigateToDataset } = useNavigatePage();
 
@@ -33,7 +37,17 @@ export function DatasetCard({
           <MoreButton></MoreButton>
         </DatasetDropdown>
       }
-      sharedBadge={<SharedBadge>{dataset.nickname}</SharedBadge>}
+      sharedBadge={
+        <span className="inline-flex items-center gap-1">
+          {showCompanyBadge &&
+            dataset.permission === PermissionRole.Company && (
+              <span className="inline-block rounded-sm bg-accent-primary/15 px-1 text-xs text-accent-primary">
+                {t('knowledgeConfiguration.company')}
+              </span>
+            )}
+          <SharedBadge>{dataset.nickname}</SharedBadge>
+        </span>
+      }
       onClick={navigateToDataset(dataset.id)}
     />
   );

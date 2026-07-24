@@ -409,7 +409,7 @@ export default {
       appUrlRequired: 'Web 應用必須填寫地址',
       appSort: '排序',
       appVisibility: '可見範圍',
-      appVisibilityAll: '所有人',
+      appVisibilityAll: '公司級',
       appVisibilityDept: '按部門',
       appVisibilityHint:
         '在下方選擇部門。選擇某個部門時，其所有子部門也會一併獲得訪問許可權。',

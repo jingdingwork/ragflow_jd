@@ -113,6 +113,60 @@ def resolve_visible_app_ids(department_id):
 
 
 @DB.connection_context()
+def build_department_app_map():
+    """
+    Return ``(departments, dept_app_ids, public_app_ids)`` for the user-side portal.
+
+    ``departments`` is every valid department (id/name/parent_id). ``dept_app_ids``
+    maps a department id to the ids of the applications *available to that
+    department* — i.e. authorized on it or on any of its ancestors (subtree
+    inheritance, mirroring :func:`resolve_visible_app_ids`). ``public_app_ids``
+    holds the ``visibility == 'all'`` applications, which every department gets.
+    """
+    departments = [
+        {"id": d.id, "name": d.name, "parent_id": d.parent_id}
+        for d in Department.select(Department.id, Department.name, Department.parent_id).where(
+            Department.status == StatusEnum.VALID.value
+        )
+    ]
+    parent_of = {d["id"]: d["parent_id"] for d in departments}
+
+    public_app_ids = set()
+    dept_scoped_ids = set()
+    for app in Application.select(Application.id, Application.visibility).where(
+        Application.status == StatusEnum.VALID.value
+    ):
+        if app.visibility == "all":
+            public_app_ids.add(app.id)
+        else:
+            dept_scoped_ids.add(app.id)
+
+    direct = {}
+    for row in ApplicationVisibility.select(
+        ApplicationVisibility.application_id, ApplicationVisibility.department_id
+    ).where(ApplicationVisibility.status == StatusEnum.VALID.value):
+        # A company-wide application belongs to the company node only; stale
+        # per-department rows from before it was switched to ``all`` must not
+        # light up department branches.
+        if row.application_id not in dept_scoped_ids:
+            continue
+        direct.setdefault(row.department_id, set()).add(row.application_id)
+
+    dept_app_ids = {}
+    for dept in departments:
+        ids = set()
+        cur = dept["id"]
+        seen = set()
+        while cur and cur not in seen:
+            seen.add(cur)
+            ids |= direct.get(cur, set())
+            cur = parent_of.get(cur)
+        dept_app_ids[dept["id"]] = ids
+
+    return departments, dept_app_ids, public_app_ids
+
+
+@DB.connection_context()
 def get_visibility_department_ids(application_id):
     """Return the list of department ids explicitly authorized for an application."""
     return [

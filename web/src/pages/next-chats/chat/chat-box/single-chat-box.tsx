@@ -139,6 +139,7 @@ export function SingleChatBox({
           onUpload={handleUploadFile}
           isUploading={isUploading}
           removeFile={removeFile}
+          showUploadIcon={false}
           showReasoning
           showInternet={showInternet}
         />

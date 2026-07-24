@@ -25,7 +25,7 @@ from flask_login import current_user, login_required, logout_user
 
 from auth import login_verify, login_admin, check_admin_auth
 from responses import success_response, error_response
-from services import UserMgr, DepartmentMgr, GlobalLLMMgr, ModelCatalogMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, RetrievalMgr, PromptMgr, FolderMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr
+from services import UserMgr, DepartmentMgr, GlobalLLMMgr, ModelCatalogMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, KbPermissionMgr, RetrievalMgr, PromptMgr, FolderMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr
 from roles import RoleMgr
 from api.common.exceptions import AdminException
 from common.versions import get_ragflow_version
@@ -671,6 +671,22 @@ def es_list_knowledgebases():
     try:
         kbs = EsDataMgr.list_knowledgebases()
         return success_response(kbs, "List knowledge bases", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/es/knowledgebases/<kb_id>/company", methods=["PUT"])
+@login_required
+@check_admin_auth
+def set_kb_company_level(kb_id):
+    """Promote / demote a knowledge base to company-wide visibility."""
+    try:
+        body = request.get_json(force=True) or {}
+        enabled = bool(body.get("enabled"))
+        kb = KbPermissionMgr.set_company_level(kb_id, enabled)
+        return success_response(kb, "Knowledge base visibility updated", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
     except Exception as e:
         return error_response(str(e), 500)
 

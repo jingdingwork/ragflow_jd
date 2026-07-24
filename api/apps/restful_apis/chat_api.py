@@ -381,7 +381,7 @@ def _default_chat_name(user) -> str:
 
 
 def _resolve_user_default_kb_ids(user_id: str) -> list:
-    """Visible knowledge bases (owned / team / department) that have parsed
+    """Visible knowledge bases (owned / team / department / company-wide) that have parsed
     chunks, restricted to a single embedding model (a dialog can only retrieve
     across KBs sharing one embedding model). Picks the largest such group."""
     tenants = TenantService.get_joined_tenants_by_user_id(user_id)

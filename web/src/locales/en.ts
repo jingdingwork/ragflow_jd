@@ -195,9 +195,18 @@ export default {
     },
     applications: {
       loading: 'Loading...',
-      empty: 'No applications available to you yet',
-      webSection: 'Web applications',
-      exeSection: 'Desktop applications',
+      empty: 'No applications here yet',
+      noMatch: 'No matching applications',
+      companyLevel: 'Company-wide',
+      myDepartment: 'Mine',
+      searchPlaceholder: 'Search applications',
+      filterAll: 'All',
+      webType: 'Web',
+      exeType: 'Desktop',
+      noDescription: 'No description',
+      noPermission: 'No access',
+      noPermissionTip:
+        'Your department is not authorized for this application, so it is view-only.',
       open: 'Open',
       download: 'Download',
       downloading: 'Downloading...',
@@ -463,6 +472,13 @@ Example: A 1 KB message with 1024-dim embedding uses ~9 KB. The 5 MB default lim
       noMoreData: `That's all. Nothing more.`,
       parserRequired: 'Chunk method is required',
       dataFlowRequired: 'Data flow is required',
+      noMatch: 'No matching knowledge base',
+      companySection: 'Company-wide knowledge bases',
+      companySectionTip:
+        'Visible to everyone, maintained by the owning department',
+      deptSection: 'Department knowledge bases',
+      deptSectionTip: 'Shared with your department, plus the ones you created',
+      deptSectionEmpty: 'No knowledge bases in your department yet',
       retrieval: {
         searchBar: 'Search across knowledge bases',
         placeholder: 'Enter keywords to search the selected knowledge bases…',
@@ -853,6 +869,9 @@ Example: A 1 KB message with 1024-dim embedding uses ~9 KB. The 5 MB default lim
       me: 'Only me',
       team: 'Team',
       department: 'Department',
+      company: 'Company-wide',
+      companyTip:
+        'Company-wide knowledge bases are set by an administrator in the admin console and are readable by everyone.',
       cancel: 'Cancel',
       methodTitle: 'Chunking method description',
       methodExamples: 'Examples',
@@ -3250,6 +3269,11 @@ Important structured information may include: names, dates, locations, events, k
       kbPermMe: 'Private',
       kbPermTeam: 'Team',
       kbPermDepartment: 'Department',
+      kbPermCompany: 'Company-wide',
+      kbSetCompany: 'Make company-wide',
+      kbUnsetCompany: 'Revoke company-wide',
+      kbCompanyTip:
+        'A company-wide knowledge base is readable by every user; maintenance still belongs to its own department.',
       kbEmpty: 'No knowledge bases',
       kbPickHint:
         'Select a knowledge base on the left to inspect its document-store data.',
@@ -3335,7 +3359,7 @@ Important structured information may include: names, dates, locations, events, k
       appUrlRequired: 'URL is required for web applications',
       appSort: 'Sort order',
       appVisibility: 'Visibility',
-      appVisibilityAll: 'Everyone',
+      appVisibilityAll: 'Company-wide',
       appVisibilityDept: 'By department',
       appVisibilityHint:
         'Select departments below. Selecting a department also grants access to all of its sub-departments.',

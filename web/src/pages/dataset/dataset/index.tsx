@@ -20,7 +20,6 @@ import {
 } from '@/hooks/logic-hooks/use-row-selection';
 import { useFetchDocumentList } from '@/hooks/use-document-request';
 import { useFetchKnowledgeBaseConfiguration } from '@/hooks/use-knowledge-request';
-import { useCanManageKnowledge } from '@/hooks/use-user-setting-request';
 import { LucidePlus } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -46,7 +45,8 @@ export default function Dataset() {
     documentUploadLoading,
   } = useHandleUploadDocument();
   const { knowledgeBase } = useKnowledgeBaseContext();
-  const canManage = useCanManageKnowledge();
+  // Per-dataset gate: company-wide datasets are operable by their creator only.
+  const canManage = Boolean(knowledgeBase?.manageable);
   const {
     searchString,
     documents,

@@ -23,6 +23,7 @@ from typing import Any
 
 from werkzeug.security import check_password_hash
 from common.constants import ActiveEnum
+from api.db import TenantPermission
 from api.db.services import UserService
 from api.db.services.department_service import DepartmentService, fetch_keycloak_users
 from api.db.services.department_llm_service import (
@@ -1353,6 +1354,40 @@ class EsDataMgr:
             if not EsDataMgr._DROP_FIELD_RE.search(k)
         }
         return cleaned
+
+
+class KbPermissionMgr:
+    """Company-wide visibility control for knowledge bases (admin console only).
+
+    ``permission == 'company'`` makes a KB readable by every user regardless of
+    department; it is the *only* write operation the admin console performs on a
+    knowledge base, and the user-facing API refuses to set or clear it. Governance
+    (upload/parse/edit/delete) is unaffected — it stays with the creator and the
+    owning department's admin — so a company KB is read-only for everyone else.
+    """
+
+    @staticmethod
+    def set_company_level(kb_id, enabled):
+        """Promote a KB to company-wide, or demote it back to its own department.
+
+        Demotion targets ``department`` when the KB carries a department, else the
+        private ``me`` level — the original value is not journalled anywhere, and
+        those two are the only levels the user-facing UI can produce.
+        """
+        ok, kb = KnowledgebaseService.get_by_id(kb_id)
+        if not ok or not kb:
+            raise AdminException("Knowledge base not found", 404)
+
+        if enabled:
+            permission = TenantPermission.COMPANY.value
+        elif kb.department_id:
+            permission = TenantPermission.DEPARTMENT.value
+        else:
+            permission = TenantPermission.ME.value
+
+        if permission != kb.permission:
+            KnowledgebaseService.update_by_id(kb_id, {"permission": permission})
+        return {"id": kb_id, "name": kb.name, "permission": permission}
 
 
 class RetrievalMgr:

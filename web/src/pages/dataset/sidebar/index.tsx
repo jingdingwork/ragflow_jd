@@ -15,7 +15,6 @@ import { RAGFlowAvatar } from '@/components/ragflow-avatar';
 import { Button } from '@/components/ui/button';
 import { useSecondPathName } from '@/hooks/route-hook';
 import { useFetchKnowledgeGraph } from '@/hooks/use-knowledge-request';
-import { useCanManageKnowledge } from '@/hooks/use-user-setting-request';
 import { cn, formatBytes } from '@/lib/utils';
 import { Routes } from '@/routes';
 import { formatPureDate } from '@/utils/date';
@@ -33,7 +32,9 @@ export function SideBar({ dataset: data }: PropType) {
   const { id } = useParams();
   const { data: routerData } = useFetchKnowledgeGraph();
   const { t } = useTranslation();
-  const canManage = useCanManageKnowledge();
+  // Per-dataset, not per-account: a company-wide dataset is creator-only, so a
+  // department admin browsing one gets the same read-only view as an employee.
+  const canManage = Boolean(data?.manageable);
 
   const items = useMemo(() => {
     const list = [

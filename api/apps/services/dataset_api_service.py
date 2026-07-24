@@ -19,6 +19,7 @@ import os
 import re
 from common.constants import PAGERANK_FLD
 from common import settings
+from api.db import TenantPermission
 from api.db.db_models import File
 from api.db.services.document_service import DocumentService, queue_raptor_o_graphrag_tasks
 from api.db.services.file2document_service import File2DocumentService
@@ -199,6 +200,10 @@ def get_dataset(dataset_id: str, tenant_id: str):
     response_data = remap_dictionary_keys(kb.to_dict())
     response_data["size"] = DocumentService.get_total_size_by_kb_id(dataset_id)
     response_data["connectors"] = list(Connector2KbService.list_connectors(dataset_id))
+    # Whether this user may operate the dataset's data (upload / parse / edit).
+    # Read access alone (department or company-wide visibility) is not enough, so
+    # the UI must gate on this per-dataset flag rather than on `is_dept_admin`.
+    response_data["manageable"] = KnowledgebaseService.manageable(dataset_id, tenant_id)
     return True, response_data
 
 
@@ -247,6 +252,12 @@ async def update_dataset(tenant_id: str, dataset_id: str, req: dict, acting_user
     # Owner of the dataset's tenant, the creator, or a governing department admin may update it
     if kb is None or not (kb.tenant_id == tenant_id or KnowledgebaseService.accessible4deletion(dataset_id, actor)):
         return False, f"User '{tenant_id}' lacks permission for dataset '{dataset_id}'"
+
+    # Company-wide visibility is owned by the admin console: the user-facing API can
+    # neither promote a dataset to it nor silently demote one that already is (the
+    # settings form always posts back whatever `permission` it loaded).
+    if "permission" in req and TenantPermission.COMPANY.value in (req["permission"], kb.permission):
+        req["permission"] = kb.permission
 
     # Extract ext field for additional parameters
     ext_fields = req.pop("ext", {})
@@ -388,7 +399,10 @@ def list_datasets(tenant_id: str, args: dict):
     else:
         tenants = TenantService.get_joined_tenants_by_user_id(tenant_id)
         tenant_ids = [m["tenant_id"] for m in tenants]
-    kbs, total = KnowledgebaseService.get_list(tenant_ids, tenant_id, page, page_size, orderby, desc, kb_id, name, keywords, parser_id)
+    kbs, total = KnowledgebaseService.get_list(
+        tenant_ids, tenant_id, page, page_size, orderby, desc, kb_id, name, keywords, parser_id,
+        scope=ext_fields.get("scope"),
+    )
     users = UserService.get_by_ids([m["tenant_id"] for m in kbs])
     user_map = {m.id: m.to_dict() for m in users}
     response_data_list = []

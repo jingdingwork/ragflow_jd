@@ -370,11 +370,15 @@ export default {
 
   // End-user application portal
   myApplications: `${restAPIv1}/application/mine`,
+  applicationCatalog: `${restAPIv1}/application/catalog`,
   downloadApplication: (id: string) =>
     `${restAPIv1}/application/${id}/download`,
 
   // Admin ES data inspection (read-only)
   adminEsListKnowledgebases: `${restAPIv1}/admin/es/knowledgebases`,
+  // Company-wide visibility toggle (the one write operation on a KB here)
+  adminKbCompanyLevel: (kbId: string) =>
+    `${restAPIv1}/admin/es/knowledgebases/${kbId}/company`,
   adminEsKbStats: (kbId: string) =>
     `${restAPIv1}/admin/es/knowledgebases/${kbId}/stats`,
   adminEsKbDocuments: (kbId: string) =>

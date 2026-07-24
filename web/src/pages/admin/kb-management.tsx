@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  LucideBuilding2,
   LucideChevronDown,
   LucideChevronLeft,
   LucideChevronRight,
@@ -46,6 +47,7 @@ import {
   esListKbDocuments,
   esListKnowledgebases,
   esSearchChunks,
+  setKbCompanyLevel,
 } from '@/services/admin-service';
 
 const PAGE_SIZE = 20;
@@ -54,8 +56,12 @@ const ALL_DOCS = '__all__';
 
 type GroupBy = 'dept' | 'owner';
 
+const COMPANY_PERM = 'company';
+
 function permissionLabel(t: (k: string) => string, permission?: string) {
   switch (permission) {
+    case COMPANY_PERM:
+      return t('admin.kbPermCompany');
     case 'team':
       return t('admin.kbPermTeam');
     case 'department':
@@ -107,20 +113,27 @@ function AdminKbManagement() {
       groupBy === 'dept'
         ? t('admin.kbUnassignedDept')
         : t('admin.kbUnknownOwner');
+    // Company-wide KBs are pulled out of the department tree into their own
+    // bucket, so "which datasets are company-level" is answerable at a glance.
+    const companyGroup = t('admin.kbPermCompany');
 
     const map = new Map<string, EsKnowledgebase[]>();
     for (const kb of list) {
       const key =
         groupBy === 'dept'
-          ? kb.department_name || fallback
+          ? kb.permission === COMPANY_PERM
+            ? companyGroup
+            : kb.department_name || fallback
           : kb.creator_name || fallback;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(kb);
     }
 
-    // Sort: named groups alphabetically, the fallback bucket last.
+    // Sort: the company bucket first, then named groups alphabetically, fallback last.
     return Array.from(map.entries())
       .sort(([a], [b]) => {
+        if (a === companyGroup) return -1;
+        if (b === companyGroup) return 1;
         if (a === fallback) return 1;
         if (b === fallback) return -1;
         return a.localeCompare(b);
@@ -129,6 +142,16 @@ function AdminKbManagement() {
   }, [kbs, filter, groupBy, t]);
 
   const totalKb = kbs?.length ?? 0;
+
+  // The only write operation on this page: flip company-wide visibility.
+  const queryClient = useQueryClient();
+  const { mutate: toggleCompany, isPending: togglingCompany } = useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+      setKbCompanyLevel(id, enabled),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin/kb/list'] });
+    },
+  });
 
   // Stats for the selected KB.
   const { data: stats, refetch: refetchStats } = useQuery({
@@ -325,7 +348,11 @@ function AdminKbManagement() {
                                     {kb.chunk_num} {t('admin.kbColChunks')}
                                   </span>
                                   <Badge
-                                    variant="secondary"
+                                    variant={
+                                      kb.permission === COMPANY_PERM
+                                        ? 'default'
+                                        : 'secondary'
+                                    }
                                     className="ml-auto"
                                   >
                                     {permissionLabel(t, kb.permission)}
@@ -367,10 +394,42 @@ function AdminKbManagement() {
                       {selectedKb?.department_name ||
                         t('admin.kbUnassignedDept')}
                     </span>
-                    <Badge variant="secondary">
+                    <Badge
+                      variant={
+                        selectedKb?.permission === COMPANY_PERM
+                          ? 'default'
+                          : 'secondary'
+                      }
+                    >
                       {permissionLabel(t, selectedKb?.permission)}
                     </Badge>
+                    {selectedKb && (
+                      <Button
+                        size="sm"
+                        variant={
+                          selectedKb.permission === COMPANY_PERM
+                            ? 'outline'
+                            : 'highlighted'
+                        }
+                        className="ml-auto"
+                        disabled={togglingCompany}
+                        onClick={() =>
+                          toggleCompany({
+                            id: selectedKb.id,
+                            enabled: selectedKb.permission !== COMPANY_PERM,
+                          })
+                        }
+                      >
+                        <LucideBuilding2 className="size-4 mr-1" />
+                        {selectedKb.permission === COMPANY_PERM
+                          ? t('admin.kbUnsetCompany')
+                          : t('admin.kbSetCompany')}
+                      </Button>
+                    )}
                   </div>
+                  <p className="text-xs text-text-secondary">
+                    {t('admin.kbCompanyTip')}
+                  </p>
 
                   {/* Stats panel */}
                   {stats && (

@@ -28,7 +28,6 @@ import {
 } from '@/components/ui/table';
 import { UseRowSelectionType } from '@/hooks/logic-hooks/use-row-selection';
 import { useFetchDocumentList } from '@/hooks/use-document-request';
-import { useCanManageKnowledge } from '@/hooks/use-user-setting-request';
 import { useKnowledgeBaseContext } from '@/pages/dataset/contexts/knowledge-base-context';
 import { getExtension } from '@/utils/document-util';
 import { t } from 'i18next';
@@ -91,7 +90,8 @@ export function DatasetTable({
   // } = useSaveMeta();
   const { showLog, logInfo, logVisible, hideLog } = useShowLog(documents);
   const { knowledgeBase } = useKnowledgeBaseContext();
-  const canManage = useCanManageKnowledge();
+  // Per-dataset gate: company-wide datasets are operable by their creator only.
+  const canManage = Boolean(knowledgeBase?.manageable);
 
   const columns = useDatasetTableColumns({
     showChangeParserModal,
