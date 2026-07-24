@@ -130,6 +130,8 @@ export default {
     `${restAPIv1}/datasets/${datasetId}/folders`,
   kbDocMove: (datasetId: string) =>
     `${restAPIv1}/datasets/${datasetId}/documents/move`,
+  kbFolderDocuments: (datasetId: string) =>
+    `${restAPIv1}/datasets/${datasetId}/folders/documents`,
   documentChangeStatus: (datasetId: string) =>
     `${restAPIv1}/datasets/${datasetId}/documents/batch-update-status`,
   documentDelete: (datasetId: string) =>

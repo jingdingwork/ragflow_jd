@@ -19,7 +19,11 @@ import {
   useSelectedIds,
 } from '@/hooks/logic-hooks/use-row-selection';
 import { useFetchDocumentList } from '@/hooks/use-document-request';
-import { getFolderChildren, useFetchFolders } from '@/hooks/use-folder-request';
+import {
+  getFolderChildren,
+  useFetchFolders,
+  useFolderDocIds,
+} from '@/hooks/use-folder-request';
 import { useFetchKnowledgeBaseConfiguration } from '@/hooks/use-knowledge-request';
 import { FolderInput, LucidePlus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -61,6 +65,28 @@ export default function Dataset() {
     [folders, currentFolder],
   );
   const [moveOpen, setMoveOpen] = useState(false);
+
+  // Folder selection: selecting a folder row batch-targets all of its files.
+  const [selectedFolderPaths, setSelectedFolderPaths] = useState<string[]>([]);
+  const toggleFolderSelect = useCallback((path: string, checked: boolean) => {
+    setSelectedFolderPaths((prev) =>
+      checked ? [...prev, path] : prev.filter((p) => p !== path),
+    );
+  }, []);
+  const clearFolderSelection = useCallback(
+    () => setSelectedFolderPaths([]),
+    [],
+  );
+  // Prune selections whose folder rows no longer exist (e.g. after navigating).
+  useEffect(() => {
+    setSelectedFolderPaths((prev) => {
+      const valid = prev.filter((p) =>
+        folderChildren.some((c) => c.path === p),
+      );
+      return valid.length === prev.length ? prev : valid;
+    });
+  }, [folderChildren]);
+  const { folderDocIds } = useFolderDocIds(selectedFolderPaths);
 
   // Ensure the folder param is always present so the document list scopes to
   // the current folder (root by default) instead of showing a flat list.
@@ -117,11 +143,11 @@ export default function Dataset() {
     checkValue(filters);
   }, [filters]);
 
-  const { rowSelection, rowSelectionIsEmpty, setRowSelection, selectedCount } =
-    useRowSelection();
+  const { rowSelection, setRowSelection } = useRowSelection();
 
   const {
     chunkNum,
+    hasUnknownChunks,
     list,
     visible: reparseDialogVisible,
     hideModal: hideReparseDialogModal,
@@ -130,12 +156,20 @@ export default function Dataset() {
     documents,
     rowSelection,
     setRowSelection,
+    extraDocIds: folderDocIds,
+    clearExtraSelection: clearFolderSelection,
   });
 
-  const { selectedIds: selectedRowKeys } = useSelectedIds(
+  const { selectedIds: rowSelectedKeys } = useSelectedIds(
     rowSelection,
     documents,
   );
+  // Individually-checked rows ∪ files under the checked folders.
+  const selectedRowKeys = useMemo(
+    () => Array.from(new Set([...rowSelectedKeys, ...folderDocIds])),
+    [rowSelectedKeys, folderDocIds],
+  );
+  const effectiveCount = selectedRowKeys.length;
 
   const handleAddMetadataWithDocuments = () => {
     showManageMetadataModal({
@@ -147,7 +181,7 @@ export default function Dataset() {
       secondTitle: (
         <>
           {t('knowledgeDetails.metadata.selectFiles', {
-            count: selectedCount,
+            count: effectiveCount,
           })}
         </>
       ),
@@ -237,7 +271,7 @@ export default function Dataset() {
           //   </Button>
           // }
         >
-          {canManage && selectedCount > 0 && (
+          {canManage && effectiveCount > 0 && (
             <Button
               variant="outline"
               size="default"
@@ -269,11 +303,11 @@ export default function Dataset() {
           )}
         </ListFilterBar>
 
-        {rowSelectionIsEmpty || (
+        {effectiveCount > 0 && (
           <BulkOperateBar
             className="!mt-2.5 !-mb-2.5"
             list={updatedList as BulkOperateItemType[]}
-            count={selectedCount}
+            count={effectiveCount}
           />
         )}
       </CardHeader>
@@ -296,6 +330,8 @@ export default function Dataset() {
           loading={loading}
           folderChildren={folderChildren}
           onNavigateFolder={navigateFolder}
+          selectedFolderPaths={selectedFolderPaths}
+          onToggleFolderSelect={toggleFolderSelect}
         />
 
         {moveOpen && (
@@ -303,7 +339,10 @@ export default function Dataset() {
             docIds={selectedRowKeys}
             folders={folders}
             hideModal={() => setMoveOpen(false)}
-            onMoved={() => setRowSelection({})}
+            onMoved={() => {
+              setRowSelection({});
+              clearFolderSelection();
+            }}
           />
         )}
         {documentUploadVisible && (
@@ -339,6 +378,7 @@ export default function Dataset() {
             visible={manageMetadataVisible}
             hideModal={() => {
               setRowSelection({});
+              clearFolderSelection();
               hideManageMetadataModal();
             }}
             // selectedRowKeys={selectedRowKeys}
@@ -357,7 +397,9 @@ export default function Dataset() {
         {reparseDialogVisible && (
           <ReparseDialog
             hidden={
-              chunkNum === 0 && !knowledgeBase?.parser_config?.enable_metadata
+              chunkNum === 0 &&
+              !hasUnknownChunks &&
+              !knowledgeBase?.parser_config?.enable_metadata
             }
             // hidden={false}
             enable_metadata={knowledgeBase?.parser_config?.enable_metadata}

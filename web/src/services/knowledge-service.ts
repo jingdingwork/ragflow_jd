@@ -345,6 +345,10 @@ export const moveDocuments = (
     data: { doc_ids: docIds, target_path: targetPath },
   });
 
+/** Resolve selected folders to every document id under them (recursive). */
+export const listFolderDocuments = (datasetId: string, paths: string[]) =>
+  request.post(api.kbFolderDocuments(datasetId), { data: { paths } });
+
 // Custom upload function that handles dynamic URL using axios directly
 export const uploadDocument = async (datasetId: string, formData: FormData) => {
   const url = api.documentUpload(datasetId);

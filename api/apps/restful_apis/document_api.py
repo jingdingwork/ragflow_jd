@@ -497,6 +497,36 @@ async def move_documents(dataset_id, tenant_id):
         return server_error_response(e)
 
 
+@manager.route("/datasets/<dataset_id>/folders/documents", methods=["POST"])  # noqa: F821
+@login_required
+@add_tenant_id_to_kwargs
+async def list_folder_documents(dataset_id, tenant_id):
+    """Resolve one or more folders to the ids of every document under them
+    (recursively). Body: ``{"paths": ["合同/2024", ...]}``. The UI uses this to
+    turn a folder selection into a document-id list, so a batch operation
+    (parse, enable/disable, delete, …) can be applied to a whole folder."""
+    if not KnowledgebaseService.accessible(kb_id=dataset_id, user_id=tenant_id):
+        return get_error_data_result(message=f"You don't own the dataset {dataset_id}.")
+    req = await get_request_json() or {}
+    paths = req.get("paths") or []
+    if not isinstance(paths, list):
+        return get_error_data_result(message="paths must be a list.", code=RetCode.ARGUMENT_ERROR)
+    doc_ids: list[str] = []
+    seen: set[str] = set()
+    try:
+        for p in paths:
+            norm = normalize_folder_path(p)
+            if not norm:
+                continue
+            for did in DocMetadataService.get_doc_ids_by_folder(dataset_id, norm, recursive=True):
+                if did not in seen:
+                    seen.add(did)
+                    doc_ids.append(did)
+        return get_result(data={"doc_ids": doc_ids})
+    except Exception as e:
+        return server_error_response(e)
+
+
 @manager.route("/datasets/<dataset_id>/documents", methods=["POST"])  # noqa: F821
 @login_required
 @add_tenant_id_to_kwargs

@@ -3,6 +3,7 @@ import i18n from '@/locales/config';
 import {
   createFolder,
   deleteFolder,
+  listFolderDocuments,
   listFolders,
   moveDocuments,
   renameFolder,
@@ -64,11 +65,36 @@ export const getFolderChildren = (
 
 export const enum FolderApiAction {
   FetchFolders = 'fetchFolders',
+  FetchFolderDocIds = 'fetchFolderDocIds',
   CreateFolder = 'createFolder',
   RenameFolder = 'renameFolder',
   DeleteFolder = 'deleteFolder',
   MoveDocuments = 'moveDocuments',
 }
+
+/** Resolve the given folder paths to every document id under them (recursive),
+ * so a folder selection can drive the same batch operations as file rows. */
+export const useFolderDocIds = (folderPaths: string[], datasetId?: string) => {
+  const { id } = useParams();
+  const kbId = datasetId || id;
+  // Sort so the query key is stable regardless of selection order.
+  const sortedPaths = [...folderPaths].sort();
+
+  const { data, isFetching: loading } = useQuery<string[]>({
+    queryKey: [FolderApiAction.FetchFolderDocIds, kbId, sortedPaths],
+    initialData: [],
+    enabled: !!kbId && sortedPaths.length > 0,
+    queryFn: async () => {
+      const ret = await listFolderDocuments(kbId!, sortedPaths);
+      if (get(ret, 'data.code') === 0) {
+        return get(ret, 'data.data.doc_ids', []);
+      }
+      return [];
+    },
+  });
+
+  return { folderDocIds: sortedPaths.length > 0 ? (data ?? []) : [], loading };
+};
 
 export const useFetchFolders = (datasetId?: string) => {
   const { id } = useParams();

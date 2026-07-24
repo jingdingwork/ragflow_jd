@@ -27,13 +27,20 @@ export function useBulkOperateDataset({
   rowSelection,
   setRowSelection,
   documents,
+  extraDocIds = [],
+  clearExtraSelection,
 }: Pick<UseRowSelectionType, 'rowSelection' | 'setRowSelection'> & {
   documents: IDocumentInfo[];
+  // Document ids contributed by selected folders (not present in `documents`).
+  extraDocIds?: string[];
+  clearExtraSelection?: () => void;
 }) {
   const { t } = useTranslation();
-  const { selectedIds: selectedRowKeys } = useSelectedIds(
-    rowSelection,
-    documents,
+  const { selectedIds: rowKeys } = useSelectedIds(rowSelection, documents);
+  // Effective target = individually-selected rows ∪ selected folders' files.
+  const selectedRowKeys = useMemo(
+    () => Array.from(new Set([...rowKeys, ...extraDocIds])),
+    [rowKeys, extraDocIds],
   );
   const { knowledgeBase } = useKnowledgeBaseContext();
 
@@ -52,6 +59,11 @@ export function useBulkOperateDataset({
         return acc + cur.chunk_count;
       }, 0);
   }, [documents, selectedRowKeys]);
+
+  // Folder-contributed docs aren't in `documents`, so their chunk counts are
+  // unknown. Any folder in the selection may hold already-parsed files, so the
+  // re-parse confirmation must be shown rather than silently skipped.
+  const hasUnknownChunks = extraDocIds.length > 0;
 
   const runDocument = useCallback(
     async (run: number, option?: { delete: boolean; apply_kb: boolean }) => {
@@ -157,10 +169,19 @@ export function useBulkOperateDataset({
         const code = await handleDelete();
         if (code === 0) {
           setRowSelection({});
+          clearExtraSelection?.();
         }
       },
     },
   ];
 
-  return { chunkNum, list, visible, hideModal, showModal, handleRunClick };
+  return {
+    chunkNum,
+    hasUnknownChunks,
+    list,
+    visible,
+    hideModal,
+    showModal,
+    handleRunClick,
+  };
 }

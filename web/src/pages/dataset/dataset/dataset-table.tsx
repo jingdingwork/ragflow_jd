@@ -51,6 +51,9 @@ export type DatasetTableProps = Pick<
     // Direct subfolders of the current folder, rendered as rows above the files.
     folderChildren?: IFolderChild[];
     onNavigateFolder?: (path: string) => void;
+    // Folder selection (batch-operate a whole folder's files).
+    selectedFolderPaths?: string[];
+    onToggleFolderSelect?: (path: string, checked: boolean) => void;
   };
 
 export function DatasetTable({
@@ -62,6 +65,8 @@ export function DatasetTable({
   showManageMetadataModal,
   folderChildren = [],
   onNavigateFolder,
+  selectedFolderPaths = [],
+  onToggleFolderSelect,
 }: DatasetTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -173,6 +178,8 @@ export function DatasetTable({
             columnsCount={columns.length}
             onNavigate={onNavigateFolder}
             canManage={canManage}
+            selectedPaths={selectedFolderPaths}
+            onToggleSelect={onToggleFolderSelect}
           />
         )}
         <TableBody className="relative">
@@ -195,8 +202,7 @@ export function DatasetTable({
                 ))}
               </TableRow>
             ))
-          ) : showFolders ? // Folders are shown above; skip the "no data" placeholder so a
-          // folder with subfolders but no direct files doesn't look empty.
+          ) : showFolders ? // folder with subfolders but no direct files doesn't look empty. // Folders are shown above; skip the "no data" placeholder so a
           null : (
             <TableRow>
               <TableCell colSpan={columns.length} className="h-24 text-center">

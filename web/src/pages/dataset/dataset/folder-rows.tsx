@@ -1,5 +1,6 @@
 import { ConfirmDeleteDialog } from '@/components/confirm-delete-dialog';
 import { RenameDialog } from '@/components/rename-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +23,9 @@ type FolderRowsProps = {
   columnsCount: number;
   onNavigate: (path: string) => void;
   canManage?: boolean;
+  // Selecting a folder feeds its files into the batch-operate bar.
+  selectedPaths?: string[];
+  onToggleSelect?: (path: string, checked: boolean) => void;
 };
 
 /** Folder rows rendered as a <TableBody> so they share the document table's
@@ -31,6 +35,8 @@ export function FolderRows({
   columnsCount,
   onNavigate,
   canManage = false,
+  selectedPaths = [],
+  onToggleSelect,
 }: FolderRowsProps) {
   const { t } = useTranslation();
   const { renameFolder, loading: renaming } = useRenameFolder();
@@ -60,6 +66,18 @@ export function FolderRows({
           >
             <TableCell colSpan={columnsCount}>
               <div className="flex items-center gap-2">
+                {canManage && onToggleSelect && (
+                  <Checkbox
+                    className="shrink-0"
+                    checked={selectedPaths.includes(node.path)}
+                    disabled={node.total === 0}
+                    onCheckedChange={(value) =>
+                      onToggleSelect(node.path, !!value)
+                    }
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`Select folder ${node.name}`}
+                  />
+                )}
                 <Folder className="size-4 shrink-0 text-accent-primary" />
                 <span
                   className="flex-1 text-sm text-text-primary truncate"
