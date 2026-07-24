@@ -31,6 +31,7 @@ from api.apps.services.document_api_service import validate_document_update_fiel
 from api.db import VALID_FILE_TYPES, FileType
 from api.db.services import duplicate_name
 from api.db.services.doc_metadata_service import DocMetadataService
+from api.db.services.kb_folder_service import KbFolderService, FolderError
 from api.db.db_models import Task
 from api.db.services.document_service import DocumentService
 from api.db.services.file2document_service import File2DocumentService
@@ -47,6 +48,7 @@ from api.utils.validation_utils import (
 from common import settings
 from common.constants import FileSource, ParserType, RetCode, TaskStatus, SANDBOX_ARTIFACT_BUCKET
 from common.metadata_utils import convert_conditions, meta_filter, turn2jsonschema
+from common.folder_utils import normalize_folder_path
 from common.misc_utils import get_uuid, thread_pool_exec
 from api.utils.file_utils import filename_type, thumbnail
 from api.utils.web_utils import CONTENT_TYPE_MAP, html2pdf, is_valid_url, apply_safe_file_response_headers
@@ -378,6 +380,123 @@ async def metadata_batch_update(dataset_id, tenant_id):
     return get_result(data={"updated": updated, "matched_docs": len(target_doc_ids)})
 
 
+# ---------------------------------------------------------------------------
+# Virtual folders
+# ---------------------------------------------------------------------------
+
+
+def _require_folder_manage(dataset_id, tenant_id):
+    """Shared guard for folder mutations: dataset must exist and be operable.
+
+    Returns ``(error_response, kb)``; ``error_response`` is falsy on success.
+    """
+    e, kb = KnowledgebaseService.get_by_id(dataset_id)
+    if not e:
+        return get_error_data_result(message=f"Can't find the dataset with ID {dataset_id}!", code=RetCode.DATA_ERROR), None
+    if not KnowledgebaseService.manageable(kb_id=dataset_id, user_id=tenant_id):
+        return get_error_data_result(message="No authorization.", code=RetCode.AUTHENTICATION_ERROR), None
+    return None, kb
+
+
+@manager.route("/datasets/<dataset_id>/folders", methods=["GET"])  # noqa: F821
+@login_required
+@add_tenant_id_to_kwargs
+def list_folders(dataset_id, tenant_id):
+    """List the virtual folders of a dataset as flat ``{path, name, count}`` nodes."""
+    if not KnowledgebaseService.accessible(kb_id=dataset_id, user_id=tenant_id):
+        return get_error_data_result(message=f"You don't own the dataset {dataset_id}.")
+    try:
+        return get_result(data={"folders": KbFolderService.list_tree(dataset_id)})
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route("/datasets/<dataset_id>/folders", methods=["POST"])  # noqa: F821
+@login_required
+@add_tenant_id_to_kwargs
+async def create_folder(dataset_id, tenant_id):
+    """Create an (empty) virtual folder. Body: ``{"path": "合同/2024"}``."""
+    err, _ = _require_folder_manage(dataset_id, tenant_id)
+    if err:
+        return err
+    req = await get_request_json()
+    try:
+        path = KbFolderService.create(dataset_id, (req or {}).get("path", ""), tenant_id)
+        return get_result(data={"path": path})
+    except FolderError as fe:
+        return get_error_data_result(message=str(fe), code=RetCode.ARGUMENT_ERROR)
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route("/datasets/<dataset_id>/folders/rename", methods=["PUT"])  # noqa: F821
+@login_required
+@add_tenant_id_to_kwargs
+async def rename_folder(dataset_id, tenant_id):
+    """Rename/move a folder subtree. Body: ``{"old_path": ..., "new_path": ...}``."""
+    err, _ = _require_folder_manage(dataset_id, tenant_id)
+    if err:
+        return err
+    req = await get_request_json() or {}
+    try:
+        moved = KbFolderService.rename(dataset_id, req.get("old_path", ""), req.get("new_path", ""), tenant_id)
+        return get_result(data={"moved": moved})
+    except FolderError as fe:
+        return get_error_data_result(message=str(fe), code=RetCode.ARGUMENT_ERROR)
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route("/datasets/<dataset_id>/folders", methods=["DELETE"])  # noqa: F821
+@login_required
+@add_tenant_id_to_kwargs
+async def delete_folder(dataset_id, tenant_id):
+    """Delete a folder subtree and every document under it. Body: ``{"path": ...}``.
+
+    This permanently deletes the folder's documents (and their parsed chunks /
+    embeddings), not just the folder entry.
+    """
+    err, _ = _require_folder_manage(dataset_id, tenant_id)
+    if err:
+        return err
+    req = await get_request_json() or {}
+    try:
+        deleted_docs = await thread_pool_exec(
+            KbFolderService.delete, dataset_id, req.get("path", ""), tenant_id
+        )
+        return get_result(data={"deleted": True, "deleted_docs": deleted_docs})
+    except FolderError as fe:
+        return get_error_data_result(message=str(fe), code=RetCode.ARGUMENT_ERROR)
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route("/datasets/<dataset_id>/documents/move", methods=["POST"])  # noqa: F821
+@login_required
+@add_tenant_id_to_kwargs
+async def move_documents(dataset_id, tenant_id):
+    """Re-parent documents. Body: ``{"doc_ids": [...], "target_path": "合同/2024"}`` (blank = root)."""
+    err, _ = _require_folder_manage(dataset_id, tenant_id)
+    if err:
+        return err
+    req = await get_request_json() or {}
+    doc_ids = req.get("doc_ids") or []
+    if not isinstance(doc_ids, list) or not doc_ids:
+        return get_error_data_result(message="doc_ids must be a non-empty list.", code=RetCode.ARGUMENT_ERROR)
+    # Guard against cross-KB moves.
+    owned = {d.id for d in DocumentService.query(kb_id=dataset_id, id=doc_ids)} if doc_ids else set()
+    invalid = [d for d in doc_ids if d not in owned]
+    if invalid:
+        return get_error_data_result(message=f"These documents do not belong to dataset {dataset_id}: {', '.join(invalid)}")
+    try:
+        moved = KbFolderService.move_documents(dataset_id, doc_ids, req.get("target_path", ""), tenant_id)
+        return get_result(data={"moved": moved})
+    except FolderError as fe:
+        return get_error_data_result(message=str(fe), code=RetCode.ARGUMENT_ERROR)
+    except Exception as e:
+        return server_error_response(e)
+
+
 @manager.route("/datasets/<dataset_id>/documents", methods=["POST"])  # noqa: F821
 @login_required
 @add_tenant_id_to_kwargs
@@ -604,9 +723,12 @@ async def _upload_local_documents(kb, tenant_id):
             logging.error(msg)
             return get_error_data_result(message=msg, code=RetCode.ARGUMENT_ERROR)
 
+    # Folder uploads send one `file_path` (browser webkitRelativePath) per
+    # `file`, aligned by position; plain uploads send empty strings or none.
+    file_paths = form.getlist("file_path") if form else None
     err, files = await thread_pool_exec(
         FileService.upload_document, kb, file_objs, tenant_id,
-        parent_path=form.get("parent_path")
+        parent_path=form.get("parent_path"), file_paths=file_paths
     )
     if err:
         msg = "\n".join(err)
@@ -843,8 +965,27 @@ def _get_docs_with_request(req, dataset_id:str):
     if len(doc_ids) > 0:
         doc_ids_filter = doc_ids
 
+    # Virtual-folder scoping. A present `folder` param restricts the listing to
+    # one folder (empty value = root). `folder_recursive=true` also includes
+    # descendant folders. Root is expressed as an *exclusion* of foldered docs
+    # so freshly uploaded files (which may have no metadata row) still show.
+    exclude_doc_ids = None
+    if "folder" in q:
+        norm_folder = normalize_folder_path(q.get("folder"))
+        folder_recursive = str(q.get("folder_recursive", "false")).strip().lower() == "true"
+        if norm_folder:
+            folder_doc_ids = DocMetadataService.get_doc_ids_by_folder(dataset_id, norm_folder, recursive=folder_recursive)
+            if doc_ids_filter:
+                allowed = set(folder_doc_ids)
+                doc_ids_filter = [d for d in doc_ids_filter if d in allowed] or ["-999"]
+            else:
+                doc_ids_filter = folder_doc_ids or ["-999"]
+        elif not folder_recursive:
+            exclude_doc_ids = DocMetadataService.get_foldered_doc_ids(dataset_id) or None
+
     docs, total = DocumentService.get_by_kb_id(dataset_id, page, page_size, orderby, desc, keywords, run_status_converted, types, suffix,
-                                               name=doc_name, doc_ids=doc_ids_filter, return_empty_metadata=return_empty_metadata)
+                                               name=doc_name, doc_ids=doc_ids_filter, return_empty_metadata=return_empty_metadata,
+                                               exclude_doc_ids=exclude_doc_ids)
 
     # time range filter (0 means no bound)
     create_time_from = int(q.get("create_time_from", 0))

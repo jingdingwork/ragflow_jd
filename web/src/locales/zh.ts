@@ -910,6 +910,20 @@ export default {
       },
     },
     knowledgeDetails: {
+      folder: {
+        root: '根目录',
+        newFolder: '新建文件夹',
+        rename: '重命名',
+        delete: '删除',
+        deleteConfirm: '确定删除该文件夹?',
+        deleteWithFilesConfirm:
+          '该文件夹(含子文件夹)下有 {{count}} 个文件,删除文件夹将一并永久删除这些文件及其解析/切片结果,不可恢复。确定删除?',
+        moveTo: '移动到…',
+        moveTitle: '移动文件',
+        selectTarget: '选择目标文件夹',
+        pathLabel: '文件夹',
+        itemCount: '{{count}} 项',
+      },
       metadata: {
         fields: '字段',
         selectFiles: '已选择 {{count}} 个文件',

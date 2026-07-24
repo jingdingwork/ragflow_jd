@@ -23,6 +23,14 @@ RAG_FLOW_SERVICE_NAME = "ragflow"
 SANDBOX_ARTIFACT_BUCKET = os.environ.get("SANDBOX_ARTIFACT_BUCKET", "sandbox-artifacts")
 SANDBOX_ARTIFACT_EXPIRE_DAYS = int(os.environ.get("SANDBOX_ARTIFACT_EXPIRE_DAYS", "7"))
 
+# Reserved document-metadata key that stores a document's virtual folder path
+# within its knowledge base (e.g. "合同/2024"). Root-level documents omit the
+# key entirely. It is a normal ``meta_fields`` entry so retrieval can filter on
+# it via the existing metadata push-down, but it is hidden from the user-facing
+# metadata editor / summary and from the LLM auto-filter key list. Leading
+# underscore keeps it out of the user's own key namespace by convention.
+DOC_FOLDER_META_KEY = "_folder"
+
 
 class CustomEnum(Enum):
     @classmethod

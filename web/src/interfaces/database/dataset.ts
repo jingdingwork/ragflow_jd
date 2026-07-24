@@ -196,6 +196,8 @@ export interface ITestingChunk {
   positions: number[][];
   docnm_kwd: string;
   doc_type_kwd: string;
+  /** Virtual folder path of the source document ("" = root). */
+  folder?: string;
 }
 
 export interface ITestingDocument {

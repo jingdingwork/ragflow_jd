@@ -1082,6 +1082,29 @@ class File2Document(DataBaseModel):
         db_table = "file2document"
 
 
+class KbFolder(DataBaseModel):
+    """Registry of virtual folders inside a knowledge base.
+
+    Document→folder membership lives in the reserved ``_folder`` document
+    metadata (see ``common.constants.DOC_FOLDER_META_KEY``); this table only
+    records folders that must exist independently of any document — i.e. empty
+    folders the user created explicitly — plus bookkeeping for rename/move. The
+    effective folder list shown to users is the union of these rows and the
+    distinct ``_folder`` values found in document metadata.
+    """
+
+    id = CharField(max_length=32, primary_key=True)
+    kb_id = CharField(max_length=32, null=False, help_text="knowledge base id", index=True)
+    # 512 keeps the (kb_id, path) unique index within MySQL's 3072-byte utf8mb4
+    # limit ((32+512)*4 = 2176 bytes); ample for real nested folder paths.
+    path = CharField(max_length=512, null=False, help_text="normalized folder path, '/'-separated", index=True)
+    created_by = CharField(max_length=32, null=False, help_text="who created it", index=True)
+
+    class Meta:
+        db_table = "kb_folder"
+        indexes = ((("kb_id", "path"), True),)
+
+
 class Task(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     doc_id = CharField(max_length=32, null=False, index=True)

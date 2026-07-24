@@ -33,7 +33,7 @@ import { useDebounce } from 'ahooks';
 import { get } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { IHighlight } from 'react-pdf-highlighter';
-import { useParams } from 'react-router';
+import { useParams, useSearchParams } from 'react-router';
 import {
   useGetPaginationWithRouter,
   useHandleSearchChange,
@@ -78,6 +78,10 @@ export const useUploadNextDocument = () => {
       const formData = new FormData();
       fileList.forEach((file: any) => {
         formData.append('file', file);
+        // Folder uploads (webkitdirectory) carry the file's relative path here;
+        // plain file picks have none. Send one aligned `file_path` per `file`
+        // so the backend can persist each document's virtual folder.
+        formData.append('file_path', file.webkitRelativePath || '');
       });
 
       try {
@@ -108,6 +112,11 @@ export const useFetchDocumentList = (loop = true) => {
   const { searchString, handleInputChange } = useHandleSearchChange();
   const { pagination, setPagination } = useGetPaginationWithRouter();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  // Virtual-folder scope. `null` = folder mode off (flat, legacy behavior);
+  // "" = root; "a/b" = that folder. Only the dataset page opts in by setting
+  // the `folder` search param.
+  const folder = searchParams.get('folder');
   const queryClient = useQueryClient();
   const debouncedSearchString = useDebounce(searchString, { wait: 500 });
   const { filterValue, handleFilterSubmit, checkValue } =
@@ -127,6 +136,7 @@ export const useFetchDocumentList = (loop = true) => {
       debouncedSearchString,
       pagination,
       filterValue,
+      folder,
     ],
     initialData: { docs: [], total: 0 },
     refetchInterval: isLoop ? 5000 : false,
@@ -158,6 +168,8 @@ export const useFetchDocumentList = (loop = true) => {
           run_status: run as string[],
           return_empty_metadata: returnEmptyMetadata,
           metadata: filterValue.metadata as Record<string, string[]>,
+          // Only send folder scoping when the dataset page has opted in.
+          ...(folder !== null ? { folder } : {}),
         },
       );
       if (ret.data.code === 0) {

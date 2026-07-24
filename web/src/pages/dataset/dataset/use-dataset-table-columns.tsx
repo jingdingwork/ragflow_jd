@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useNavigatePage } from '@/hooks/logic-hooks/navigate-hooks';
 import { useSetDocumentStatus } from '@/hooks/use-document-request';
+import { FOLDER_META_KEY } from '@/hooks/use-folder-request';
 import { IDocumentInfo } from '@/interfaces/database/document';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/utils/date';
@@ -195,7 +196,10 @@ export function useDatasetTableColumns({
       accessorKey: 'meta_fields',
       header: t('metadata.metadata'),
       cell: ({ row }) => {
-        const length = Object.keys(row.getValue('meta_fields') || {}).length;
+        // Exclude the reserved virtual-folder key from the user-facing count.
+        const length = Object.keys(row.getValue('meta_fields') || {}).filter(
+          (k) => k !== FOLDER_META_KEY,
+        ).length;
         return (
           <Button
             variant="static"

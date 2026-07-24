@@ -1083,8 +1083,26 @@ async def search(dataset_id: str, tenant_id: str, req: dict):
     ranks["chunks"] = settings.retriever.retrieval_by_children(ranks["chunks"], tenant_ids)
     ranks["total"] = total
 
+    # Attach each chunk's virtual folder path (reserved `_folder` metadata) so
+    # the retrieval-test UI can show where the source document lives. Best-effort
+    # and cached per document; a lookup failure just leaves folder empty.
+    from common.constants import DOC_FOLDER_META_KEY
+    from api.db.services.doc_metadata_service import DocMetadataService as _DocMetaSvc
+
+    folder_cache: dict[str, str] = {}
     for c in ranks["chunks"]:
         c.pop("vector", None)
+        did = c.get("doc_id")
+        if not did:
+            c["folder"] = ""
+            continue
+        if did not in folder_cache:
+            try:
+                meta = _DocMetaSvc.get_document_metadata(did) or {}
+                folder_cache[did] = meta.get(DOC_FOLDER_META_KEY, "") if isinstance(meta, dict) else ""
+            except Exception:
+                folder_cache[did] = ""
+        c["folder"] = folder_cache[did]
     ranks["labels"] = labels
 
     return True, ranks
@@ -1462,8 +1480,26 @@ async def search_datasets(tenant_id: str, req: dict):
     ranks["chunks"] = settings.retriever.retrieval_by_children(ranks["chunks"], tenant_ids)
     ranks["total"] = total
 
+    # Attach each chunk's virtual folder path (reserved `_folder` metadata) so
+    # the retrieval-test UI can show where the source document lives. Best-effort
+    # and cached per document; a lookup failure just leaves folder empty.
+    from common.constants import DOC_FOLDER_META_KEY
+    from api.db.services.doc_metadata_service import DocMetadataService as _DocMetaSvc
+
+    folder_cache: dict[str, str] = {}
     for c in ranks["chunks"]:
         c.pop("vector", None)
+        did = c.get("doc_id")
+        if not did:
+            c["folder"] = ""
+            continue
+        if did not in folder_cache:
+            try:
+                meta = _DocMetaSvc.get_document_metadata(did) or {}
+                folder_cache[did] = meta.get(DOC_FOLDER_META_KEY, "") if isinstance(meta, dict) else ""
+            except Exception:
+                folder_cache[did] = ""
+        c["folder"] = folder_cache[did]
     ranks["labels"] = labels
 
     return True, ranks

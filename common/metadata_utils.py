@@ -229,7 +229,12 @@ async def apply_meta_data_filter(
         return meta_filter(_get_metas(), conditions, logic)
 
     if method == "auto":
-        filters: dict = await gen_meta_filter(chat_mdl, _get_metas(), question)
+        # Hide the reserved virtual-folder key from the LLM so it never invents
+        # folder conditions; folder scoping is applied explicitly, not inferred.
+        from common.constants import DOC_FOLDER_META_KEY
+
+        llm_metas = {k: v for k, v in _get_metas().items() if k != DOC_FOLDER_META_KEY}
+        filters: dict = await gen_meta_filter(chat_mdl, llm_metas, question)
         doc_ids.extend(_evaluate(filters["conditions"], filters.get("logic", "and")))
         if not doc_ids:
             return None

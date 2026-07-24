@@ -498,6 +498,20 @@ Example: A 1 KB message with 1024-dim embedding uses ~9 KB. The 5 MB default lim
       },
     },
     knowledgeDetails: {
+      folder: {
+        root: 'Root',
+        newFolder: 'New folder',
+        rename: 'Rename',
+        delete: 'Delete',
+        deleteConfirm: 'Delete this folder?',
+        deleteWithFilesConfirm:
+          'This folder (including subfolders) contains {{count}} files. Deleting it permanently removes those files and their parsed chunks — this cannot be undone. Delete anyway?',
+        moveTo: 'Move to…',
+        moveTitle: 'Move documents',
+        selectTarget: 'Select target folder',
+        pathLabel: 'Folder',
+        itemCount: '{{count}} items',
+      },
       metadata: {
         fields: 'fields',
         selectFiles: 'Selected {{count}} files',

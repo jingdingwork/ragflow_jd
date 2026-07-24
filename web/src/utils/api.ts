@@ -119,6 +119,17 @@ export default {
   // document
   getDocumentList: (datasetId: string) =>
     `${restAPIv1}/datasets/${datasetId}/documents`,
+  // virtual folders (knowledge-base scoped; distinct from file-manager folders)
+  kbFolderList: (datasetId: string) =>
+    `${restAPIv1}/datasets/${datasetId}/folders`,
+  kbFolderCreate: (datasetId: string) =>
+    `${restAPIv1}/datasets/${datasetId}/folders`,
+  kbFolderRename: (datasetId: string) =>
+    `${restAPIv1}/datasets/${datasetId}/folders/rename`,
+  kbFolderDelete: (datasetId: string) =>
+    `${restAPIv1}/datasets/${datasetId}/folders`,
+  kbDocMove: (datasetId: string) =>
+    `${restAPIv1}/datasets/${datasetId}/documents/move`,
   documentChangeStatus: (datasetId: string) =>
     `${restAPIv1}/datasets/${datasetId}/documents/batch-update-status`,
   documentDelete: (datasetId: string) =>

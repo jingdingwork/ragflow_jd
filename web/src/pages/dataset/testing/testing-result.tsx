@@ -10,6 +10,7 @@ import { useTestRetrieval } from '@/hooks/use-knowledge-request';
 import { ITestingChunk } from '@/interfaces/database/dataset';
 import { t } from 'i18next';
 import camelCase from 'lodash/camelCase';
+import { Folder } from 'lucide-react';
 import { useMemo } from 'react';
 
 const similarityList: Array<{ field: keyof ITestingChunk; label: string }> = [
@@ -91,6 +92,16 @@ export function TestingResult({
                 <article key={x.chunk_id}>
                   <Card className="px-5 py-2.5 bg-transparent shadow-none">
                     <ChunkTitle item={x}></ChunkTitle>
+                    {(x.docnm_kwd || x.doc_name) && (
+                      <div className="mt-1 flex items-center gap-1 text-xs text-text-secondary">
+                        <Folder className="size-3.5 text-accent-primary" />
+                        <span className="truncate">
+                          {x.folder
+                            ? `${x.folder}/${x.docnm_kwd || x.doc_name}`
+                            : x.docnm_kwd || x.doc_name}
+                        </span>
+                      </div>
+                    )}
                     <p className="!mt-2.5"> {x.content_with_weight}</p>
                   </Card>
                 </article>

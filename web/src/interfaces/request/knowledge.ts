@@ -41,4 +41,8 @@ export interface IFetchDocumentListRequestBody {
   run_status?: string[];
   return_empty_metadata?: boolean;
   metadata?: Record<string, string[]>;
+  /** Virtual-folder scope: "" = root, "a/b" = that folder; omit for flat list. */
+  folder?: string;
+  /** When true, include documents in descendant folders too. */
+  folder_recursive?: boolean;
 }

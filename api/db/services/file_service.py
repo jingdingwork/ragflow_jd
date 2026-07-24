@@ -490,7 +490,19 @@ class FileService(CommonService):
 
     @classmethod
     @DB.connection_context()
-    def upload_document(self, kb, file_objs, user_id, src="local", parent_path: str | None = None):
+    def upload_document(self, kb, file_objs, user_id, src="local", parent_path: str | None = None, file_paths: list[str] | None = None):
+        """Upload documents into ``kb``.
+
+        ``parent_path`` places every file under one folder. ``file_paths`` (a
+        list aligned to ``file_objs``, typically browser ``webkitRelativePath``
+        values) lets a folder upload give each file its own nested path and
+        takes precedence per-file when present. Both feed the storage-object
+        prefix and the reserved ``_folder`` document-metadata key that drives
+        the virtual-folder view and folder-scoped retrieval.
+        """
+        from common.constants import DOC_FOLDER_META_KEY
+        from common.folder_utils import folder_from_relative_path, normalize_folder_path
+
         root_folder = self.get_root_folder(user_id)
         pf_id = root_folder["id"]
         self.init_knowledgebase_docs(pf_id, user_id)
@@ -498,9 +510,25 @@ class FileService(CommonService):
         kb_folder = self.new_a_file_from_kb(kb.tenant_id, kb.name, kb_root_folder["id"])
 
         safe_parent_path = sanitize_path(parent_path)
+        # Virtual folder (Unicode-preserving) applied to every file lacking its
+        # own relative path; sanitize_path above is ASCII-only for storage keys.
+        default_meta_folder = normalize_folder_path(parent_path)
+
+        # Records (doc_id -> folder) whose ``_folder`` metadata to write once
+        # all inserts succeed, so a metadata-store hiccup can't abort the upload.
+        pending_folder_meta: list[tuple[str, str]] = []
 
         err, files = [], []
-        for file in file_objs:
+        for idx, file in enumerate(file_objs):
+            # Per-file relative path (folder upload) wins over the shared
+            # parent_path; fall back to the shared folder otherwise.
+            rel_path = file_paths[idx] if file_paths and idx < len(file_paths) else None
+            if rel_path:
+                item_meta_folder = folder_from_relative_path(rel_path)
+                item_storage_folder = sanitize_path(folder_from_relative_path(rel_path))
+            else:
+                item_meta_folder = default_meta_folder
+                item_storage_folder = safe_parent_path
             doc_id = file.id if hasattr(file, "id") else get_uuid()
             e, doc = DocumentService.get_by_id(doc_id)
             if e:
@@ -542,7 +570,7 @@ class FileService(CommonService):
                 if filetype == FileType.OTHER.value:
                     raise RuntimeError("This type of file has not been supported yet!")
 
-                location = filename if not safe_parent_path else f"{safe_parent_path}/{filename}"
+                location = filename if not item_storage_folder else f"{item_storage_folder}/{filename}"
                 while settings.STORAGE_IMPL.obj_exist(kb.id, location):
                     location += "_"
 
@@ -578,9 +606,21 @@ class FileService(CommonService):
                 DocumentService.insert(doc)
 
                 FileService.add_file_from_kb(doc, kb_folder["id"], kb.tenant_id)
+                if item_meta_folder:
+                    pending_folder_meta.append((doc_id, item_meta_folder))
                 files.append((doc, blob))
             except Exception as e:
                 err.append(file.filename + ": " + str(e))
+
+        # Persist virtual-folder metadata after inserts. Best-effort: a failure
+        # here must not fail the upload, so it's logged and swallowed.
+        for meta_doc_id, meta_folder in pending_folder_meta:
+            try:
+                from api.db.services.doc_metadata_service import DocMetadataService
+
+                DocMetadataService.insert_document_metadata(meta_doc_id, {DOC_FOLDER_META_KEY: meta_folder})
+            except Exception:
+                logging.exception("Failed to persist folder metadata for document %s", meta_doc_id)
 
         return err, files
 

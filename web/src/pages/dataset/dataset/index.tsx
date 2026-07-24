@@ -19,16 +19,20 @@ import {
   useSelectedIds,
 } from '@/hooks/logic-hooks/use-row-selection';
 import { useFetchDocumentList } from '@/hooks/use-document-request';
+import { getFolderChildren, useFetchFolders } from '@/hooks/use-folder-request';
 import { useFetchKnowledgeBaseConfiguration } from '@/hooks/use-knowledge-request';
-import { LucidePlus } from 'lucide-react';
-import { useEffect } from 'react';
+import { FolderInput, LucidePlus } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router';
 import { MetadataType } from '../components/metedata/constant';
 import { useManageMetadata } from '../components/metedata/hooks/use-manage-modal';
 import { ManageMetadataModal } from '../components/metedata/manage-modal';
 import { useKnowledgeBaseContext } from '../contexts/knowledge-base-context';
 import { DatasetTable } from './dataset-table';
+import { FolderBar } from './folder-bar';
 import Generate from './generate-button/generate';
+import { MoveToFolderDialog } from './move-to-folder-dialog';
 import { ReparseDialog } from './reparse-dialog';
 import { useBulkOperateDataset } from './use-bulk-operate-dataset';
 import { useCreateEmptyDocument } from './use-create-empty-document';
@@ -47,6 +51,36 @@ export default function Dataset() {
   const { knowledgeBase } = useKnowledgeBaseContext();
   // Per-dataset gate: company-wide datasets are operable by their creator only.
   const canManage = Boolean(knowledgeBase?.manageable);
+
+  // Virtual-folder navigation via the `folder` search param (""=root).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentFolder = searchParams.get('folder') ?? '';
+  const { folders } = useFetchFolders();
+  const folderChildren = useMemo(
+    () => getFolderChildren(folders, currentFolder),
+    [folders, currentFolder],
+  );
+  const [moveOpen, setMoveOpen] = useState(false);
+
+  // Ensure the folder param is always present so the document list scopes to
+  // the current folder (root by default) instead of showing a flat list.
+  useEffect(() => {
+    if (searchParams.get('folder') === null) {
+      const next = new URLSearchParams(searchParams);
+      next.set('folder', '');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const navigateFolder = useCallback(
+    (path: string) => {
+      const next = new URLSearchParams(searchParams);
+      next.set('folder', path);
+      next.set('page', '1'); // reset pagination when entering a folder
+      setSearchParams(next);
+    },
+    [searchParams, setSearchParams],
+  );
   const {
     searchString,
     documents,
@@ -203,6 +237,17 @@ export default function Dataset() {
           //   </Button>
           // }
         >
+          {canManage && selectedCount > 0 && (
+            <Button
+              variant="outline"
+              size="default"
+              className="mr-2"
+              onClick={() => setMoveOpen(true)}
+            >
+              <FolderInput />
+              {t('knowledgeDetails.folder.moveTo')}
+            </Button>
+          )}
           {canManage && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -234,6 +279,13 @@ export default function Dataset() {
       </CardHeader>
 
       <CardContent className="px-5 py-0">
+        <div className="pb-3">
+          <FolderBar
+            currentFolder={currentFolder}
+            onNavigate={navigateFolder}
+            canManage={canManage}
+          />
+        </div>
         <DatasetTable
           documents={documents}
           pagination={pagination}
@@ -242,8 +294,18 @@ export default function Dataset() {
           setRowSelection={setRowSelection}
           showManageMetadataModal={showManageMetadataModal}
           loading={loading}
+          folderChildren={folderChildren}
+          onNavigateFolder={navigateFolder}
         />
 
+        {moveOpen && (
+          <MoveToFolderDialog
+            docIds={selectedRowKeys}
+            folders={folders}
+            hideModal={() => setMoveOpen(false)}
+            onMoved={() => setRowSelection({})}
+          />
+        )}
         {documentUploadVisible && (
           <FileUploadDialog
             hideModal={hideDocumentUploadModal}

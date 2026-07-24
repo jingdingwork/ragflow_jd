@@ -28,6 +28,7 @@ from typing import Dict, List, Optional
 
 from api.db.db_models import DB, Document
 from common import settings
+from common.constants import DOC_FOLDER_META_KEY
 from common.metadata_utils import dedupe_list
 from api.db.db_models import Knowledgebase
 from common.doc_store.doc_store_base import OrderByExpr
@@ -916,7 +917,9 @@ class DocMetadataService:
                     doc_meta = cls._extract_metadata(doc)
                     if not isinstance(doc_meta, dict):
                         continue
-                    keys.update(str(k) for k in doc_meta.keys())
+                    # Hide the reserved virtual-folder key from metadata key
+                    # listings (metadata editor + LLM semi-auto filter picker).
+                    keys.update(str(k) for k in doc_meta.keys() if k != DOC_FOLDER_META_KEY)
             logging.debug(f"get_metadata_keys_by_kbs end: n_keys={len(keys)}, kb_ids={kb_ids}")
             return sorted(keys)
         except Exception as e:
@@ -1021,6 +1024,10 @@ class DocMetadataService:
                 doc_meta = cls._extract_metadata(doc)
 
                 for k, v in doc_meta.items():
+                    # Reserved virtual-folder key is internal: keep it out of the
+                    # user-facing metadata summary / editor.
+                    if k == DOC_FOLDER_META_KEY:
+                        continue
                     # Track type counts for this field
                     value_type = _meta_value_type(v)
                     if value_type:
@@ -1237,3 +1244,134 @@ class DocMetadataService:
         except Exception as e:
             logging.error(f"Error in batch_update_metadata for KB {kb_id}: {e}")
             return 0
+
+    # ------------------------------------------------------------------
+    # Virtual-folder helpers (reserved ``_folder`` metadata key)
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def get_folder_counts(cls, kb_id: str) -> Dict[str, int]:
+        """Return ``{folder_path: direct_doc_count}`` for a knowledge base.
+
+        Only documents that carry a non-empty ``_folder`` value contribute;
+        root-level documents (no key) are excluded. The count is the number of
+        documents whose folder equals that exact path (not recursive).
+        """
+        counts: Dict[str, int] = {}
+        try:
+            results = cls._search_metadata(kb_id, condition={"kb_id": kb_id})
+            for _doc_id, doc in cls._iter_search_results(results):
+                meta = cls._extract_metadata(doc)
+                folder = meta.get(DOC_FOLDER_META_KEY) if isinstance(meta, dict) else None
+                if isinstance(folder, str) and folder:
+                    counts[folder] = counts.get(folder, 0) + 1
+        except Exception as e:
+            logging.error(f"Error computing folder counts for KB {kb_id}: {e}")
+        return counts
+
+    @classmethod
+    def get_doc_ids_by_folder(cls, kb_id: str, path: str, recursive: bool = False) -> List[str]:
+        """List document IDs whose ``_folder`` matches ``path``.
+
+        ``recursive=False`` matches the exact folder; ``recursive=True`` also
+        matches descendants (``path/...``). A blank ``path`` selects root-level
+        documents (those with no folder) when non-recursive, or every document
+        when recursive.
+        """
+        prefix = f"{path}/" if path else ""
+        out: List[str] = []
+        try:
+            results = cls._search_metadata(kb_id, condition={"kb_id": kb_id})
+            for doc_id, doc in cls._iter_search_results(results):
+                meta = cls._extract_metadata(doc)
+                folder = meta.get(DOC_FOLDER_META_KEY) if isinstance(meta, dict) else None
+                folder = folder if isinstance(folder, str) else ""
+                if recursive:
+                    if not path or folder == path or folder.startswith(prefix):
+                        out.append(doc_id)
+                else:
+                    if folder == path:
+                        out.append(doc_id)
+        except Exception as e:
+            logging.error(f"Error listing docs by folder for KB {kb_id}: {e}")
+        return out
+
+    @classmethod
+    def get_foldered_doc_ids(cls, kb_id: str) -> List[str]:
+        """List document IDs that carry a non-empty ``_folder``.
+
+        Used to derive the *root* folder view as a complement: root documents
+        are exactly the KB's documents minus these. Documents without any
+        metadata row never appear here, so they correctly count as root.
+        """
+        out: List[str] = []
+        try:
+            results = cls._search_metadata(kb_id, condition={"kb_id": kb_id})
+            for doc_id, doc in cls._iter_search_results(results):
+                meta = cls._extract_metadata(doc)
+                folder = meta.get(DOC_FOLDER_META_KEY) if isinstance(meta, dict) else None
+                if isinstance(folder, str) and folder:
+                    out.append(doc_id)
+        except Exception as e:
+            logging.error(f"Error listing foldered docs for KB {kb_id}: {e}")
+        return out
+
+    @classmethod
+    def set_document_folder(cls, doc_id: str, path: str) -> bool:
+        """Set (or clear) a single document's ``_folder``, preserving other keys.
+
+        A blank ``path`` removes the key so the document returns to root.
+        """
+        try:
+            meta = cls.get_document_metadata(doc_id) or {}
+            if not isinstance(meta, dict):
+                meta = {}
+            if path:
+                meta[DOC_FOLDER_META_KEY] = path
+            else:
+                meta.pop(DOC_FOLDER_META_KEY, None)
+            if meta:
+                return cls.update_document_metadata(doc_id, meta)
+            # No metadata left at all → drop the row entirely.
+            from api.db.db_models import Document
+
+            doc = Document.get_or_none(Document.id == doc_id)
+            if doc:
+                return cls.delete_document_metadata(doc_id, doc.kb_id)
+            return True
+        except Exception as e:
+            logging.error(f"Error setting folder for document {doc_id}: {e}")
+            return False
+
+    @classmethod
+    def rename_folder(cls, kb_id: str, old_path: str, new_path: str) -> int:
+        """Re-parent every document under ``old_path`` (inclusive) to ``new_path``.
+
+        Prefix-replaces the ``_folder`` value so the whole subtree moves:
+        ``old_path`` → ``new_path`` and ``old_path/x`` → ``new_path/x``.
+        Returns the number of documents updated.
+        """
+        if not old_path or old_path == new_path:
+            return 0
+        updated = 0
+        try:
+            results = cls._search_metadata(kb_id, condition={"kb_id": kb_id})
+            for doc_id, doc in cls._iter_search_results(results):
+                meta = cls._extract_metadata(doc)
+                if not isinstance(meta, dict):
+                    continue
+                folder = meta.get(DOC_FOLDER_META_KEY)
+                if not isinstance(folder, str) or not folder:
+                    continue
+                if folder == old_path:
+                    new_folder = new_path
+                elif folder.startswith(old_path + "/"):
+                    new_folder = new_path + folder[len(old_path):]
+                else:
+                    continue
+                meta[DOC_FOLDER_META_KEY] = new_folder
+                if cls.update_document_metadata(doc_id, meta):
+                    updated += 1
+        except Exception as e:
+            logging.error(f"Error renaming folder {old_path}->{new_path} in KB {kb_id}: {e}")
+        return updated

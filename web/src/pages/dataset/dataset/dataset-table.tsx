@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/table';
 import { UseRowSelectionType } from '@/hooks/logic-hooks/use-row-selection';
 import { useFetchDocumentList } from '@/hooks/use-document-request';
+import { IFolderChild } from '@/hooks/use-folder-request';
 import { useKnowledgeBaseContext } from '@/pages/dataset/contexts/knowledge-base-context';
 import { getExtension } from '@/utils/document-util';
 import { t } from 'i18next';
@@ -35,6 +36,7 @@ import { pick } from 'lodash';
 import { useMemo } from 'react';
 import { ShowManageMetadataModalProps } from '../components/metedata/interface';
 import ProcessLogModal from '../process-log-modal';
+import { FolderRows } from './folder-rows';
 import { useShowLog } from './hooks';
 import { useChangeDocumentParser } from './use-change-document-parser';
 import { useDatasetTableColumns } from './use-dataset-table-columns';
@@ -46,6 +48,9 @@ export type DatasetTableProps = Pick<
 > &
   Pick<UseRowSelectionType, 'rowSelection' | 'setRowSelection'> & {
     showManageMetadataModal: (config: ShowManageMetadataModalProps) => void;
+    // Direct subfolders of the current folder, rendered as rows above the files.
+    folderChildren?: IFolderChild[];
+    onNavigateFolder?: (path: string) => void;
   };
 
 export function DatasetTable({
@@ -55,6 +60,8 @@ export function DatasetTable({
   rowSelection,
   setRowSelection,
   showManageMetadataModal,
+  folderChildren = [],
+  onNavigateFolder,
 }: DatasetTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -92,6 +99,13 @@ export function DatasetTable({
   const { knowledgeBase } = useKnowledgeBaseContext();
   // Per-dataset gate: company-wide datasets are operable by their creator only.
   const canManage = Boolean(knowledgeBase?.manageable);
+
+  // Subfolders render as rows above the files, but only on the first page
+  // (files are server-paginated; folders are fetched whole and belong on top).
+  const showFolders =
+    (pagination.current || 1) === 1 &&
+    !!onNavigateFolder &&
+    folderChildren.length > 0;
 
   const columns = useDatasetTableColumns({
     showChangeParserModal,
@@ -153,6 +167,14 @@ export function DatasetTable({
             </TableRow>
           ))}
         </TableHeader>
+        {showFolders && onNavigateFolder && (
+          <FolderRows
+            items={folderChildren}
+            columnsCount={columns.length}
+            onNavigate={onNavigateFolder}
+            canManage={canManage}
+          />
+        )}
         <TableBody className="relative">
           {table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => (
@@ -173,7 +195,9 @@ export function DatasetTable({
                 ))}
               </TableRow>
             ))
-          ) : (
+          ) : showFolders ? // Folders are shown above; skip the "no data" placeholder so a
+          // folder with subfolders but no direct files doesn't look empty.
+          null : (
             <TableRow>
               <TableCell colSpan={columns.length} className="h-24 text-center">
                 <Empty type={EmptyType.Data} />

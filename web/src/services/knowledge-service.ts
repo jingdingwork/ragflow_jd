@@ -317,6 +317,34 @@ export const listDocument = (
 export const documentFilter = (kb_id: string) =>
   request.get(api.getDatasetFilter(kb_id), { params: {} });
 
+// ---- virtual folders ----
+export const listFolders = (datasetId: string) =>
+  request.get(api.kbFolderList(datasetId));
+
+export const createFolder = (datasetId: string, path: string) =>
+  request.post(api.kbFolderCreate(datasetId), { data: { path } });
+
+export const renameFolder = (
+  datasetId: string,
+  oldPath: string,
+  newPath: string,
+) =>
+  request.put(api.kbFolderRename(datasetId), {
+    data: { old_path: oldPath, new_path: newPath },
+  });
+
+export const deleteFolder = (datasetId: string, path: string) =>
+  request.delete(api.kbFolderDelete(datasetId), { data: { path } });
+
+export const moveDocuments = (
+  datasetId: string,
+  docIds: string[],
+  targetPath: string,
+) =>
+  request.post(api.kbDocMove(datasetId), {
+    data: { doc_ids: docIds, target_path: targetPath },
+  });
+
 // Custom upload function that handles dynamic URL using axios directly
 export const uploadDocument = async (datasetId: string, formData: FormData) => {
   const url = api.documentUpload(datasetId);
