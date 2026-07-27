@@ -751,6 +751,22 @@ def set_kb_company_level(kb_id):
         return error_response(str(e), 500)
 
 
+@admin_bp.route("/es/knowledgebases/<kb_id>/download-limit", methods=["PUT"])
+@login_required
+@check_admin_auth
+def set_kb_download_limit(kb_id):
+    """Enable / disable the knowledge base's file-download restriction."""
+    try:
+        body = request.get_json(force=True) or {}
+        enabled = bool(body.get("enabled"))
+        kb = KbPermissionMgr.set_download_limit(kb_id, enabled)
+        return success_response(kb, "Knowledge base download limit updated", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
 @admin_bp.route("/es/knowledgebases/<kb_id>/stats", methods=["GET"])
 @login_required
 @check_admin_auth

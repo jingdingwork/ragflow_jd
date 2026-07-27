@@ -550,6 +550,14 @@ class KnowledgebaseService(CommonService):
 
     @classmethod
     @DB.connection_context()
+    def is_download_disabled(cls, kb_id) -> bool:
+        """True when this KB is marked download-restricted (files may be
+        previewed/searched/cited but not downloaded). Unknown KB -> False."""
+        row = cls.model.select(cls.model.download_disabled).where(cls.model.id == kb_id).first()
+        return bool(row and row.download_disabled)
+
+    @classmethod
+    @DB.connection_context()
     def get_kb_by_id(cls, kb_id, user_id):
         # Get dataset by ID and user ID
         # Args:

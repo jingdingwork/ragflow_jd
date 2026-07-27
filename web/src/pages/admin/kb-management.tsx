@@ -8,8 +8,10 @@ import {
   LucideChevronDown,
   LucideChevronLeft,
   LucideChevronRight,
+  LucideDownload,
   LucideEye,
   LucideFolder,
+  LucideLock,
   LucideRefreshCw,
   LucideSearch,
   LucideUser,
@@ -48,6 +50,7 @@ import {
   esListKnowledgebases,
   esSearchChunks,
   setKbCompanyLevel,
+  setKbDownloadLimit,
 } from '@/services/admin-service';
 
 const PAGE_SIZE = 20;
@@ -152,6 +155,16 @@ function AdminKbManagement() {
       queryClient.invalidateQueries({ queryKey: ['admin/kb/list'] });
     },
   });
+
+  // Toggle the KB's file-download restriction (content stays searchable/citable).
+  const { mutate: toggleDownloadLimit, isPending: togglingDownload } =
+    useMutation({
+      mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+        setKbDownloadLimit(id, enabled),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['admin/kb/list'] });
+      },
+    });
 
   // Stats for the selected KB.
   const { data: stats, refetch: refetchStats } = useQuery({
@@ -403,32 +416,71 @@ function AdminKbManagement() {
                     >
                       {permissionLabel(t, selectedKb?.permission)}
                     </Badge>
-                    {selectedKb && (
-                      <Button
-                        size="sm"
-                        variant={
-                          selectedKb.permission === COMPANY_PERM
-                            ? 'outline'
-                            : 'highlighted'
-                        }
-                        className="ml-auto"
-                        disabled={togglingCompany}
-                        onClick={() =>
-                          toggleCompany({
-                            id: selectedKb.id,
-                            enabled: selectedKb.permission !== COMPANY_PERM,
-                          })
-                        }
+                    {selectedKb?.download_disabled && (
+                      <Badge
+                        variant="secondary"
+                        className="border-accent-primary text-accent-primary"
                       >
-                        <LucideBuilding2 className="size-4 mr-1" />
-                        {selectedKb.permission === COMPANY_PERM
-                          ? t('admin.kbUnsetCompany')
-                          : t('admin.kbSetCompany')}
-                      </Button>
+                        <LucideLock className="size-3 mr-1" />
+                        {t('admin.kbDownloadLimited')}
+                      </Badge>
+                    )}
+                    {selectedKb && (
+                      <div className="ml-auto flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant={
+                            selectedKb.permission === COMPANY_PERM
+                              ? 'outline'
+                              : 'highlighted'
+                          }
+                          disabled={togglingCompany}
+                          onClick={() =>
+                            toggleCompany({
+                              id: selectedKb.id,
+                              enabled: selectedKb.permission !== COMPANY_PERM,
+                            })
+                          }
+                        >
+                          <LucideBuilding2 className="size-4 mr-1" />
+                          {selectedKb.permission === COMPANY_PERM
+                            ? t('admin.kbUnsetCompany')
+                            : t('admin.kbSetCompany')}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={
+                            selectedKb.download_disabled ? 'outline' : 'outline'
+                          }
+                          className={cn(
+                            selectedKb.download_disabled &&
+                              'border-accent-primary text-accent-primary',
+                          )}
+                          disabled={togglingDownload}
+                          onClick={() =>
+                            toggleDownloadLimit({
+                              id: selectedKb.id,
+                              enabled: !selectedKb.download_disabled,
+                            })
+                          }
+                        >
+                          {selectedKb.download_disabled ? (
+                            <LucideLock className="size-4 mr-1" />
+                          ) : (
+                            <LucideDownload className="size-4 mr-1" />
+                          )}
+                          {selectedKb.download_disabled
+                            ? t('admin.kbUnsetDownloadLimit')
+                            : t('admin.kbSetDownloadLimit')}
+                        </Button>
+                      </div>
                     )}
                   </div>
                   <p className="text-xs text-text-secondary">
                     {t('admin.kbCompanyTip')}
+                  </p>
+                  <p className="text-xs text-text-secondary">
+                    {t('admin.kbDownloadLimitTip')}
                   </p>
 
                   {/* Stats panel */}

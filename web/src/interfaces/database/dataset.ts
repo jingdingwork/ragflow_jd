@@ -39,6 +39,12 @@ export interface IDataset {
    * edit chunks…). Returned by the dataset detail endpoint only.
    */
   manageable?: boolean;
+  /**
+   * When true, the KB's files cannot be downloaded anywhere (KB list, search
+   * results, chat citations); content stays searchable, citable and
+   * previewable (view-only).
+   */
+  download_disabled?: boolean;
   pipeline_id: string;
   raptor_task_finish_at: string;
   raptor_task_id: string;

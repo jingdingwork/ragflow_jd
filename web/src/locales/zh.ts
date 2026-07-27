@@ -447,6 +447,11 @@ export default {
       kbUnsetCompany: '取消公司级',
       kbCompanyTip:
         '公司级知识库对全公司所有用户可见（只读），维护权限仍归属所在部门。',
+      kbSetDownloadLimit: '数据下载限制',
+      kbUnsetDownloadLimit: '取消下载限制',
+      kbDownloadLimited: '禁止下载',
+      kbDownloadLimitTip:
+        '开启后，该知识库内容仍可被检索和聊天引用、可在线预览，但文件禁止下载（知识库、搜索结果、聊天引用处均不可下载）。',
       kbEmpty: '暂无知识库',
       kbPickHint: '从左侧选择一个知识库，查看其文档存储数据。',
       kbCount: '共 {{count}} 个知识库',

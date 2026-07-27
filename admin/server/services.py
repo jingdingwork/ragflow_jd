@@ -1201,7 +1201,7 @@ class EsDataMgr:
         rows = (
             model.select(
                 model.id, model.name, model.tenant_id, model.created_by,
-                model.department_id, model.permission,
+                model.department_id, model.permission, model.download_disabled,
                 model.doc_num, model.chunk_num, model.token_num,
                 model.language, model.parser_id, model.create_date,
             )
@@ -1388,6 +1388,18 @@ class KbPermissionMgr:
         if permission != kb.permission:
             KnowledgebaseService.update_by_id(kb_id, {"permission": permission})
         return {"id": kb_id, "name": kb.name, "permission": permission}
+
+    @staticmethod
+    def set_download_limit(kb_id, enabled):
+        """Toggle the KB's download restriction. When enabled, files can still be
+        searched, cited in chat and previewed, but not downloaded anywhere."""
+        ok, kb = KnowledgebaseService.get_by_id(kb_id)
+        if not ok or not kb:
+            raise AdminException("Knowledge base not found", 404)
+        enabled = bool(enabled)
+        if enabled != bool(kb.download_disabled):
+            KnowledgebaseService.update_by_id(kb_id, {"download_disabled": enabled})
+        return {"id": kb_id, "name": kb.name, "download_disabled": enabled}
 
 
 class RetrievalMgr:

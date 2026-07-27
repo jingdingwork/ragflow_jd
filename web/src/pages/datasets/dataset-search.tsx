@@ -151,6 +151,13 @@ export function DatasetSearch() {
   const allKbIds = useMemo(() => list.map((k) => k.id), [list]);
   const hasKb = allKbIds.length > 0;
 
+  // KBs whose files cannot be downloaded — hide the download button for their
+  // result chunks (content stays previewable/citable).
+  const downloadDisabledKbIds = useMemo(
+    () => new Set(list.filter((k) => k.download_disabled).map((k) => k.id)),
+    [list],
+  );
+
   const scopeLabel = useMemo(() => {
     if (selectedKbIds.length === 0)
       return t('knowledgeList.retrieval.allKnowledgeBases');
@@ -396,19 +403,21 @@ export function DatasetSearch() {
                           <Maximize2 className="size-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </button>
                         <div className="ml-auto flex items-center gap-3 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => handleDownload(chunk, rowKey)}
-                            disabled={downloadingId === rowKey}
-                            title={t('knowledgeList.retrieval.download')}
-                            className="text-text-secondary hover:text-accent-primary transition-colors disabled:opacity-50"
-                          >
-                            {downloadingId === rowKey ? (
-                              <Loader2 className="size-3.5 animate-spin" />
-                            ) : (
-                              <Download className="size-3.5" />
-                            )}
-                          </button>
+                          {!downloadDisabledKbIds.has(chunk.kb_id) && (
+                            <button
+                              type="button"
+                              onClick={() => handleDownload(chunk, rowKey)}
+                              disabled={downloadingId === rowKey}
+                              title={t('knowledgeList.retrieval.download')}
+                              className="text-text-secondary hover:text-accent-primary transition-colors disabled:opacity-50"
+                            >
+                              {downloadingId === rowKey ? (
+                                <Loader2 className="size-3.5 animate-spin" />
+                              ) : (
+                                <Download className="size-3.5" />
+                              )}
+                            </button>
+                          )}
                           {typeof chunk.similarity === 'number' && (
                             <span className="text-accent-primary">
                               {(chunk.similarity * 100).toFixed(0)}%

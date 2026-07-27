@@ -94,6 +94,8 @@ async def download(dataset_id, document_id):
     doc = DocumentService.query(kb_id=dataset_id, id=document_id)
     if not doc:
         return get_error_data_result(message=f"The dataset not own the document {document_id}.")
+    if KnowledgebaseService.is_download_disabled(dataset_id):
+        return get_error_data_result(message="Downloads are disabled for this knowledge base.")
     # The process of downloading
     doc_id, doc_location = File2DocumentService.get_storage_address(doc_id=document_id)  # minio address
     file_stream = settings.STORAGE_IMPL.get(doc_id, doc_location)
@@ -155,6 +157,8 @@ async def download_document(document_id):
     doc = DocumentService.query(id=document_id)
     if not doc:
         return get_error_data_result(message=f"The dataset not own the document {document_id}.")
+    if KnowledgebaseService.is_download_disabled(doc[0].kb_id):
+        return get_error_data_result(message="Downloads are disabled for this knowledge base.")
     # The process of downloading
     doc_id, doc_location = File2DocumentService.get_storage_address(doc_id=document_id)  # minio address
     file_stream = settings.STORAGE_IMPL.get(doc_id, doc_location)

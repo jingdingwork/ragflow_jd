@@ -627,6 +627,7 @@ export type EsKnowledgebase = {
   department_id: string | null;
   department_name: string | null;
   permission: string;
+  download_disabled: boolean;
   doc_num: number;
   chunk_num: number;
   token_num: number;
@@ -687,6 +688,12 @@ export const setKbCompanyLevel = (kbId: string, enabled: boolean) =>
     api.adminKbCompanyLevel(kbId),
     { enabled },
   );
+
+/** Enable / disable the KB's file-download restriction (admin only). */
+export const setKbDownloadLimit = (kbId: string, enabled: boolean) =>
+  request.put<
+    ResponseData<{ id: string; name: string; download_disabled: boolean }>
+  >(api.adminKbDownloadLimit(kbId), { enabled });
 
 export const esGetKbStats = (kbId: string) =>
   request.get<ResponseData<EsKbStats>>(api.adminEsKbStats(kbId));

@@ -998,6 +998,10 @@ class Knowledgebase(DataBaseModel):
     tenant_embd_id = IntegerField(null=True, help_text="id in tenant_llm", index=True)
     permission = CharField(max_length=16, null=False, help_text="me|team|department", default="me", index=True)
     department_id = CharField(max_length=32, null=True, help_text="creator's department id, for department-visible resources", index=True)
+    # When True, the KB's content stays searchable and citable in chat, but the
+    # underlying files cannot be downloaded anywhere (KB list, search results,
+    # chat citations). Inline preview stays allowed (view-only).
+    download_disabled = BooleanField(null=False, help_text="block file downloads; content still searchable/citable", default=False, index=True)
     created_by = CharField(max_length=32, null=False, index=True)
     doc_num = IntegerField(default=0, index=True)
     token_num = IntegerField(default=0, index=True)
@@ -1998,6 +2002,7 @@ def migrate_db():
     alter_db_add_column(migrator, "user", "username", CharField(max_length=255, null=True, help_text="OIDC/Keycloak username (employee id)", index=True))
     alter_db_add_column(migrator, "user", "is_departed", BooleanField(null=False, help_text="departed flag", default=False, index=True))
     alter_db_add_column(migrator, "knowledgebase", "department_id", CharField(max_length=32, null=True, help_text="creator's department id for department-visible resources", index=True))
+    alter_db_add_column(migrator, "knowledgebase", "download_disabled", BooleanField(null=False, help_text="block file downloads; content still searchable/citable", default=False, index=True))
     alter_db_add_column(migrator, "user_canvas", "department_id", CharField(max_length=32, null=True, help_text="creator's department id for department-visible agents", index=True))
     alter_db_add_column(migrator, "memory", "department_id", CharField(max_length=32, null=True, help_text="creator's department id for department-visible memories", index=True))
     alter_db_add_column(migrator, "search", "permission", CharField(max_length=16, null=False, help_text="me|team|department", default="me", index=True))

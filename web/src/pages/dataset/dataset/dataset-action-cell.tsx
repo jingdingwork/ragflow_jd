@@ -29,7 +29,12 @@ export function DatasetActionCell({
   record,
   showRenameModal,
   canManage = true,
-}: { record: IDocumentInfo; canManage?: boolean } & UseRenameDocumentShowType) {
+  downloadDisabled = false,
+}: {
+  record: IDocumentInfo;
+  canManage?: boolean;
+  downloadDisabled?: boolean;
+} & UseRenameDocumentShowType) {
   const { id, run, type } = record;
   const isRunning = isParserRunning(run);
   const isVirtualDocument = type === DocumentType.Virtual;
@@ -107,7 +112,7 @@ export function DatasetActionCell({
         </HoverCardContent>
       </HoverCard>
 
-      {isVirtualDocument || (
+      {isVirtualDocument || downloadDisabled || (
         <Button
           size="icon-xs"
           variant="ghost"

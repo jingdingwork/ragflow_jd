@@ -3316,6 +3316,11 @@ Important structured information may include: names, dates, locations, events, k
       kbUnsetCompany: 'Revoke company-wide',
       kbCompanyTip:
         'A company-wide knowledge base is readable by every user; maintenance still belongs to its own department.',
+      kbSetDownloadLimit: 'Restrict downloads',
+      kbUnsetDownloadLimit: 'Allow downloads',
+      kbDownloadLimited: 'Downloads off',
+      kbDownloadLimitTip:
+        'When on, the knowledge base stays searchable, citable in chat and previewable, but its files cannot be downloaded (in the knowledge base, search results, or chat citations).',
       kbEmpty: 'No knowledge bases',
       kbPickHint:
         'Select a knowledge base on the left to inspect its document-store data.',

@@ -104,6 +104,9 @@ export function DatasetTable({
   const { knowledgeBase } = useKnowledgeBaseContext();
   // Per-dataset gate: company-wide datasets are operable by their creator only.
   const canManage = Boolean(knowledgeBase?.manageable);
+  // Download-restricted KB: files stay searchable/citable/previewable but cannot
+  // be downloaded — hide the download action.
+  const downloadDisabled = Boolean(knowledgeBase?.download_disabled);
 
   // Subfolders render as rows above the files, but only on the first page
   // (files are server-paginated; folders are fetched whole and belong on top).
@@ -119,6 +122,7 @@ export function DatasetTable({
     showLog,
     datasetId: knowledgeBase?.id,
     canManage,
+    downloadDisabled,
   });
 
   const currentPagination = useMemo(() => {
@@ -202,8 +206,7 @@ export function DatasetTable({
                 ))}
               </TableRow>
             ))
-          ) : showFolders ? // folder with subfolders but no direct files doesn't look empty. // Folders are shown above; skip the "no data" placeholder so a
-          null : (
+          ) : showFolders ? null : ( // folder with subfolders but no direct files doesn't look empty. // Folders are shown above; skip the "no data" placeholder so a
             <TableRow>
               <TableCell colSpan={columns.length} className="h-24 text-center">
                 <Empty type={EmptyType.Data} />

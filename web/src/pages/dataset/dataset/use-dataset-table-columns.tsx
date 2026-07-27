@@ -31,6 +31,8 @@ type UseDatasetTableColumnsType = UseChangeDocumentParserShowType &
     datasetId?: string;
     // When false, the user may only view: hide selection/parse/edit actions.
     canManage?: boolean;
+    // When true, the KB blocks file downloads: hide the download action.
+    downloadDisabled?: boolean;
   };
 
 export function useDatasetTableColumns({
@@ -40,6 +42,7 @@ export function useDatasetTableColumns({
   showLog,
   datasetId,
   canManage = true,
+  downloadDisabled = false,
 }: UseDatasetTableColumnsType) {
   const { t } = useTranslation('translation', {
     keyPrefix: 'knowledgeDetails',
@@ -280,6 +283,7 @@ export function useDatasetTableColumns({
             record={record}
             showRenameModal={showRenameModal}
             canManage={canManage}
+            downloadDisabled={downloadDisabled}
           />
         );
       },

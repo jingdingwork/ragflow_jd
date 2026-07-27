@@ -149,6 +149,8 @@ export default {
   getDocumentFile: `${restAPIv1}/documents`,
   getDocumentFileDownload: (docId: string) =>
     `${restAPIv1}/documents/${docId}/download`,
+  getDocumentDownloadAllowed: (docId: string) =>
+    `${restAPIv1}/documents/${docId}/download-allowed`,
   documentUpload: (datasetId: string) =>
     `${restAPIv1}/datasets/${datasetId}/documents`,
   webCrawl: (datasetId: string) =>
@@ -392,6 +394,9 @@ export default {
   // Company-wide visibility toggle (the one write operation on a KB here)
   adminKbCompanyLevel: (kbId: string) =>
     `${restAPIv1}/admin/es/knowledgebases/${kbId}/company`,
+  // File-download restriction toggle (content stays searchable/citable)
+  adminKbDownloadLimit: (kbId: string) =>
+    `${restAPIv1}/admin/es/knowledgebases/${kbId}/download-limit`,
   adminEsKbStats: (kbId: string) =>
     `${restAPIv1}/admin/es/knowledgebases/${kbId}/stats`,
   adminEsKbDocuments: (kbId: string) =>

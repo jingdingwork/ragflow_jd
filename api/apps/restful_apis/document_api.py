@@ -2074,6 +2074,23 @@ async def get(doc_id):
         return server_error_response(e)
 
 
+@manager.route("/documents/<doc_id>/download-allowed", methods=["GET"])  # noqa: F821
+@login_required
+async def download_allowed(doc_id):
+    """Report whether a document's knowledge base blocks file downloads, so the
+    previewer can switch to a view-only (no save-as) mode. Content is unaffected."""
+    try:
+        if not DocumentService.accessible(doc_id, current_user.id):
+            return get_data_error_result(message="Document not found!")
+        e, doc = DocumentService.get_by_id(doc_id)
+        if not e:
+            return get_data_error_result(message="Document not found!")
+        disabled = KnowledgebaseService.is_download_disabled(doc.kb_id)
+        return get_json_result(data={"download_disabled": bool(disabled)})
+    except Exception as e:
+        return server_error_response(e)
+
+
 @manager.route("/documents/<doc_id>/download", methods=["GET"])  # noqa: F821
 @login_required
 @add_tenant_id_to_kwargs
@@ -2089,6 +2106,12 @@ async def download_attachment(tenant_id=None, doc_id=None, attachment_id=None):
         # Keep backward compatibility with older callers and unit tests that still
         # pass `attachment_id` instead of the route parameter name.
         doc_id = doc_id or attachment_id
+        # Block downloads for download-restricted knowledge bases (content stays
+        # searchable/citable/previewable; only file download is denied).
+        if doc_id:
+            ok, doc = DocumentService.get_by_id(doc_id)
+            if ok and doc and KnowledgebaseService.is_download_disabled(doc.kb_id):
+                return get_data_error_result(message="Downloads are disabled for this knowledge base.")
         ext = request.args.get("ext", "markdown")
         data = await thread_pool_exec(settings.STORAGE_IMPL.get, tenant_id, doc_id)
         response = await make_response(data)
