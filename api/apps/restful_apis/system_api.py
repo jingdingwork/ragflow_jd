@@ -29,6 +29,7 @@ from common.time_utils import current_timestamp, datetime_format
 from api.db.db_models import APIToken
 from api.db.services.api_service import APITokenService
 from api.db.services.knowledgebase_service import KnowledgebaseService
+from api.db.services.system_settings_service import SystemSettingsService
 from api.db.services.user_service import UserTenantService
 from common.log_utils import get_log_levels, set_log_level
 from common import settings
@@ -226,6 +227,41 @@ def get_config():
         "registerEnabled": settings.REGISTER_ENABLED,
         "disablePasswordLogin": settings.DISABLE_PASSWORD_LOGIN,
     })
+
+# Global setting name shared with the admin console (SettingsMgr / system_settings).
+PREVIEW_WATERMARK_SETTING = "file.watermark.enabled"
+
+
+@manager.route("/system/preview-watermark", methods=["GET"])  # noqa: F821
+@login_required
+def preview_watermark():
+    """
+    Whether document-preview watermarking is enabled globally.
+    ---
+    tags:
+        - System
+    responses:
+        200:
+            description: Return the preview-watermark switch state.
+            schema:
+                type: object
+                properties:
+                    enabled:
+                        type: boolean
+                        description: Whether previews should render a watermark.
+    """
+    # Default ON: absent setting means watermarking is enabled until an admin
+    # explicitly turns it off from the console (文件管理 · 水印预览开关).
+    enabled = True
+    try:
+        rows = list(SystemSettingsService.get_by_name(PREVIEW_WATERMARK_SETTING))
+        if rows:
+            val = str(rows[0].value).strip().lower()
+            enabled = val in ("1", "true", "yes", "on")
+    except Exception:
+        logging.exception("read preview watermark setting failed")
+    return get_json_result(data={"enabled": enabled})
+
 
 @manager.route("/system/healthz", methods=["GET"])  # noqa: F821
 def healthz():

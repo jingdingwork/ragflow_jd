@@ -164,6 +164,8 @@ const {
   adminGetSandboxConfig,
   adminSetSandboxConfig,
   adminTestSandboxConnection,
+  adminGetVariables,
+  adminSetVariable,
 } = api;
 
 type ResponseData<D = NonNullable<unknown>> = {
@@ -891,6 +893,23 @@ export const testSandboxConnection = (params: {
   >(adminTestSandboxConnection, {
     provider_type: params.providerType,
     config: params.config,
+  });
+
+// System settings variables (system_settings table via SettingsMgr).
+export type SystemVariable = {
+  name: string;
+  source: string;
+  data_type: string;
+  value: string;
+};
+
+export const listVariables = () =>
+  request.get<ResponseData<SystemVariable[]>>(adminGetVariables);
+
+export const setVariable = (name: string, value: string) =>
+  request.put<ResponseData<null>>(adminSetVariable, {
+    var_name: name,
+    var_value: value,
   });
 
 export type PromptScope = 'default' | 'all' | 'department';

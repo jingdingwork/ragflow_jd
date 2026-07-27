@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/dialog';
 import message from '@/components/ui/message';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
 import {
   Table,
   TableBody,
@@ -48,6 +49,8 @@ import {
   ModelCatalogItem,
   deleteModelCatalog,
   listModelCatalog,
+  listVariables,
+  setVariable,
   syncModelCatalog,
 } from '@/services/admin-service';
 
@@ -56,6 +59,70 @@ import { ModelCatalogDialog } from './components/model-catalog-dialog';
 
 enum SystemSettingsTab {
   ModelSettings = 'model-settings',
+  FileManagement = 'file-management',
+}
+
+const WATERMARK_SETTING = 'file.watermark.enabled';
+
+function FileManagementPane() {
+  const { t } = useTranslation();
+
+  const { data: enabled, refetch } = useQuery({
+    queryKey: ['admin/variables', WATERMARK_SETTING],
+    queryFn: async () => {
+      const res = await listVariables();
+      const row = res?.data?.data?.find((v) => v.name === WATERMARK_SETTING);
+      // Default ON when the setting has never been written.
+      if (!row) return true;
+      return String(row.value).trim().toLowerCase() === 'true';
+    },
+  });
+
+  const toggle = useMutation({
+    mutationKey: ['admin/variables/set', WATERMARK_SETTING],
+    mutationFn: async (next: boolean) => {
+      const res = await setVariable(WATERMARK_SETTING, next ? 'true' : 'false');
+      return res?.data;
+    },
+    onSuccess: (res) => {
+      if (res?.code === 0) {
+        message.success(t('admin.saveSuccess'));
+        refetch();
+      }
+    },
+    retry: false,
+  });
+
+  return (
+    <Card className="!shadow-none bg-transparent">
+      <CardHeader className="space-y-1.5">
+        <CardTitle className="text-xl leading-none">
+          {t('admin.systemSettingsPage.fileManagement')}
+        </CardTitle>
+        <CardDescription className="text-text-secondary">
+          {t('admin.systemSettingsPage.fileManagementDescription')}
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent>
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-border-default p-4 max-w-2xl">
+          <div className="space-y-1">
+            <div className="font-medium">
+              {t('admin.systemSettingsPage.previewWatermark')}
+            </div>
+            <div className="text-sm text-text-secondary">
+              {t('admin.systemSettingsPage.previewWatermarkTip')}
+            </div>
+          </div>
+          <Switch
+            checked={!!enabled}
+            disabled={toggle.isPending}
+            onCheckedChange={(v) => toggle.mutate(v)}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function ModelSettingsPane() {
@@ -327,10 +394,17 @@ function AdminSystemSettings() {
               <TabsTrigger value={SystemSettingsTab.ModelSettings}>
                 {t('admin.systemSettingsPage.modelSettings')}
               </TabsTrigger>
+              <TabsTrigger value={SystemSettingsTab.FileManagement}>
+                {t('admin.systemSettingsPage.fileManagement')}
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value={SystemSettingsTab.ModelSettings}>
               <ModelSettingsPane />
+            </TabsContent>
+
+            <TabsContent value={SystemSettingsTab.FileManagement}>
+              <FileManagementPane />
             </TabsContent>
           </Tabs>
         </CardContent>

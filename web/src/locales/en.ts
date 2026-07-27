@@ -3118,6 +3118,12 @@ Important structured information may include: names, dates, locations, events, k
         modelSettingsDescription:
           'Maintain the catalog of models exposed to users, with capability types and custom tags per model.',
         enabledTotal: 'Enabled / total',
+        fileManagement: 'File management',
+        fileManagementDescription:
+          'System-level settings for file preview and security.',
+        previewWatermark: 'Preview watermark',
+        previewWatermarkTip:
+          'When enabled, every preview (chat citations, knowledge base files, search results) overlays the current user’s employee id and nickname, making leaked screenshots traceable.',
       },
       registrationWhitelist: 'Registration whitelist',
       roles: 'Roles',

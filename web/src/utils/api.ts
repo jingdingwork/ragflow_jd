@@ -230,6 +230,7 @@ export default {
   createSystemToken: `${restAPIv1}/system/tokens`,
   removeSystemToken: `${restAPIv1}/system/tokens`,
   getSystemConfig: `${restAPIv1}/system/config`,
+  getPreviewWatermark: `${restAPIv1}/system/preview-watermark`,
   setLangfuseConfig: `${restAPIv1}/langfuse/api-key`,
 
   // flow
@@ -475,6 +476,8 @@ export default {
   adminGetSandboxConfig: `${restAPIv1}/admin/sandbox/config`,
   adminSetSandboxConfig: `${restAPIv1}/admin/sandbox/config`,
   adminTestSandboxConnection: `${restAPIv1}/admin/sandbox/test`,
+  adminGetVariables: `${restAPIv1}/admin/variables`,
+  adminSetVariable: `${restAPIv1}/admin/variables`,
 
   // Skill spaces
   skillSpaces: `${restAPIv1}/skills/spaces`,

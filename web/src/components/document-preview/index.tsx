@@ -1,5 +1,7 @@
+import { usePreviewWatermark } from '@/hooks/use-watermark-request';
 import { memo } from 'react';
 
+import { PreviewWatermark } from '@/components/preview-watermark';
 import CSVFileViewer from './csv-preview';
 import { DocPreviewer } from './doc-preview';
 import { ExcelCsvPreviewer } from './excel-preview';
@@ -22,8 +24,9 @@ const Preview = ({
   setWidthAndHeight,
   url,
 }: PreviewProps & Partial<IProps>) => {
+  const { active, text } = usePreviewWatermark();
   return (
-    <>
+    <PreviewWatermark active={active} text={text} className="h-full">
       {fileType === 'pdf' && highlights && setWidthAndHeight && (
         <section className="h-full">
           <PdfPreviewer
@@ -88,7 +91,7 @@ const Preview = ({
           <Md className={className} url={url} />
         </section>
       )}
-    </>
+    </PreviewWatermark>
   );
 };
 export default memo(Preview);

@@ -255,6 +255,11 @@ export default {
         modelSettingsDescription:
           '维护对用户开放的模型清单，为每个模型设置能力类型与自定义标签。',
         enabledTotal: '已启用 / 总数',
+        fileManagement: '文件管理',
+        fileManagementDescription: '文件预览与安全相关的系统级设置。',
+        previewWatermark: '预览水印',
+        previewWatermarkTip:
+          '开启后，聊天引用、知识库文件、搜索结果等所有预览页面会叠加当前用户的工号与昵称水印，便于截图溯源。',
       },
       registrationWhitelist: '注册白名单',
       roles: '角色',

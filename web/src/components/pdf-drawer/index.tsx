@@ -2,11 +2,13 @@ import {
   useGetChunkHighlights,
   useGetDocumentUrl,
 } from '@/hooks/use-document-request';
+import { usePreviewWatermark } from '@/hooks/use-watermark-request';
 import { IModalProps } from '@/interfaces/common';
 import { IReferenceChunk } from '@/interfaces/database/chat';
 import { IChunk } from '@/interfaces/database/dataset';
 import { cn } from '@/lib/utils';
 import PdfPreview from '../document-preview/pdf-preview';
+import { PreviewWatermark } from '../preview-watermark';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../ui/sheet';
 
 interface IProps extends IModalProps<any> {
@@ -26,6 +28,7 @@ export const PdfSheet = ({
   const getDocumentUrl = useGetDocumentUrl(documentId);
   const url = getDocumentUrl(documentId);
   const { highlights, setWidthAndHeight } = useGetChunkHighlights(chunk);
+  const { active, text } = usePreviewWatermark();
   return (
     <Sheet open onOpenChange={hideModal}>
       <SheetContent
@@ -39,12 +42,14 @@ export const PdfSheet = ({
           <SheetTitle>Document Previewer</SheetTitle>
         </SheetHeader>
         {url && documentId && (
-          <PdfPreview
-            className={'p-0 !h-[calc(100vh-80px)] w-full'}
-            highlights={highlights}
-            setWidthAndHeight={setWidthAndHeight}
-            url={url}
-          ></PdfPreview>
+          <PreviewWatermark active={active} text={text}>
+            <PdfPreview
+              className={'p-0 !h-[calc(100vh-80px)] w-full'}
+              highlights={highlights}
+              setWidthAndHeight={setWidthAndHeight}
+              url={url}
+            ></PdfPreview>
+          </PreviewWatermark>
         )}
       </SheetContent>
     </Sheet>

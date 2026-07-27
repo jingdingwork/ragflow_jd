@@ -17,6 +17,8 @@ import Md from '@/components/document-preview/md';
 import PdfPreview from '@/components/document-preview/pdf-preview';
 import { PptPreviewer } from '@/components/document-preview/ppt-preview';
 import { TxtPreviewer } from '@/components/document-preview/txt-preview';
+import { PreviewWatermark } from '@/components/preview-watermark';
+import { usePreviewWatermark } from '@/hooks/use-watermark-request';
 import { previewHtmlFile } from '@/utils/file-util';
 import { NoSaveGuard } from './no-save-guard';
 // import styles from './index.less';
@@ -48,6 +50,9 @@ const DocumentViewer = () => {
     },
   });
 
+  const { active: watermarkActive, text: watermarkText } =
+    usePreviewWatermark();
+
   if (ext === 'html' && documentId) {
     previewHtmlFile(documentId, resource);
     return;
@@ -55,30 +60,39 @@ const DocumentViewer = () => {
 
   return (
     <NoSaveGuard active={!!downloadDisabled}>
-      <section className="w-full h-full">
-        {Images.includes(ext!) && (
-          <div className="flex w-full h-full items-center justify-center">
-            <ImagePreviewer className="w-full !h-dvh p-5" url={previewUrl} />
-          </div>
-        )}
-        {(ext === 'md' || ext === 'mdx') && (
-          <Md url={previewUrl} className="!h-dvh p-5"></Md>
-        )}
-        {ext === 'txt' && <TxtPreviewer url={previewUrl}></TxtPreviewer>}
+      <PreviewWatermark
+        active={watermarkActive}
+        text={watermarkText}
+        className="w-full h-full"
+      >
+        <section className="w-full h-full">
+          {Images.includes(ext!) && (
+            <div className="flex w-full h-full items-center justify-center">
+              <ImagePreviewer className="w-full !h-dvh p-5" url={previewUrl} />
+            </div>
+          )}
+          {(ext === 'md' || ext === 'mdx') && (
+            <Md url={previewUrl} className="!h-dvh p-5"></Md>
+          )}
+          {ext === 'txt' && <TxtPreviewer url={previewUrl}></TxtPreviewer>}
 
-        {ext === 'pdf' && (
-          <PdfPreview url={previewUrl} className="!h-dvh p-5"></PdfPreview>
-        )}
-        {(ext === 'xlsx' || ext === 'xls') && (
-          <ExcelCsvPreviewer url={previewUrl}></ExcelCsvPreviewer>
-        )}
+          {ext === 'pdf' && (
+            <PdfPreview url={previewUrl} className="!h-dvh p-5"></PdfPreview>
+          )}
+          {(ext === 'xlsx' || ext === 'xls') && (
+            <ExcelCsvPreviewer url={previewUrl}></ExcelCsvPreviewer>
+          )}
 
-        {ext === 'docx' && <DocPreviewer url={previewUrl}></DocPreviewer>}
+          {ext === 'docx' && <DocPreviewer url={previewUrl}></DocPreviewer>}
 
-        {(ext === 'ppt' || ext === 'pptx') && (
-          <PptPreviewer url={previewUrl} className="!h-dvh p-5"></PptPreviewer>
-        )}
-      </section>
+          {(ext === 'ppt' || ext === 'pptx') && (
+            <PptPreviewer
+              url={previewUrl}
+              className="!h-dvh p-5"
+            ></PptPreviewer>
+          )}
+        </section>
+      </PreviewWatermark>
     </NoSaveGuard>
   );
 };
