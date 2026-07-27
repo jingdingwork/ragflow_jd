@@ -23,6 +23,7 @@ import {
   useComposeLlmOptionsByModelTypes,
   useFetchModelTags,
 } from '@/hooks/use-llm-request';
+import { useIsDeptAdmin } from '@/hooks/use-user-setting-request';
 import { cn } from '@/lib/utils';
 import { Bot, Check, ChevronDown, Library } from 'lucide-react';
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
@@ -339,6 +340,8 @@ export function ChatHeaderControls() {
   const { patchChat } = usePatchChat();
 
   const agentId = (data as { agent_id?: string })?.agent_id ?? '';
+  // The agent picker is only for department admins.
+  const isDeptAdmin = useIsDeptAdmin();
 
   const modelOptions = useComposeLlmOptionsByModelTypes([LlmModelType.Chat]);
   const tagsMap = useFetchModelTags();
@@ -407,11 +410,13 @@ export function ChatHeaderControls() {
           />
         </>
       )}
-      <ChatAgentSelect
-        value={agentId}
-        options={agentOptions}
-        onChange={handleAgentChange}
-      />
+      {isDeptAdmin && (
+        <ChatAgentSelect
+          value={agentId}
+          options={agentOptions}
+          onChange={handleAgentChange}
+        />
+      )}
     </div>
   );
 }

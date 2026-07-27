@@ -3,6 +3,7 @@ import { EmptyCardType } from '@/components/empty/constant';
 import { EmptyAppCard } from '@/components/empty/empty';
 import { HomeIcon } from '@/components/svg-icon';
 import { Segmented, SegmentedValue } from '@/components/ui/segmented';
+import { useIsDeptAdmin } from '@/hooks/use-user-setting-request';
 import { Routes } from '@/routes';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -45,14 +46,21 @@ export function Applications() {
     [navigate, val],
   );
 
+  const isDeptAdmin = useIsDeptAdmin();
+
+  // Agent & Memory tabs are only for department admins.
   const options = useMemo(
     () => [
       { value: Routes.Chats, label: t('header.chat') },
       { value: Routes.Searches, label: t('header.search') },
-      { value: Routes.Agents, label: t('header.flow') },
-      { value: Routes.Memories, label: t('header.memories') },
+      ...(isDeptAdmin
+        ? [
+            { value: Routes.Agents, label: t('header.flow') },
+            { value: Routes.Memories, label: t('header.memories') },
+          ]
+        : []),
     ],
-    [t],
+    [t, isDeptAdmin],
   );
 
   const handleChange = (path: SegmentedValue) => {

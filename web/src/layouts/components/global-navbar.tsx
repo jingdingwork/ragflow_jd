@@ -4,7 +4,10 @@ import { Link, useLocation } from 'react-router';
 
 import { LucideHouse } from 'lucide-react';
 
-import { useFetchUserInfo } from '@/hooks/use-user-setting-request';
+import {
+  useFetchUserInfo,
+  useIsDeptAdmin,
+} from '@/hooks/use-user-setting-request';
 import { cn } from '@/lib/utils';
 import { Routes } from '@/routes';
 import { supportsCssAnchor } from '@/utils/css-support';
@@ -43,6 +46,8 @@ const menuItems = [
     // Hover submenu under the Agent item. Clicking the Agent item itself still
     // navigates to the agent page; hovering reveals the memory entry.
     submenu: [{ path: Routes.Memories, name: 'header.memories' }],
+    // Agent & Memory are only for department admins.
+    deptAdminOnly: true,
   },
   // File manager is hidden for normal users; only superusers (admins) see it.
   {
@@ -53,20 +58,23 @@ const menuItems = [
   { path: Routes.Apps, name: 'header.apps' /* icon: LayoutGrid, */ },
 ];
 
-// Filter out admin-only entries (e.g. File manager) for non-superusers.
+// Filter out gated entries: admin-only (e.g. File manager) for non-superusers,
+// and dept-admin-only (Agent & Memory) for non-department-admins.
 function useVisibleMenuItems() {
   const {
     data: { is_superuser },
   } = useFetchUserInfo();
+  const isDeptAdmin = useIsDeptAdmin();
 
   return useMemo(
     () =>
       menuItems
         .filter((item) => !('adminOnly' in item) || is_superuser)
-        // Strip the flag so it is never spread onto the DOM <Link>.
+        .filter((item) => !('deptAdminOnly' in item) || isDeptAdmin)
+        // Strip the flags so they are never spread onto the DOM <Link>.
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        .map(({ adminOnly, ...item }: any) => item),
-    [is_superuser],
+        .map(({ adminOnly, deptAdminOnly, ...item }: any) => item),
+    [is_superuser, isDeptAdmin],
   );
 }
 

@@ -85,6 +85,18 @@ export const useCanManageKnowledge = (): boolean => {
   return Boolean((data as IUserInfo)?.is_dept_admin);
 };
 
+/**
+ * Whether the current user may see agent/memory features. Gated to department
+ * admins (set under 部门管理) — regular employees never see the Agent & Memory
+ * nav entries, the home-page Agent/Memory tabs, or the chat agent picker.
+ * Superusers always pass, so a system admin is never locked out.
+ */
+export const useIsDeptAdmin = (): boolean => {
+  const { data } = useFetchUserInfo();
+  const info = data as IUserInfo;
+  return Boolean(info?.is_dept_admin || info?.is_superuser);
+};
+
 export const useFetchTenantInfo = (
   showEmptyModelWarn = false,
 ): ResponseGetType<ITenantInfo> => {
