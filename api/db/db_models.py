@@ -1105,6 +1105,49 @@ class KbFolder(DataBaseModel):
         indexes = ((("kb_id", "path"), True),)
 
 
+class Announcement(DataBaseModel):
+    """System announcement shown to every user on the home page.
+
+    The body is stored as Markdown and rendered client-side. ``view_count`` is
+    the total number of opens (PV); ``viewer_count`` is the distinct number of
+    users who have opened it (UV, denormalized from ``AnnouncementView`` so the
+    admin list can show it without a per-row aggregate).
+    """
+
+    id = CharField(max_length=32, primary_key=True)
+    title = CharField(max_length=255, null=False, help_text="announcement title", index=True)
+    content = LongTextField(null=True, help_text="announcement body (Markdown source)")
+    is_pinned = BooleanField(null=False, default=False, help_text="pinned to the top of the list", index=True)
+    pop_enabled = BooleanField(null=False, default=True, help_text="auto-pop the latest one when entering home")
+    view_count = IntegerField(null=False, default=0, help_text="total opens (PV)")
+    viewer_count = IntegerField(null=False, default=0, help_text="distinct viewers (UV)")
+    created_by = CharField(max_length=32, null=False, help_text="admin user id who created it", index=True)
+    status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
+
+    class Meta:
+        db_table = "announcement"
+
+
+class AnnouncementView(DataBaseModel):
+    """Per-user read state for an announcement: dedup UV + acknowledgement.
+
+    A row is created the first time a user opens (or is auto-shown) an
+    announcement. ``acknowledged`` is set when the user clicks "I know it" so the
+    latest announcement no longer auto-pops for them — they can still reopen it
+    from the home-page list at any time.
+    """
+
+    id = CharField(max_length=32, primary_key=True)
+    announcement_id = CharField(max_length=32, null=False, help_text="announcement id", index=True)
+    user_id = CharField(max_length=32, null=False, help_text="viewer user id", index=True)
+    view_times = IntegerField(null=False, default=0, help_text="opens by this user")
+    acknowledged = BooleanField(null=False, default=False, help_text="clicked I-know-it; stops auto-popup", index=True)
+
+    class Meta:
+        db_table = "announcement_view"
+        indexes = ((("announcement_id", "user_id"), True),)
+
+
 class Task(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     doc_id = CharField(max_length=32, null=False, index=True)

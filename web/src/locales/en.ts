@@ -150,6 +150,8 @@ export default {
         helpTitle: 'Reopen the guide anytime',
         helpDesc:
           'Forgot how something works? Click this help icon to reopen the guide for the current page.',
+        announcements: 'Announcements',
+        announcementAck: 'I know it',
       },
       chat: {
         welcomeTitle: 'Start chatting with a model',
@@ -3083,6 +3085,32 @@ Important structured information may include: names, dates, locations, events, k
       userManagement: 'User management',
       departmentManagement: 'Department management',
       sandboxSettings: 'Sandbox settings',
+      announcementManagement: 'Announcements',
+      announcementPage: {
+        description:
+          'Create and manage home-page announcements, with pinning and view statistics.',
+        create: 'New announcement',
+        createTitle: 'New announcement',
+        editTitle: 'Edit announcement',
+        currentLatest: 'Current latest announcement',
+        title: 'Title',
+        titlePlaceholder: 'Enter the announcement title',
+        content: 'Body',
+        contentPlaceholder: 'Write the body in Markdown',
+        previewEmpty: 'Live preview shows here',
+        markdownHint:
+          'The body supports Markdown; a live preview is on the right.',
+        pinned: 'Pinned',
+        popEnabled: 'Auto-pop on entering home',
+        views: 'Views',
+        viewers: 'Viewers',
+        updateTime: 'Updated',
+        actions: 'Actions',
+        empty: 'No announcements yet',
+        deleteTitle: 'Delete announcement',
+        deleteConfirm:
+          'Delete the announcement "{{title}}"? This cannot be undone.',
+      },
       systemSettings: 'System settings',
       systemSettingsPage: {
         description: 'Manage system-level configuration.',

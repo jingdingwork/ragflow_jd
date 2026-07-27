@@ -1013,5 +1013,46 @@ export const rebuildDeptFolder = (id: string) =>
     api.adminRebuildDeptFolder(id),
   );
 
+export type Announcement = {
+  id: string;
+  title: string;
+  content: string;
+  is_pinned: boolean;
+  pop_enabled: boolean;
+  view_count: number;
+  viewer_count: number;
+  status: string;
+  created_by: string;
+  create_time: number;
+  update_time: number;
+};
+
+export type AnnouncementPayload = {
+  title: string;
+  content: string;
+  is_pinned?: boolean;
+  pop_enabled?: boolean;
+  status?: string;
+};
+
+export const listAnnouncements = () =>
+  request.get<ResponseData<Announcement[]>>(api.adminListAnnouncements);
+
+export const createAnnouncement = (params: AnnouncementPayload) =>
+  request.post<ResponseData<Announcement>>(api.adminCreateAnnouncement, params);
+
+export const updateAnnouncement = (
+  id: string,
+  params: Partial<AnnouncementPayload>,
+) => request.put<ResponseData<Announcement>>(api.adminAnnouncement(id), params);
+
+export const pinAnnouncement = (id: string, is_pinned: boolean) =>
+  request.post<ResponseData<Announcement>>(api.adminPinAnnouncement(id), {
+    is_pinned,
+  });
+
+export const deleteAnnouncement = (id: string) =>
+  request.delete<ResponseData<{ id: string }>>(api.adminAnnouncement(id));
+
 export const listDeptFolderFiles = (id: string) =>
   request.get<ResponseData<DeptFolderFile[]>>(api.adminDeptFolderFiles(id));

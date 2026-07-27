@@ -417,6 +417,18 @@ export default {
   adminDeptFolderFiles: (id: string) =>
     `${restAPIv1}/admin/dept-folders/${id}/files`,
 
+  adminListAnnouncements: `${restAPIv1}/admin/announcements`,
+  adminCreateAnnouncement: `${restAPIv1}/admin/announcements`,
+  adminAnnouncement: (id: string) => `${restAPIv1}/admin/announcements/${id}`,
+  adminPinAnnouncement: (id: string) =>
+    `${restAPIv1}/admin/announcements/${id}/pin`,
+
+  // User-side announcements (home page)
+  listAnnouncements: `${restAPIv1}/announcements`,
+  latestAnnouncement: `${restAPIv1}/announcements/latest`,
+  viewAnnouncement: (id: string) => `${restAPIv1}/announcements/${id}/view`,
+  ackAnnouncement: (id: string) => `${restAPIv1}/announcements/${id}/ack`,
+
   adminListServices: `${restAPIv1}/admin/services`,
   adminShowServiceDetails: (serviceId: string) =>
     `${restAPIv1}/admin/services/${serviceId}`,

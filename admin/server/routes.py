@@ -25,7 +25,7 @@ from flask_login import current_user, login_required, logout_user
 
 from auth import login_verify, login_admin, check_admin_auth
 from responses import success_response, error_response
-from services import UserMgr, DepartmentMgr, GlobalLLMMgr, ModelCatalogMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, KbPermissionMgr, RetrievalMgr, PromptMgr, FolderMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr
+from services import UserMgr, DepartmentMgr, GlobalLLMMgr, ModelCatalogMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, KbPermissionMgr, RetrievalMgr, PromptMgr, FolderMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr, AnnouncementMgr
 from roles import RoleMgr
 from api.common.exceptions import AdminException
 from common.versions import get_ragflow_version
@@ -345,6 +345,66 @@ def delete_prompt(template_id):
     try:
         res = PromptMgr.delete(template_id)
         return success_response(res, "Delete prompt template", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/announcements", methods=["GET"])
+@login_required
+@check_admin_auth
+def list_announcements():
+    try:
+        return success_response(AnnouncementMgr.list_all(), "List announcements", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/announcements", methods=["POST"])
+@login_required
+@check_admin_auth
+def create_announcement():
+    try:
+        data = request.get_json() or {}
+        user_id = getattr(current_user, "id", None) or "admin"
+        return success_response(AnnouncementMgr.create(data, user_id), "Create announcement", 0)
+    except ValueError as e:
+        return error_response(str(e), 400)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/announcements/<announcement_id>", methods=["PUT"])
+@login_required
+@check_admin_auth
+def update_announcement(announcement_id):
+    try:
+        data = request.get_json() or {}
+        return success_response(AnnouncementMgr.update(announcement_id, data), "Update announcement", 0)
+    except ValueError as e:
+        return error_response(str(e), 400)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/announcements/<announcement_id>/pin", methods=["POST"])
+@login_required
+@check_admin_auth
+def pin_announcement(announcement_id):
+    try:
+        data = request.get_json() or {}
+        return success_response(AnnouncementMgr.set_pinned(announcement_id, data), "Pin announcement", 0)
+    except ValueError as e:
+        return error_response(str(e), 400)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/announcements/<announcement_id>", methods=["DELETE"])
+@login_required
+@check_admin_auth
+def delete_announcement(announcement_id):
+    try:
+        return success_response(AnnouncementMgr.delete(announcement_id), "Delete announcement", 0)
     except Exception as e:
         return error_response(str(e), 500)
 

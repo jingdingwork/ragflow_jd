@@ -79,6 +79,7 @@ export enum Routes {
   AdminKbManagement = `${Admin}/kb-management`,
   AdminDeptFolders = `${Admin}/dept-folders`,
   AdminRetrievalTest = `${Admin}/retrieval-test`,
+  AdminAnnouncements = `${Admin}/announcements`,
   AdminSandboxSettings = `${Admin}/sandbox-settings`,
   AdminSystemSettings = `${Admin}/system-settings`,
   AdminWhitelist = `${Admin}/whitelist`,
@@ -427,6 +428,10 @@ const routeConfigOptions = [
               {
                 path: Routes.AdminRetrievalTest,
                 Component: () => import('@/pages/admin/retrieval-test'),
+              },
+              {
+                path: Routes.AdminAnnouncements,
+                Component: () => import('@/pages/admin/announcements'),
               },
               {
                 path: Routes.AdminSandboxSettings,

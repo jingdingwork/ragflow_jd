@@ -2256,3 +2256,33 @@ print("TEST_PASSED")
             import traceback
             error_details = traceback.format_exc()
             raise AdminException(f"Connection test failed: {str(e)}\\n\\nStack trace:\\n{error_details}")
+
+
+class AnnouncementMgr:
+    """Admin CRUD for home-page announcements. Read/view/ack for the user side
+    lives on the main API server (see api/apps)."""
+
+    @staticmethod
+    def _svc():
+        from api.db.services.announcement_service import AnnouncementService
+        return AnnouncementService
+
+    @staticmethod
+    def list_all():
+        return AnnouncementMgr._svc().list_admin()
+
+    @staticmethod
+    def create(data, user_id):
+        return AnnouncementMgr._svc().create(data, user_id)
+
+    @staticmethod
+    def update(announcement_id, data):
+        return AnnouncementMgr._svc().update(announcement_id, data)
+
+    @staticmethod
+    def set_pinned(announcement_id, data):
+        return AnnouncementMgr._svc().set_pinned(announcement_id, bool(data.get("is_pinned", True)))
+
+    @staticmethod
+    def delete(announcement_id):
+        return AnnouncementMgr._svc().remove(announcement_id)

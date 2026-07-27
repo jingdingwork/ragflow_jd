@@ -9,6 +9,7 @@ import {
   LucideFileText,
   LucideFolderSync,
   LucideLayoutGrid,
+  LucideMegaphone,
   LucideMessagesSquare,
   LucideMonitor,
   LucideNetwork,
@@ -89,6 +90,11 @@ const AdminNavigationLayout = () => {
         path: Routes.AdminRetrievalTest,
         name: t('admin.retrievalTest'),
         icon: <LucideSearchCheck className="size-[1em]" />,
+      },
+      {
+        path: Routes.AdminAnnouncements,
+        name: t('admin.announcementManagement'),
+        icon: <LucideMegaphone className="size-[1em]" />,
       },
       {
         path: Routes.AdminSandboxSettings,
