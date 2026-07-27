@@ -190,8 +190,15 @@ class OAuthClient:
 
     def normalize_user_info(self, user_info):
         email = user_info.get("email")
-        username = user_info.get("username", str(email).split("@")[0])
-        nickname = user_info.get("nickname", username)
+        # Employee id (工号). OIDC/Keycloak exposes it as `preferred_username`,
+        # NOT `username`. Never derive it from the email local-part here: a
+        # wrong value gets persisted by the login refresh (see
+        # api/apps/restful_apis/user_api.py) and clobbers the real employee id
+        # synced from the Keycloak directory. Leave it None when absent so the
+        # refresh step skips it.
+        username = user_info.get("preferred_username") or user_info.get("username") or None
+        # Nickname may safely fall back to the employee id, then email prefix.
+        nickname = user_info.get("nickname") or username or (str(email).split("@")[0] if email else "")
         avatar_url = user_info.get("avatar_url", None)
         if avatar_url is None:
             avatar_url = user_info.get("picture", "")

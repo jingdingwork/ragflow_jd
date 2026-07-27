@@ -283,9 +283,16 @@ async def oauth_callback(channel):
             except Exception as e:
                 logging.exception(e)
 
-        # Refresh the employee id (Keycloak username) on every login
+        # Refresh the employee id (Keycloak username) on every login, but never
+        # let a value that is merely the email local-part overwrite a real
+        # employee id already on file (guards against IdP claim gaps).
         oidc_username = getattr(user_info, "username", None)
-        if oidc_username and getattr(user, "username", None) != oidc_username:
+        email_local = (getattr(user, "email", "") or "").split("@")[0]
+        if (
+            oidc_username
+            and oidc_username != email_local
+            and getattr(user, "username", None) != oidc_username
+        ):
             user.username = oidc_username
 
         login_user(user)
@@ -358,6 +365,11 @@ async def oauth_login_with_password(channel):
                 code=RetCode.AUTHENTICATION_ERROR,
                 message="The identity provider did not return an email for this account!",
             )
+        # The employee id typed into the login form is authoritative. When the
+        # IdP userinfo/id_token doesn't carry the employee id, fall back to what
+        # the user entered — never to the email local-part.
+        if not getattr(user_info, "username", None):
+            user_info.username = username
     except Exception as e:
         logging.exception(e)
         return get_json_result(
@@ -428,8 +440,15 @@ async def oauth_login_with_password(channel):
             apply_department_models_to_user(user.id, department_id)
         except Exception as e:
             logging.exception(e)
+    # Never let a value that is merely the email local-part overwrite a real
+    # employee id already on file (guards against IdP claim gaps).
     oidc_username = getattr(user_info, "username", None)
-    if oidc_username and getattr(user, "username", None) != oidc_username:
+    email_local = (getattr(user, "email", "") or "").split("@")[0]
+    if (
+        oidc_username
+        and oidc_username != email_local
+        and getattr(user, "username", None) != oidc_username
+    ):
         user.username = oidc_username
 
     response_data = user.to_json()
