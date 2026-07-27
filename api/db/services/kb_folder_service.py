@@ -75,6 +75,42 @@ class KbFolderService:
         return nodes
 
     @classmethod
+    def overview_text(cls, kb_ids: list[str], max_folders: int = 40) -> str:
+        """Render the virtual-folder tree of one or more KBs as a compact,
+        indented text block for injection into a chat's knowledge context.
+
+        Folders from every KB are merged by path (counts summed). Returns an
+        empty string when there are no folders. Output is capped at
+        ``max_folders`` lines so it stays small in the prompt.
+        """
+        if not kb_ids:
+            return ""
+        merged: dict[str, int] = {}
+        for kb_id in kb_ids:
+            try:
+                for node in cls.list_tree(kb_id):
+                    merged[node["path"]] = merged.get(node["path"], 0) + int(node.get("count") or 0)
+            except Exception as e:
+                logging.warning("overview_text: list_tree failed for kb %s: %s", kb_id, e)
+        if not merged:
+            return ""
+
+        paths = sorted(merged)
+        total_folders = len(paths)
+        total_docs = sum(merged.values())
+        lines = ["【知识库目录结构（虚拟文件夹，仅为文件的归类目录，不是文档正文）】"]
+        for p in paths[:max_folders]:
+            depth = p.count("/")
+            name = p.rsplit("/", 1)[-1]
+            cnt = merged[p]
+            suffix = f"（{cnt} 个文件）" if cnt else ""
+            lines.append(f"{'  ' * depth}- {name}{suffix}")
+        if total_folders > max_folders:
+            lines.append(f"  …（另有 {total_folders - max_folders} 个子目录未列出）")
+        lines.append(f"共 {total_folders} 个目录、{total_docs} 个已归类文件。")
+        return "\n".join(lines)
+
+    @classmethod
     @DB.connection_context()
     def create(cls, kb_id: str, path: str, user_id: str) -> str:
         """Create a folder (and any missing ancestors) in the registry.

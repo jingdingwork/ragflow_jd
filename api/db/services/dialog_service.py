@@ -126,6 +126,58 @@ def _enrich_chunks_with_document_metadata(chunks, metadata_fields=None):
     enrich_chunks_with_document_metadata(chunks, metadata_fields)
 
 
+# Words that signal the user is asking about the knowledge base's folder/
+# directory organization rather than document content. Used to decide when to
+# inject the virtual-folder tree into the knowledge context.
+_FOLDER_QUERY_HINTS = ("文件夹", "目录", "子目录", "子文件夹", "归档", "folder", "directory")
+
+
+def _looks_like_folder_query(question: str) -> bool:
+    if not question:
+        return False
+    q = question.lower()
+    return any(h in question or h in q for h in _FOLDER_QUERY_HINTS)
+
+
+def _attach_folder_to_chunks(chunks, kb_ids):
+    """Attach each retrieved chunk's virtual-folder path to its
+    ``document_metadata`` (key ``文件夹``) so the model can cite which folder a
+    passage came from. Independent of the reference-metadata config; uses a
+    targeted per-doc lookup (no full-index scan). Best-effort and non-fatal.
+    """
+    if not chunks or not kb_ids:
+        return
+    from api.db.services.doc_metadata_service import DocMetadataService
+    from common.constants import DOC_FOLDER_META_KEY
+
+    by_kb: dict[str, set] = {}
+    for ck in chunks:
+        kid, did = ck.get("kb_id"), ck.get("doc_id")
+        if kid and did:
+            by_kb.setdefault(kid, set()).add(did)
+
+    folder_of: dict[str, str] = {}
+    for kid, dids in by_kb.items():
+        try:
+            metas = DocMetadataService.get_metadata_for_documents(list(dids), kid)
+        except Exception as e:
+            logging.warning("attach_folder: metadata lookup failed for kb %s: %s", kid, e)
+            continue
+        for did, meta in (metas or {}).items():
+            folder = meta.get(DOC_FOLDER_META_KEY) if isinstance(meta, dict) else None
+            if isinstance(folder, str) and folder.strip():
+                folder_of[did] = folder.strip()
+
+    for ck in chunks:
+        folder = folder_of.get(ck.get("doc_id"))
+        if not folder:
+            continue
+        dm = ck.get("document_metadata")
+        if not isinstance(dm, dict):
+            dm = {}
+            ck["document_metadata"] = dm
+        dm.setdefault("文件夹", folder)
+
 
 class DialogService(CommonService):
     model = Dialog
@@ -892,6 +944,14 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
         )
         _enrich_chunks_with_document_metadata(kbinfos.get("chunks", []), metadata_fields)
 
+    # Always tag retrieved chunks with their virtual-folder path so the model can
+    # attribute a passage to a folder, regardless of reference_metadata config.
+    if dialog.kb_ids:
+        try:
+            _attach_folder_to_chunks(kbinfos.get("chunks", []), dialog.kb_ids)
+        except Exception as e:
+            logging.warning("attach folder to chunks failed: %s", e)
+
     knowledges = kb_prompt(kbinfos, max_tokens)
     logging.debug("{}->{}".format(" ".join(questions), "\n->".join(knowledges)))
 
@@ -905,7 +965,26 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
     # hence no retrieval) is not mistaken for a knowledge-base miss.
     no_kb_hit = "knowledge" in param_keys and not knowledges
 
-    kwargs["knowledge"] = "\n------\n" + "\n\n------\n\n".join(knowledges)
+    # Folder-structure questions ("整理库里有哪些文件夹/目录"): inject the KB's
+    # virtual-folder tree so the model can enumerate/reason about folders. Only
+    # on folder-intent queries, to avoid diluting normal Q&A or wasting tokens.
+    folder_overview = ""
+    if dialog.kb_ids and questions and _looks_like_folder_query(questions[-1]):
+        try:
+            from api.db.services.kb_folder_service import KbFolderService
+
+            folder_overview = KbFolderService.overview_text(dialog.kb_ids)
+        except Exception as e:
+            logging.warning("folder overview failed: %s", e)
+    # A pure folder-structure question may retrieve no chunks; answer from the
+    # folder tree instead of falling back to the general-knowledge prompt.
+    if no_kb_hit and folder_overview:
+        no_kb_hit = False
+
+    knowledge_blocks = list(knowledges)
+    if folder_overview:
+        knowledge_blocks.insert(0, folder_overview)
+    kwargs["knowledge"] = "\n------\n" + "\n\n------\n\n".join(knowledge_blocks)
     gen_conf = dict(dialog.llm_setting or {})
     if llm_type == "chat":
         gen_conf = _apply_model_capabilities(gen_conf, chat_mdl.model_config.get("llm_name"), reasoning)
