@@ -13,7 +13,7 @@ export const useHandleUploadDocument = () => {
     hideModal: hideDocumentUploadModal,
     showModal: showDocumentUploadModal,
   } = useSetModalState();
-  const { uploadDocument, loading } = useUploadNextDocument();
+  const { uploadDocument, loading, progress } = useUploadNextDocument();
   const { runDocumentByIds } = useRunDocument();
 
   const onDocumentUploadOk = useCallback(
@@ -57,6 +57,7 @@ export const useHandleUploadDocument = () => {
 
   return {
     documentUploadLoading: loading,
+    documentUploadProgress: progress,
     onDocumentUploadOk,
     documentUploadVisible,
     hideDocumentUploadModal,

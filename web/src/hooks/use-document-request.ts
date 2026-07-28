@@ -61,9 +61,14 @@ export const enum DocumentApiAction {
   ParseDocument = 'parseDocument',
 }
 
+export type UploadProgress = { current: number; total: number };
+
 export const useUploadNextDocument = () => {
   const queryClient = useQueryClient();
   const { id } = useParams();
+  // Per-file upload progress, so a folder upload of many files shows how many
+  // have finished. `null` when no upload is in flight.
+  const [progress, setProgress] = useState<UploadProgress | null>(null);
 
   const {
     data,
@@ -89,6 +94,8 @@ export const useUploadNextDocument = () => {
       // a newline-joined message listing the failures otherwise.
       const succeeded: any[] = [];
       const errors: string[] = [];
+      const total = fileList.length;
+      setProgress({ current: 0, total });
 
       for (const file of fileList as any[]) {
         const formData = new FormData();
@@ -112,6 +119,9 @@ export const useUploadNextDocument = () => {
           console.warn(error);
           errors.push(`${file.name}: ${error}`);
         }
+        // Advance after each file finishes (success or failure) so the bar
+        // reflects "files processed", not "files succeeded".
+        setProgress((p) => (p ? { current: p.current + 1, total } : p));
       }
 
       if (succeeded.length > 0) {
@@ -130,9 +140,12 @@ export const useUploadNextDocument = () => {
         status: 0,
       };
     },
+    onSettled: () => {
+      setProgress(null);
+    },
   });
 
-  return { uploadDocument: mutateAsync, loading, data };
+  return { uploadDocument: mutateAsync, loading, data, progress };
 };
 
 export const useFetchDocumentList = (loop = true) => {

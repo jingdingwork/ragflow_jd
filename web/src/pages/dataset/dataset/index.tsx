@@ -51,6 +51,7 @@ export default function Dataset() {
     showDocumentUploadModal,
     onDocumentUploadOk,
     documentUploadLoading,
+    documentUploadProgress,
   } = useHandleUploadDocument();
   const { knowledgeBase } = useKnowledgeBaseContext();
   // Per-dataset gate: company-wide datasets are operable by their creator only.
@@ -350,6 +351,7 @@ export default function Dataset() {
             hideModal={hideDocumentUploadModal}
             onOk={onDocumentUploadOk}
             loading={documentUploadLoading}
+            progress={documentUploadProgress}
             showParseOnCreation
           ></FileUploadDialog>
         )}

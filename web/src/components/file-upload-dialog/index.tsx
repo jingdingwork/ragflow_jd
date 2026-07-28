@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { FileUploader } from '../file-uploader';
 import { RAGFlowFormItem } from '../ragflow-form';
 import { Form } from '../ui/form';
+import { Progress } from '../ui/progress';
 import { Switch } from '../ui/switch';
 
 function buildUploadFormSchema(t: TFunction) {
@@ -97,14 +98,24 @@ function UploadForm({ submit, showParseOnCreation }: UploadFormProps) {
 }
 
 type FileUploadDialogProps = IModalProps<UploadFormSchemaType> &
-  Pick<UploadFormProps, 'showParseOnCreation'>;
+  Pick<UploadFormProps, 'showParseOnCreation'> & {
+    // Per-file upload progress; when set and uploading, a progress bar shows
+    // how many of the batch have finished (useful for folder uploads).
+    progress?: { current: number; total: number } | null;
+  };
 export function FileUploadDialog({
   hideModal,
   onOk,
   loading,
   showParseOnCreation = false,
+  progress,
 }: FileUploadDialogProps) {
   const { t } = useTranslation();
+
+  const showProgress = !!loading && !!progress && progress.total > 0;
+  const percent = showProgress
+    ? Math.round((progress!.current / progress!.total) * 100)
+    : 0;
 
   return (
     <Dialog open onOpenChange={hideModal}>
@@ -126,6 +137,17 @@ export function FileUploadDialog({
           <TabsContent value="password">{t('common.comingSoon')}</TabsContent>
         </Tabs> */}
         <UploadForm submit={onOk!} showParseOnCreation={showParseOnCreation} />
+        {showProgress && (
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs text-text-secondary">
+              <span>{t('fileManager.uploading')}</span>
+              <span>
+                {progress!.current} / {progress!.total}
+              </span>
+            </div>
+            <Progress value={percent} className="h-2" />
+          </div>
+        )}
         <DialogFooter>
           <ButtonLoading type="submit" loading={loading} form={UploadFormId}>
             {t('common.save')}

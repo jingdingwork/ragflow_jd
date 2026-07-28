@@ -1913,6 +1913,7 @@ Example: Virtual Hosted Style`,
       pleaseUploadAtLeastOneFile: 'Please upload at least one file',
       fileTooLarge:
         'File {{name}} exceeds the {{size}} MB limit and was skipped',
+      uploading: 'Uploading',
     },
     flow: {
       preprocess: {
