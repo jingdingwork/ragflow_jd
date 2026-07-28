@@ -3417,6 +3417,11 @@ Important structured information may include: names, dates, locations, events, k
       appTypeExe: 'Desktop (installer)',
       appUrl: 'URL',
       appUrlRequired: 'URL is required for web applications',
+      appOpenMode: 'Open mode',
+      appOpenModeInline: 'Open inline',
+      appOpenModeNewTab: 'Open in new window',
+      appOpenModeHint:
+        'Inline embeds the page inside the portal; new window opens the URL directly in a new browser tab.',
       appSort: 'Sort order',
       appVisibility: 'Visibility',
       appVisibilityAll: 'Company-wide',

@@ -535,6 +535,11 @@ export default {
       appTypeExe: '桌面应用（安装包）',
       appUrl: '地址',
       appUrlRequired: 'Web 应用必须填写地址',
+      appOpenMode: '打开方式',
+      appOpenModeInline: '内联打开',
+      appOpenModeNewTab: '新窗口打开',
+      appOpenModeHint:
+        '内联打开在门户内嵌入页面；新窗口打开则在浏览器新标签页中直接跳转到该地址。',
       appSort: '排序',
       appVisibility: '可见范围',
       appVisibilityAll: '公司级',

@@ -971,6 +971,7 @@ class ApplicationMgr:
             "icon": app.icon,
             "app_type": app.app_type,
             "url": app.url,
+            "open_mode": app.open_mode,
             "visibility": app.visibility,
             "sort": app.sort,
             "status": app.status,
@@ -1024,6 +1025,9 @@ class ApplicationMgr:
         visibility = data.get("visibility", "dept")
         if visibility not in ("all", "dept"):
             raise AdminException("Invalid visibility", 400)
+        open_mode = data.get("open_mode", "inline")
+        if open_mode not in ("inline", "newtab"):
+            raise AdminException("Invalid open_mode", 400)
 
         app_id = get_uuid()
         ApplicationService.insert(
@@ -1033,6 +1037,7 @@ class ApplicationMgr:
             icon=data.get("icon") or "",
             app_type=app_type,
             url=(data.get("url") or "").strip(),
+            open_mode=open_mode,
             visibility=visibility,
             sort=int(data.get("sort", 0) or 0),
             status=StatusEnum.VALID.value,
@@ -1061,6 +1066,10 @@ class ApplicationMgr:
             if data["visibility"] not in ("all", "dept"):
                 raise AdminException("Invalid visibility", 400)
             patch["visibility"] = data["visibility"]
+        if "open_mode" in data:
+            if data["open_mode"] not in ("inline", "newtab"):
+                raise AdminException("Invalid open_mode", 400)
+            patch["open_mode"] = data["open_mode"]
         if "sort" in data:
             patch["sort"] = int(data.get("sort", 0) or 0)
         if "status" in data:

@@ -118,8 +118,15 @@ function AdminApplications() {
       </TableCell>
       <TableCell className="text-sm text-text-secondary">
         {app.app_type === 'web' ? (
-          <span className="truncate max-w-xs inline-block align-bottom">
-            {app.url || '-'}
+          <span className="flex items-center gap-1.5">
+            <span className="truncate max-w-xs inline-block align-bottom">
+              {app.url || '-'}
+            </span>
+            <Badge variant="outline" className="shrink-0 font-normal">
+              {app.open_mode === 'newtab'
+                ? t('admin.appOpenModeNewTab')
+                : t('admin.appOpenModeInline')}
+            </Badge>
           </span>
         ) : (
           <span>

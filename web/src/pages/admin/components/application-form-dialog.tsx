@@ -40,6 +40,7 @@ const EMPTY: ApplicationPayload = {
   description: '',
   app_type: 'web',
   url: '',
+  open_mode: 'inline',
   visibility: 'dept',
   sort: 0,
   department_ids: [],
@@ -68,6 +69,7 @@ export function ApplicationFormDialog({
       description: application.description ?? '',
       app_type: application.app_type,
       url: application.url ?? '',
+      open_mode: application.open_mode ?? 'inline',
       visibility: application.visibility,
       sort: application.sort ?? 0,
       department_ids: application.department_ids ?? [],
@@ -80,6 +82,7 @@ export function ApplicationFormDialog({
           description: d.description ?? '',
           app_type: d.app_type,
           url: d.url ?? '',
+          open_mode: d.open_mode ?? 'inline',
           visibility: d.visibility,
           sort: d.sort ?? 0,
           department_ids: d.department_ids ?? [],
@@ -170,16 +173,41 @@ export function ApplicationFormDialog({
             </div>
 
             {form.app_type === 'web' ? (
-              <div className="space-y-2">
-                <Label>
-                  {t('admin.appUrl')} <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  placeholder="https://app.example.com"
-                  value={form.url}
-                  onChange={(e) => patch({ url: e.target.value })}
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label>
+                    {t('admin.appUrl')} <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    placeholder="https://app.example.com"
+                    value={form.url}
+                    onChange={(e) => patch({ url: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>{t('admin.appOpenMode')}</Label>
+                  <RadioGroup
+                    className="flex gap-6"
+                    value={form.open_mode ?? 'inline'}
+                    onValueChange={(v) =>
+                      patch({ open_mode: v as 'inline' | 'newtab' })
+                    }
+                  >
+                    <label className="flex items-center gap-2 cursor-pointer text-sm">
+                      <RadioGroupItem value="inline" />
+                      {t('admin.appOpenModeInline')}
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-sm">
+                      <RadioGroupItem value="newtab" />
+                      {t('admin.appOpenModeNewTab')}
+                    </label>
+                  </RadioGroup>
+                  <p className="text-xs text-text-secondary">
+                    {t('admin.appOpenModeHint')}
+                  </p>
+                </div>
+              </>
             ) : (
               <p className="text-xs text-text-secondary">
                 {isEdit

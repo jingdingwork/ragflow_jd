@@ -835,6 +835,7 @@ class Application(DataBaseModel):
     icon = TextField(null=True, help_text="icon url or base64")
     app_type = CharField(max_length=16, null=False, help_text="web | exe", default="web", index=True)
     url = CharField(max_length=1024, null=True, help_text="access URL for web-type applications")
+    open_mode = CharField(max_length=16, null=False, help_text="inline | newtab (web apps only)", default="inline")
     visibility = CharField(max_length=16, null=False, help_text="all | dept", default="dept", index=True)
     sort = IntegerField(null=False, help_text="display order, ascending", default=0, index=True)
     status = CharField(max_length=1, null=True, help_text="is it on-shelf(0: off, 1: on)", default="1", index=True)
@@ -2013,6 +2014,7 @@ def migrate_db():
     alter_db_add_column(migrator, "shared_conversation", "sort", IntegerField(null=False, help_text="display order within the share zone, ascending", default=0, index=True))
     alter_db_add_column(migrator, "prompt_template", "created_by", CharField(max_length=32, null=True, help_text="owner user id for personal-scope templates", index=True))
     alter_db_add_column(migrator, "department_llm_model", "model_types", CharField(max_length=128, null=False, default="", help_text="admin-assigned comma-separated capability tags"))
+    alter_db_add_column(migrator, "application", "open_mode", CharField(max_length=16, null=False, help_text="inline | newtab (web apps only)", default="inline"))
     migrate_department_chat_factory()
     logging.disable(logging.NOTSET)
     # this is after re-enabling logging to allow logging changed user emails

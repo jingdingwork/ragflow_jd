@@ -18,6 +18,8 @@ export type UserApplication = {
   icon: string | null;
   app_type: 'web' | 'exe';
   url: string | null;
+  /** Web apps only: 'inline' embeds in an iframe, 'newtab' opens a new window. */
+  open_mode: 'inline' | 'newtab';
   sort: number;
   latest_version: UserApplicationVersion | null;
   versions: UserApplicationVersion[];

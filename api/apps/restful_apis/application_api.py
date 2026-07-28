@@ -70,6 +70,7 @@ def my_applications():
                     "icon": app.icon,
                     "app_type": app.app_type,
                     "url": app.url,
+                    "open_mode": app.open_mode,
                     "sort": app.sort,
                     "latest_version": _version_to_dict(latest) if latest else None,
                     "versions": [_version_to_dict(v) for v in versions],
@@ -128,6 +129,7 @@ def application_catalog():
                     "app_type": app.app_type,
                     # Withhold the entry point from users without permission.
                     "url": app.url if accessible else None,
+                    "open_mode": app.open_mode,
                     "sort": app.sort,
                     "visibility": app.visibility,
                     "accessible": accessible,

@@ -10,6 +10,7 @@ import {
   LucideBuilding2,
   LucideChevronRight,
   LucideDownload,
+  LucideExternalLink,
   LucideInbox,
   LucideLock,
   LucidePackage,
@@ -221,6 +222,12 @@ function ApplicationsPortal() {
   const handleOpen = async (app: CatalogApplication) => {
     if (!app.accessible) return;
     if (app.app_type === 'web') {
+      // Admin decides how a web app opens: 'newtab' launches the URL in a new
+      // browser window; 'inline' (default) embeds it in the in-portal viewer.
+      if (app.open_mode === 'newtab') {
+        if (app.url) window.open(app.url, '_blank', 'noopener');
+        return;
+      }
       navigate(`${Routes.AppView}/${app.id}`);
       return;
     }
@@ -332,7 +339,11 @@ function ApplicationsPortal() {
                 {app.app_type === 'web' ? (
                   <>
                     {t('applications.open')}
-                    <LucideArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                    {app.open_mode === 'newtab' ? (
+                      <LucideExternalLink className="size-3.5" />
+                    ) : (
+                      <LucideArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                    )}
                   </>
                 ) : (
                   <>
