@@ -766,10 +766,24 @@ def list_ingestion_logs(
         page_size,
     )
 
+    # A log's operation_status is stored numerically ("0".."5", the TaskStatus
+    # values copied from document.run), but the frontend filters and renders by
+    # name ("UNSTART".."FAIL"). Without translation the status filter matches
+    # nothing (e.g. "FAIL" vs stored "4") and the status column can't be mapped.
+    # Convert names -> numeric for the query, and numeric -> names on the way
+    # back. Both directions accept either form so mixed input still works.
+    _STATUS_NAME_TO_NUM = {"UNSTART": "0", "RUNNING": "1", "CANCEL": "2", "DONE": "3", "FAIL": "4", "SCHEDULE": "5"}
+    _STATUS_NUM_TO_NAME = {v: k for k, v in _STATUS_NAME_TO_NUM.items()}
+    status_filter = [_STATUS_NAME_TO_NUM.get(str(s), str(s)) for s in (operation_status or [])]
+
     if log_type == "file":
-        logs, total = PipelineOperationLogService.get_file_logs_by_kb_id(dataset_id, page, page_size, orderby, desc, keywords, operation_status or [], None, None, create_date_from, create_date_to)
+        logs, total = PipelineOperationLogService.get_file_logs_by_kb_id(dataset_id, page, page_size, orderby, desc, keywords, status_filter, None, None, create_date_from, create_date_to)
     else:
-        logs, total = PipelineOperationLogService.get_dataset_logs_by_kb_id(dataset_id, page, page_size, orderby, desc, operation_status or [], create_date_from, create_date_to, keywords)
+        logs, total = PipelineOperationLogService.get_dataset_logs_by_kb_id(dataset_id, page, page_size, orderby, desc, status_filter, create_date_from, create_date_to, keywords)
+    for lg in logs:
+        raw = lg.get("operation_status")
+        if raw is not None:
+            lg["operation_status"] = _STATUS_NUM_TO_NAME.get(str(raw), raw)
     return True, {"total": total, "logs": logs}
 
 
