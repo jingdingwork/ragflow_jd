@@ -1020,7 +1020,13 @@ def _get_docs_with_request(req, dataset_id:str):
             else:
                 doc_ids_filter = folder_doc_ids or ["-999"]
         elif not folder_recursive:
-            exclude_doc_ids = DocMetadataService.get_foldered_doc_ids(dataset_id) or None
+            # At root we normally hide docs that live in subfolders. But when a
+            # content filter is active (status / type / suffix / keywords) the
+            # user is searching the whole KB, so files buried in folders — e.g.
+            # a Failed doc under "公司HSE SOP/…" — must still appear.
+            has_content_filter = bool(run_status_converted or types or suffix or keywords)
+            if not has_content_filter:
+                exclude_doc_ids = DocMetadataService.get_foldered_doc_ids(dataset_id) or None
 
     docs, total = DocumentService.get_by_kb_id(dataset_id, page, page_size, orderby, desc, keywords, run_status_converted, types, suffix,
                                                name=doc_name, doc_ids=doc_ids_filter, return_empty_metadata=return_empty_metadata,

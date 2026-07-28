@@ -1916,6 +1916,8 @@ Example: Virtual Hosted Style`,
       fileTooLarge:
         'File {{name}} exceeds the {{size}} MB limit and was skipped',
       uploading: 'Uploading',
+      skippedTempFiles:
+        'Skipped {{count}} temp/lock file(s) (e.g. Office "~$" files)',
     },
     flow: {
       preprocess: {

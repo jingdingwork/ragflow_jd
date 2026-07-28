@@ -22,6 +22,15 @@ function isFileWithPreview(file: File): file is File & { preview: string } {
   return 'preview' in file && typeof file.preview === 'string';
 }
 
+// Office/LibreOffice owner-lock and temp files (e.g. "~$report.docx",
+// ".~lock.report.docx#"). A Word "~$" file is a ~160-byte lock stub, not a
+// zip, so it can never be parsed ("File is not a zip file"). Drop these from
+// uploads (especially folder uploads) so they never reach the knowledge base.
+function isTempOrLockFile(name: string): boolean {
+  const base = (name || '').split(/[\\/]/).pop() || '';
+  return base.startsWith('~$') || base.startsWith('.~lock.');
+}
+
 interface FileCardProps {
   file: File;
   onRemove: () => void;
@@ -208,7 +217,19 @@ export function FileUploader(props: FileUploaderProps) {
   const reachesMaxFileCount = (files?.length ?? 0) >= maxFileCount;
 
   const processFiles = React.useCallback(
-    (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
+    (incomingFiles: File[], rejectedFiles: FileRejection[]) => {
+      // Drop Office/LibreOffice temp-lock files (e.g. "~$foo.docx") up front so
+      // a folder upload never carries them into the knowledge base.
+      const skippedTemp = incomingFiles.filter((f) => isTempOrLockFile(f.name));
+      const acceptedFiles = incomingFiles.filter(
+        (f) => !isTempOrLockFile(f.name),
+      );
+      if (skippedTemp.length > 0) {
+        toast.info(
+          t('fileManager.skippedTempFiles', { count: skippedTemp.length }),
+        );
+      }
+
       if (!multiple && maxFileCount === 1 && acceptedFiles.length > 1) {
         toast.error('Cannot upload more than 1 file at a time');
         return;

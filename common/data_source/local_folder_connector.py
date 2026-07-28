@@ -94,6 +94,16 @@ class LocalFolderConnector(LoadConnector, PollConnector, SlimConnectorWithPermSy
     def _is_excluded_dir(self, name: str) -> bool:
         return name.lower() in self.exclude_dirs
 
+    @staticmethod
+    def _is_temp_file(name: str) -> bool:
+        """Office/LibreOffice owner-lock and temp files that are not real docs.
+
+        Opening a Word/Excel/PowerPoint file makes a hidden ``~$`` owner file
+        (a ~160-byte lock stub, not a zip), and LibreOffice makes ``.~lock.*#``.
+        Ingesting them fails ("File is not a zip file"), so skip them entirely.
+        """
+        return name.startswith("~$") or name.startswith(".~lock.")
+
     def _iter_files(self) -> Iterator[tuple[str, str, os.stat_result]]:
         """Yield ``(abs_path, rel_path, stat_result)`` for every supported file."""
         if self.recursive:
@@ -114,6 +124,8 @@ class LocalFolderConnector(LoadConnector, PollConnector, SlimConnectorWithPermSy
             if any(self._is_excluded_dir(part) for part in self._rel_path(dir_path).split("/")):
                 continue
             for file_name in filenames:
+                if self._is_temp_file(file_name):
+                    continue
                 if not self._is_supported_file(file_name):
                     continue
                 abs_path = os.path.join(dir_path, file_name)

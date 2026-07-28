@@ -2088,6 +2088,8 @@ NER：使用 spaCy NER 和基于规则的关键词提取来抽取实体和关系
       pleaseUploadAtLeastOneFile: '请上传至少一个文件',
       fileTooLarge: '文件 {{name}} 超过 {{size}}MB 上限，已跳过',
       uploading: '正在上传',
+      skippedTempFiles:
+        '已自动跳过 {{count}} 个临时/锁定文件（如 ~$ 开头的 Office 临时文件）',
     },
     flow: {
       preprocess: {

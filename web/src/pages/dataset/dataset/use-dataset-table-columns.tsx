@@ -33,6 +33,10 @@ type UseDatasetTableColumnsType = UseChangeDocumentParserShowType &
     canManage?: boolean;
     // When true, the KB blocks file downloads: hide the download action.
     downloadDisabled?: boolean;
+    // Visible, non-empty folder rows the header "select all" should also cover.
+    selectableFolderPaths?: string[];
+    selectedFolderPaths?: string[];
+    onSelectAllFolders?: (checked: boolean, paths: string[]) => void;
   };
 
 export function useDatasetTableColumns({
@@ -43,6 +47,9 @@ export function useDatasetTableColumns({
   datasetId,
   canManage = true,
   downloadDisabled = false,
+  selectableFolderPaths = [],
+  selectedFolderPaths = [],
+  onSelectAllFolders,
 }: UseDatasetTableColumnsType) {
   const { t } = useTranslation('translation', {
     keyPrefix: 'knowledgeDetails',
@@ -54,16 +61,35 @@ export function useDatasetTableColumns({
   const columns: ColumnDef<IDocumentInfo>[] = [
     {
       id: 'select',
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && 'indeterminate')
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      ),
+      header: ({ table }) => {
+        const hasRows = table.getRowModel().rows.length > 0;
+        const hasFolders = selectableFolderPaths.length > 0;
+        const rowsAll = table.getIsAllPageRowsSelected();
+        const rowsSome = table.getIsSomePageRowsSelected();
+        const foldersAll =
+          hasFolders &&
+          selectableFolderPaths.every((p) => selectedFolderPaths.includes(p));
+        const foldersSome = selectableFolderPaths.some((p) =>
+          selectedFolderPaths.includes(p),
+        );
+        // Checked only when every selectable file row AND folder row is on;
+        // indeterminate when a partial mix is selected.
+        const allChecked =
+          (hasRows || hasFolders) &&
+          (!hasRows || rowsAll) &&
+          (!hasFolders || foldersAll);
+        const someChecked = rowsAll || rowsSome || foldersAll || foldersSome;
+        return (
+          <Checkbox
+            checked={allChecked ? true : someChecked ? 'indeterminate' : false}
+            onCheckedChange={(value) => {
+              table.toggleAllPageRowsSelected(!!value);
+              onSelectAllFolders?.(!!value, selectableFolderPaths);
+            }}
+            aria-label="Select all"
+          />
+        );
+      },
       cell: ({ row }) => (
         <Checkbox
           checked={row.getIsSelected()}

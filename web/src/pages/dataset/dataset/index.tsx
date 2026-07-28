@@ -78,6 +78,11 @@ export default function Dataset() {
     () => setSelectedFolderPaths([]),
     [],
   );
+  // "Select all" in the table header also toggles the visible folder rows, so a
+  // whole-page select covers subfolders (and their files) too.
+  const selectAllFolders = useCallback((checked: boolean, paths: string[]) => {
+    setSelectedFolderPaths(checked ? paths : []);
+  }, []);
   // Prune selections whose folder rows no longer exist (e.g. after navigating).
   useEffect(() => {
     setSelectedFolderPaths((prev) => {
@@ -333,6 +338,7 @@ export default function Dataset() {
           onNavigateFolder={navigateFolder}
           selectedFolderPaths={selectedFolderPaths}
           onToggleFolderSelect={toggleFolderSelect}
+          onSelectAllFolders={selectAllFolders}
         />
 
         {moveOpen && (

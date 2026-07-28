@@ -54,6 +54,8 @@ export type DatasetTableProps = Pick<
     // Folder selection (batch-operate a whole folder's files).
     selectedFolderPaths?: string[];
     onToggleFolderSelect?: (path: string, checked: boolean) => void;
+    // Header "select all" also toggles the visible folder rows.
+    onSelectAllFolders?: (checked: boolean, paths: string[]) => void;
   };
 
 export function DatasetTable({
@@ -67,6 +69,7 @@ export function DatasetTable({
   onNavigateFolder,
   selectedFolderPaths = [],
   onToggleFolderSelect,
+  onSelectAllFolders,
 }: DatasetTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -115,6 +118,16 @@ export function DatasetTable({
     !!onNavigateFolder &&
     folderChildren.length > 0;
 
+  // Folders selectable by the header "select all": only the visible ones that
+  // actually contain files (empty folders have a disabled checkbox).
+  const selectableFolderPaths = useMemo(
+    () =>
+      showFolders
+        ? folderChildren.filter((f) => f.total > 0).map((f) => f.path)
+        : [],
+    [showFolders, folderChildren],
+  );
+
   const columns = useDatasetTableColumns({
     showChangeParserModal,
     showRenameModal,
@@ -123,6 +136,9 @@ export function DatasetTable({
     datasetId: knowledgeBase?.id,
     canManage,
     downloadDisabled,
+    selectableFolderPaths,
+    selectedFolderPaths,
+    onSelectAllFolders,
   });
 
   const currentPagination = useMemo(() => {
