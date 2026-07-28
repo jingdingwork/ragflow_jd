@@ -520,12 +520,16 @@ class FileService(CommonService):
 
         err, files = [], []
         for idx, file in enumerate(file_objs):
-            # Per-file relative path (folder upload) wins over the shared
-            # parent_path; fall back to the shared folder otherwise.
+            # Per-file relative path (folder upload) nests under the shared
+            # parent_path; fall back to the shared folder alone otherwise.
             rel_path = file_paths[idx] if file_paths and idx < len(file_paths) else None
             if rel_path:
-                item_meta_folder = folder_from_relative_path(rel_path)
-                item_storage_folder = sanitize_path(folder_from_relative_path(rel_path))
+                # A folder-drag upload keeps its own subtree, but nested under
+                # the folder the user is currently browsing (parent_path), so
+                # dragging "docs/" into folder "A" yields "A/docs/...", not root.
+                rel_folder = folder_from_relative_path(rel_path)
+                item_meta_folder = normalize_folder_path(f"{default_meta_folder}/{rel_folder}")
+                item_storage_folder = sanitize_path(f"{safe_parent_path}/{rel_folder}")
             else:
                 item_meta_folder = default_meta_folder
                 item_storage_folder = safe_parent_path

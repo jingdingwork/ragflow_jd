@@ -66,6 +66,9 @@ export type UploadProgress = { current: number; total: number };
 export const useUploadNextDocument = () => {
   const queryClient = useQueryClient();
   const { id } = useParams();
+  // Current virtual folder ("" = root); new uploads land here instead of
+  // always at the root. Read live so it reflects the folder open at click time.
+  const [searchParams] = useSearchParams();
   // Per-file upload progress, so a folder upload of many files shows how many
   // have finished. `null` when no upload is in flight.
   const [progress, setProgress] = useState<UploadProgress | null>(null);
@@ -95,6 +98,9 @@ export const useUploadNextDocument = () => {
       const succeeded: any[] = [];
       const errors: string[] = [];
       const total = fileList.length;
+      // Folder the user is currently browsing; blank = root. Plain uploads land
+      // here; folder-drag uploads nest their own subtree beneath it (backend).
+      const parentPath = searchParams.get('folder') ?? '';
       setProgress({ current: 0, total });
 
       for (const file of fileList as any[]) {
@@ -104,6 +110,10 @@ export const useUploadNextDocument = () => {
         // plain file picks have none. Send one aligned `file_path` per `file`
         // so the backend can persist each document's virtual folder.
         formData.append('file_path', file.webkitRelativePath || '');
+        // Target the currently-open folder so additions stay in it.
+        if (parentPath) {
+          formData.append('parent_path', parentPath);
+        }
 
         try {
           const ret = await uploadDocument(id, formData);

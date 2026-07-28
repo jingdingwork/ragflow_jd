@@ -17,6 +17,7 @@ import {
 import { Folder, MoreVertical } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { MoveFolderDialog } from './move-folder-dialog';
 
 type FolderRowsProps = {
   items: IFolderChild[];
@@ -42,6 +43,7 @@ export function FolderRows({
   const { renameFolder, loading: renaming } = useRenameFolder();
   const { deleteFolder } = useDeleteFolder();
   const [renameTarget, setRenameTarget] = useState<IFolderChild | null>(null);
+  const [moveTarget, setMoveTarget] = useState<IFolderChild | null>(null);
 
   if (items.length === 0) return null;
 
@@ -113,6 +115,14 @@ export function FolderRows({
                       >
                         {t('knowledgeDetails.folder.rename')}
                       </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMoveTarget(node);
+                        }}
+                      >
+                        {t('knowledgeDetails.folder.move')}
+                      </DropdownMenuItem>
                       <ConfirmDeleteDialog
                         title={
                           node.total > 0
@@ -150,6 +160,13 @@ export function FolderRows({
           onOk={onRenameOk}
           loading={renaming}
           title={t('knowledgeDetails.folder.rename')}
+        />
+      )}
+
+      {moveTarget && (
+        <MoveFolderDialog
+          folder={moveTarget}
+          hideModal={() => setMoveTarget(null)}
         />
       )}
     </>

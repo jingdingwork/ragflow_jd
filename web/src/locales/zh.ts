@@ -955,6 +955,8 @@ export default {
           '该文件夹(含子文件夹)下有 {{count}} 个文件,删除文件夹将一并永久删除这些文件及其解析/切片结果,不可恢复。确定删除?',
         moveTo: '移动到…',
         moveTitle: '移动文件',
+        move: '移动',
+        moveFolderTitle: '移动文件夹「{{name}}」',
         selectTarget: '选择目标文件夹',
         pathLabel: '文件夹',
         itemCount: '{{count}} 项',
