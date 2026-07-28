@@ -73,34 +73,62 @@ export const useUploadNextDocument = () => {
     mutationKey: [DocumentApiAction.UploadDocument],
     mutationFn: async (fileList) => {
       if (!id) {
-        return { code: 500, message: 'Dataset ID is required' };
+        return {
+          code: 500,
+          data: [],
+          message: 'Dataset ID is required',
+          status: 0,
+        };
       }
-      const formData = new FormData();
-      fileList.forEach((file: any) => {
+
+      // Upload one request per file so a large batch is never blocked by the
+      // single-request body-size cap (nginx / MAX_CONTENT_LENGTH). The number
+      // of files is therefore unbounded; each file is still size-capped
+      // server-side (per-file limit). Results are aggregated back into the
+      // shape callers expect: code 0 when every file succeeded, code 500 with
+      // a newline-joined message listing the failures otherwise.
+      const succeeded: any[] = [];
+      const errors: string[] = [];
+
+      for (const file of fileList as any[]) {
+        const formData = new FormData();
         formData.append('file', file);
         // Folder uploads (webkitdirectory) carry the file's relative path here;
         // plain file picks have none. Send one aligned `file_path` per `file`
         // so the backend can persist each document's virtual folder.
         formData.append('file_path', file.webkitRelativePath || '');
-      });
 
-      try {
-        const ret = await uploadDocument(id, formData);
-        const code = get(ret, 'code');
-
-        if (code === 0 || code === 500) {
-          queryClient.invalidateQueries({
-            queryKey: [DocumentApiAction.FetchDocumentList],
-          });
+        try {
+          const ret = await uploadDocument(id, formData);
+          if (get(ret, 'code') === 0) {
+            const data = get(ret, 'data');
+            if (Array.isArray(data)) {
+              succeeded.push(...data);
+            }
+          } else {
+            errors.push(get(ret, 'message') || `${file.name}: upload failed`);
+          }
+        } catch (error) {
+          console.warn(error);
+          errors.push(`${file.name}: ${error}`);
         }
-        return ret;
-      } catch (error) {
-        console.warn(error);
-        return {
-          code: 500,
-          message: error + '',
-        };
       }
+
+      if (succeeded.length > 0) {
+        queryClient.invalidateQueries({
+          queryKey: [DocumentApiAction.FetchDocumentList],
+        });
+      }
+
+      if (errors.length === 0) {
+        return { code: 0, data: succeeded, message: '', status: 0 };
+      }
+      return {
+        code: 500,
+        data: succeeded,
+        message: errors.join('\n'),
+        status: 0,
+      };
     },
   });
 

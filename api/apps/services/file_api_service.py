@@ -18,6 +18,7 @@ import os
 import pathlib
 
 from api.common.check_team_permission import check_file_team_permission, check_file_department_manageable
+from api.constants import MAX_SINGLE_FILE_SIZE
 from api.db import FileType, TenantPermission
 from api.db.services import duplicate_name
 from api.db.services.document_service import DocumentService
@@ -82,6 +83,9 @@ async def upload_file(tenant_id: str, pf_id: str, file_objs: list):
         while await thread_pool_exec(settings.STORAGE_IMPL.obj_exist, last_folder.id, location):
             location += "_"
         blob = await thread_pool_exec(file_obj.read)
+        # Per-file size cap. Count is unlimited; only the single-file size is enforced.
+        if len(blob) > MAX_SINGLE_FILE_SIZE:
+            return False, f"File '{file_obj.filename}' is too large. Each file must be {MAX_SINGLE_FILE_SIZE // (1024 * 1024)} MB or less."
         filename = await thread_pool_exec(
             duplicate_name, FileService.query, name=file_obj_names[file_len - 1], parent_id=last_folder.id
         )

@@ -13,6 +13,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import os
+
 NAME_LENGTH_LIMIT = 2**10
 
 IMG_BASE64_PREFIX = "data:image/png;base64,"
@@ -26,3 +28,8 @@ DATASET_NAME_LIMIT = 128
 FILE_NAME_LEN_LIMIT = 255
 MEMORY_NAME_LIMIT = 128
 MEMORY_SIZE_LIMIT = 10*1024*1024 # Byte
+
+# Per-file upload size cap in bytes. Each uploaded file must be at most this
+# large; the number of files per upload is NOT limited. Configurable via the
+# MAX_SINGLE_FILE_SIZE_MB env var (default 100 MB).
+MAX_SINGLE_FILE_SIZE = int(os.environ.get("MAX_SINGLE_FILE_SIZE_MB", 100)) * 1024 * 1024

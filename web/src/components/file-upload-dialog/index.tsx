@@ -86,6 +86,7 @@ function UploadForm({ submit, showParseOnCreation }: UploadFormProps) {
               value={field.value}
               onValueChange={field.onChange}
               accept={{}}
+              maxSize={100 * 1024 * 1024}
               data-testid="dataset-upload-dropzone"
             />
           )}

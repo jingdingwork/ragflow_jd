@@ -24,7 +24,7 @@ from peewee import OperationalError
 from pydantic import ValidationError
 
 from api.apps import current_user, login_required
-from api.constants import FILE_NAME_LEN_LIMIT, IMG_BASE64_PREFIX
+from api.constants import FILE_NAME_LEN_LIMIT, IMG_BASE64_PREFIX, MAX_SINGLE_FILE_SIZE
 from api.apps.services.document_api_service import validate_document_update_fields, map_doc_keys, \
     map_doc_keys_with_run_status, update_document_name_only, update_chunk_method, update_document_status_only, \
     reset_document_for_reparse
@@ -750,6 +750,15 @@ async def _upload_local_documents(kb, tenant_id):
             return get_error_data_result(message="No file selected!", code=RetCode.ARGUMENT_ERROR)
         if len(file_obj.filename.encode("utf-8")) > FILE_NAME_LEN_LIMIT:
             msg = f"File name must be {FILE_NAME_LEN_LIMIT} bytes or less."
+            logging.error(msg)
+            return get_error_data_result(message=msg, code=RetCode.ARGUMENT_ERROR)
+        # Per-file size cap. Count is unlimited; only the single-file size is
+        # enforced. Measure via seek/tell so the stream is not consumed.
+        file_obj.seek(0, 2)
+        file_size = file_obj.tell()
+        file_obj.seek(0)
+        if file_size > MAX_SINGLE_FILE_SIZE:
+            msg = f"File '{file_obj.filename}' is too large. Each file must be {MAX_SINGLE_FILE_SIZE // (1024 * 1024)} MB or less."
             logging.error(msg)
             return get_error_data_result(message=msg, code=RetCode.ARGUMENT_ERROR)
 

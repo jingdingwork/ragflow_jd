@@ -1,3 +1,4 @@
+import { useIsDarkTheme } from '@/components/theme-provider';
 import { cn } from '@/lib/utils';
 import { useMemo } from 'react';
 
@@ -14,7 +15,11 @@ interface PreviewWatermarkProps {
 // sparsely across the whole preview without hurting readability. Rendered as a
 // data-URI background-image (one draw, GPU-friendly) rather than hundreds of
 // DOM nodes.
-function buildWatermarkDataUri(text: string) {
+// `fill` must be an explicit color: this SVG is used as a `background-image`
+// (data URI), an isolated rendering context where `currentColor` does NOT
+// inherit the host element's `color` — it would silently fall back to black
+// and vanish in dark mode. The caller passes a theme-aware color instead.
+function buildWatermarkDataUri(text: string, fill: string) {
   const safe = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -23,7 +28,7 @@ function buildWatermarkDataUri(text: string) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="260" height="170">
     <text x="0" y="120" transform="rotate(-25 130 85)"
       font-family="Arial, 'Microsoft YaHei', sans-serif" font-size="15"
-      fill="currentColor">${safe}</text>
+      fill="${fill}">${safe}</text>
   </svg>`;
   return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
 }
@@ -34,9 +39,13 @@ export function PreviewWatermark({
   className,
   children,
 }: PreviewWatermarkProps) {
+  const isDark = useIsDarkTheme();
+  // Dark bg -> light watermark, light bg -> dark watermark. The low opacity is
+  // applied on the overlay below, so these stay faint and readable on both.
+  const fill = isDark ? '#ffffff' : '#000000';
   const backgroundImage = useMemo(
-    () => (text ? buildWatermarkDataUri(text) : undefined),
-    [text],
+    () => (text ? buildWatermarkDataUri(text, fill) : undefined),
+    [text, fill],
   );
 
   if (!active || !text) {
@@ -50,7 +59,7 @@ export function PreviewWatermark({
         aria-hidden
         className={cn(
           'pointer-events-none select-none absolute inset-0 z-[60]',
-          'overflow-hidden opacity-[0.10] text-text-primary',
+          'overflow-hidden opacity-[0.10]',
         )}
         style={{
           backgroundImage,

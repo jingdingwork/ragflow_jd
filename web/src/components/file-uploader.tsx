@@ -235,8 +235,18 @@ export function FileUploader(props: FileUploaderProps) {
       setFiles(updatedFiles);
 
       if (rejectedFiles.length > 0) {
-        rejectedFiles.forEach(({ file }) => {
-          toast.error(`File ${file.name} was rejected`);
+        rejectedFiles.forEach(({ file, errors }) => {
+          const tooLarge = errors?.some((e) => e.code === 'file-too-large');
+          if (tooLarge && maxSize) {
+            toast.error(
+              t('fileManager.fileTooLarge', {
+                name: file.name,
+                size: Math.round(maxSize / (1024 * 1024)),
+              }),
+            );
+          } else {
+            toast.error(`File ${file.name} was rejected`);
+          }
         });
       }
 
@@ -258,7 +268,7 @@ export function FileUploader(props: FileUploaderProps) {
         });
       }
     },
-    [files, maxFileCount, multiple, onUpload, setFiles],
+    [files, maxFileCount, maxSize, multiple, onUpload, setFiles, t],
   );
 
   const onDrop = React.useCallback(

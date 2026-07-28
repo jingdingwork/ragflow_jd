@@ -1911,6 +1911,8 @@ Example: Virtual Hosted Style`,
         'Each file must not exceed 10MB, and the total number of files must not exceed 128.',
       destinationFolder: 'Destination folder',
       pleaseUploadAtLeastOneFile: 'Please upload at least one file',
+      fileTooLarge:
+        'File {{name}} exceeds the {{size}} MB limit and was skipped',
     },
     flow: {
       preprocess: {

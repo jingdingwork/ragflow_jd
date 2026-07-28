@@ -2084,6 +2084,7 @@ NER：使用 spaCy NER 和基于规则的关键词提取来抽取实体和关系
       uploadLimit: '文件大小不能超过10M，文件总数不超过128个',
       destinationFolder: '目标文件夹',
       pleaseUploadAtLeastOneFile: '请上传至少一个文件',
+      fileTooLarge: '文件 {{name}} 超过 {{size}}MB 上限，已跳过',
     },
     flow: {
       preprocess: {
