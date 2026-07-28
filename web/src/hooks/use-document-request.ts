@@ -216,7 +216,10 @@ export const useFetchDocumentList = (loop = true) => {
         },
         {
           suffix: filterValue.type as string[],
-          run_status: run as string[],
+          // Query param name must be `run` (see IFetchDocumentListRequestBody);
+          // `run_status` would be dropped by the backend and the status filter
+          // (e.g. "failed") would silently match nothing.
+          run: run as string[],
           return_empty_metadata: returnEmptyMetadata,
           metadata: filterValue.metadata as Record<string, string[]>,
           // Only send folder scoping when the dataset page has opted in.

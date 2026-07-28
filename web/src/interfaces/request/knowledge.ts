@@ -38,7 +38,10 @@ export interface IFetchKnowledgeListRequestParams {
 
 export interface IFetchDocumentListRequestBody {
   suffix?: string[];
-  run_status?: string[];
+  // Backend reads this as the query param `run` (TaskStatus values, e.g. "4"
+  // = failed). Must be named `run`, not `run_status`, or the status filter is
+  // silently dropped and filtering by status returns nothing.
+  run?: string[];
   return_empty_metadata?: boolean;
   metadata?: Record<string, string[]>;
   /** Virtual-folder scope: "" = root, "a/b" = that folder; omit for flat list. */
