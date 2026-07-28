@@ -56,6 +56,9 @@ export type DatasetTableProps = Pick<
     onToggleFolderSelect?: (path: string, checked: boolean) => void;
     // Header "select all" also toggles the visible folder rows.
     onSelectAllFolders?: (checked: boolean, paths: string[]) => void;
+    // Active search/filter → flat whole-KB results; hide folder rows and show
+    // each file's folder path so buried files are findable.
+    hasActiveQuery?: boolean;
   };
 
 export function DatasetTable({
@@ -70,6 +73,7 @@ export function DatasetTable({
   selectedFolderPaths = [],
   onToggleFolderSelect,
   onSelectAllFolders,
+  hasActiveQuery = false,
 }: DatasetTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -113,7 +117,10 @@ export function DatasetTable({
 
   // Subfolders render as rows above the files, but only on the first page
   // (files are server-paginated; folders are fetched whole and belong on top).
+  // Hide folder rows during a search/filter: results are a flat whole-KB list,
+  // so folders would just cover the matching files the user is looking for.
   const showFolders =
+    !hasActiveQuery &&
     (pagination.current || 1) === 1 &&
     !!onNavigateFolder &&
     folderChildren.length > 0;
@@ -139,6 +146,7 @@ export function DatasetTable({
     selectableFolderPaths,
     selectedFolderPaths,
     onSelectAllFolders,
+    hasActiveQuery,
   });
 
   const currentPagination = useMemo(() => {

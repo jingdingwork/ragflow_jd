@@ -37,6 +37,8 @@ type UseDatasetTableColumnsType = UseChangeDocumentParserShowType &
     selectableFolderPaths?: string[];
     selectedFolderPaths?: string[];
     onSelectAllFolders?: (checked: boolean, paths: string[]) => void;
+    // During a flat search/filter, show each file's folder path under its name.
+    hasActiveQuery?: boolean;
   };
 
 export function useDatasetTableColumns({
@@ -50,6 +52,7 @@ export function useDatasetTableColumns({
   selectableFolderPaths = [],
   selectedFolderPaths = [],
   onSelectAllFolders,
+  hasActiveQuery = false,
 }: UseDatasetTableColumnsType) {
   const { t } = useTranslation('translation', {
     keyPrefix: 'knowledgeDetails',
@@ -122,6 +125,11 @@ export function useDatasetTableColumns({
       meta: { cellClassName: 'max-w-[20vw]' },
       cell: ({ row }) => {
         const name: string = row.getValue('name');
+        // Virtual folder path (reserved `_folder` meta); shown only in flat
+        // search/filter mode so a buried match reveals where it lives.
+        const folderPath: string =
+          (row.original.meta_fields?.[FOLDER_META_KEY] as string) || '';
+        const showFolderPath = hasActiveQuery && !!folderPath;
 
         return (
           <Tooltip>
@@ -134,11 +142,21 @@ export function useDatasetTableColumns({
                 )}
               >
                 <FileIcon name={name}></FileIcon>
-                <span className={cn('truncate')}>{name}</span>
+                <div className="flex flex-col min-w-0">
+                  <span className={cn('truncate')}>{name}</span>
+                  {showFolderPath && (
+                    <span className="truncate text-xs text-text-secondary">
+                      {folderPath}
+                    </span>
+                  )}
+                </div>
               </div>
             </TooltipTrigger>
             <TooltipContent>
               <p>{name}</p>
+              {showFolderPath && (
+                <p className="text-xs text-text-secondary">{folderPath}</p>
+              )}
             </TooltipContent>
           </Tooltip>
         );

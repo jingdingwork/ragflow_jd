@@ -1012,7 +1012,15 @@ def _get_docs_with_request(req, dataset_id:str):
     if "folder" in q:
         norm_folder = normalize_folder_path(q.get("folder"))
         folder_recursive = str(q.get("folder_recursive", "false")).strip().lower() == "true"
-        if norm_folder:
+        # When a content filter/search is active (status / type / suffix /
+        # keywords) the user is looking for files across the whole KB, so folder
+        # scoping is bypassed entirely — otherwise files in other folders (or
+        # buried in subfolders, e.g. a Failed doc under "公司HSE SOP/…") stay
+        # hidden and filter/search feel broken. Plain browsing keeps the scope.
+        has_content_filter = bool(run_status_converted or types or suffix or keywords)
+        if has_content_filter:
+            pass  # no folder restriction, no root exclusion
+        elif norm_folder:
             folder_doc_ids = DocMetadataService.get_doc_ids_by_folder(dataset_id, norm_folder, recursive=folder_recursive)
             if doc_ids_filter:
                 allowed = set(folder_doc_ids)
@@ -1020,13 +1028,9 @@ def _get_docs_with_request(req, dataset_id:str):
             else:
                 doc_ids_filter = folder_doc_ids or ["-999"]
         elif not folder_recursive:
-            # At root we normally hide docs that live in subfolders. But when a
-            # content filter is active (status / type / suffix / keywords) the
-            # user is searching the whole KB, so files buried in folders — e.g.
-            # a Failed doc under "公司HSE SOP/…" — must still appear.
-            has_content_filter = bool(run_status_converted or types or suffix or keywords)
-            if not has_content_filter:
-                exclude_doc_ids = DocMetadataService.get_foldered_doc_ids(dataset_id) or None
+            # At root, plain browsing hides docs that live in subfolders so the
+            # root view isn't a flat dump of the whole KB.
+            exclude_doc_ids = DocMetadataService.get_foldered_doc_ids(dataset_id) or None
 
     docs, total = DocumentService.get_by_kb_id(dataset_id, page, page_size, orderby, desc, keywords, run_status_converted, types, suffix,
                                                name=doc_name, doc_ids=doc_ids_filter, return_empty_metadata=return_empty_metadata,

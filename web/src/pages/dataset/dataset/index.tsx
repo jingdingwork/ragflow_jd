@@ -125,6 +125,20 @@ export default function Dataset() {
     checkValue,
   } = useFetchDocumentList();
 
+  // A search keyword or any active filter switches the list to a flat,
+  // whole-KB view (the backend drops folder scoping in that case), so hide the
+  // folder rows and surface the matching files directly instead of behind them.
+  const hasActiveQuery = useMemo(() => {
+    if (searchString && searchString.trim()) return true;
+    return Object.values(filterValue || {}).some((v) =>
+      Array.isArray(v)
+        ? v.length > 0
+        : v && typeof v === 'object'
+          ? Object.keys(v).length > 0
+          : Boolean(v),
+    );
+  }, [searchString, filterValue]);
+
   const { data: dataSetData } = useFetchKnowledgeBaseConfiguration();
 
   const { filters, onOpenChange, filterGroup } = useSelectDatasetFilters();
@@ -339,6 +353,7 @@ export default function Dataset() {
           selectedFolderPaths={selectedFolderPaths}
           onToggleFolderSelect={toggleFolderSelect}
           onSelectAllFolders={selectAllFolders}
+          hasActiveQuery={hasActiveQuery}
         />
 
         {moveOpen && (
