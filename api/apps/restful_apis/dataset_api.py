@@ -17,7 +17,9 @@ import logging
 
 from peewee import OperationalError
 from quart import request
-from common.constants import RetCode
+from common.constants import RetCode, StatusEnum
+from api.db import TenantPermission
+from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.apps import login_required, current_user
 from api.utils.api_utils import get_error_argument_result, get_error_data_result, get_json_result, get_result, add_tenant_id_to_kwargs
 from api.utils.validation_utils import (
@@ -31,6 +33,9 @@ from api.utils.validation_utils import (
     validate_and_parse_request_args,
 )
 from api.apps.services import dataset_api_service
+
+# Per-user cap on personal ("me") knowledge bases (temporary quota).
+PERSONAL_KB_LIMIT = 5
 
 
 @manager.route("/datasets/tags/aggregation", methods=["GET"])  # noqa: F821
@@ -136,21 +141,33 @@ async def create(tenant_id: str = None):
             data:
               type: object
     """
-    # Only department admins may create knowledge bases. Regular employees get a
-    # read-only experience (search/view) and cannot create or operate data.
-    if not getattr(current_user, "is_dept_admin", False):
-        return get_error_data_result(
-            message="Only department admins can create knowledge bases.",
-            code=RetCode.AUTHENTICATION_ERROR,
-        )
-
     req, err = await validate_and_parse_json_request(request, CreateDatasetReq)
     if err is not None:
         return get_error_argument_result(err)
 
+    is_dept_admin = getattr(current_user, "is_dept_admin", False)
+
     # Company-wide visibility is granted from the admin console only.
-    if req.get("permission") == "company":
+    if req.get("permission") == TenantPermission.COMPANY.value:
         return get_error_argument_result("Company-wide datasets can only be set by an administrator.")
+
+    # Regular employees may only create personal ("me") datasets — private to
+    # themselves. Department admins may additionally create department-visible
+    # ones. Pin the value server-side so a crafted request can't widen it.
+    if not is_dept_admin:
+        req["permission"] = TenantPermission.ME.value
+
+    # Personal datasets are capped per user (temporary quota).
+    if req.get("permission") == TenantPermission.ME.value:
+        existing = KnowledgebaseService.query(
+            tenant_id=current_user.id,
+            permission=TenantPermission.ME.value,
+            status=StatusEnum.VALID.value,
+        )
+        if len(existing) >= PERSONAL_KB_LIMIT:
+            return get_error_data_result(
+                message=f"You can create at most {PERSONAL_KB_LIMIT} personal knowledge bases."
+            )
 
     try:
         if not tenant_id:

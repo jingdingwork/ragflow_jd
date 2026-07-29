@@ -54,6 +54,12 @@ export default function Datasets() {
     ownerIds,
     PAGE_SIZE,
   );
+  const personal = useFetchKnowledgeListByScope(
+    'me',
+    debouncedSearchString,
+    ownerIds,
+    PAGE_SIZE,
+  );
 
   const owners = useSelectOwners();
   const canManage = useCanManageKnowledge();
@@ -80,8 +86,9 @@ export default function Datasets() {
   }, [isCreate, showModal, searchUrl, setSearchUrl, queryClient]);
 
   const isFiltering = !!debouncedSearchString || ownerIds.length > 0;
-  const loading = company.loading || dept.loading;
-  const isEmpty = company.total === 0 && dept.total === 0;
+  const loading = company.loading || dept.loading || personal.loading;
+  const isEmpty =
+    company.total === 0 && dept.total === 0 && personal.total === 0;
 
   // Nothing at all and nothing typed: keep the full-page onboarding card.
   if (isEmpty && !isFiltering && !loading) {
@@ -123,12 +130,12 @@ export default function Datasets() {
             onChange={handleFilterSubmit}
             icon={'datasets'}
           >
-            {canManage && (
-              <Button onClick={showModal}>
-                <Plus className="size-[1em]" />
-                {t('knowledgeList.createKnowledgeBase')}
-              </Button>
-            )}
+            {/* Everyone may create at least a personal knowledge base; the
+                dialog and backend restrict employees to the personal scope. */}
+            <Button onClick={showModal}>
+              <Plus className="size-[1em]" />
+              {t('knowledgeList.createKnowledgeBase')}
+            </Button>
           </ListFilterBar>
           <div className="mt-4">
             <DatasetSearch />
@@ -157,6 +164,35 @@ export default function Datasets() {
               }
             />
           )}
+
+          {/* Personal: private to the creator; everyone can create these. */}
+          <DatasetSection
+            scope="me"
+            title={t('knowledgeList.personalSection')}
+            hint={t('knowledgeList.personalSectionTip')}
+            total={personal.total}
+            page={personal.page}
+            pageSize={personal.pageSize}
+            onPageChange={personal.setPage}
+            kbs={personal.kbs}
+            loading={personal.loading}
+            showDatasetRenameModal={showDatasetRenameModal}
+            empty={
+              isFiltering ? (
+                <p className="py-6 text-sm text-text-secondary">
+                  {t('knowledgeList.noMatch')}
+                </p>
+              ) : (
+                <EmptyAppCard
+                  showIcon
+                  size="large"
+                  className="w-[480px] p-14"
+                  type={EmptyCardType.Dataset}
+                  onClick={() => showModal()}
+                />
+              )
+            }
+          />
 
           <DatasetSection
             scope="dept"

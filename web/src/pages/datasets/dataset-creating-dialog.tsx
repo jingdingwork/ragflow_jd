@@ -19,7 +19,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { FormLayout } from '@/constants/form';
 import { ParseType } from '@/constants/knowledge';
-import { useFetchTenantInfo } from '@/hooks/use-user-setting-request';
+import {
+  useCanManageKnowledge,
+  useFetchTenantInfo,
+} from '@/hooks/use-user-setting-request';
 import { IModalProps } from '@/interfaces/common';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { omit } from 'lodash';
@@ -32,6 +35,7 @@ import {
   EmbeddingModelItem,
   ParseTypeItem,
 } from '../dataset/dataset-setting/configuration/common-item';
+import { PermissionFormField } from '../dataset/dataset-setting/permission-form-field';
 
 const FormId = 'dataset-creating-form';
 
@@ -40,6 +44,9 @@ const ChunkMethodName = 'chunk_method';
 export function InputForm({ onOk }: IModalProps<any>) {
   const { t } = useTranslation();
   const { data: tenantInfo } = useFetchTenantInfo();
+  // Department admins may pick personal / department; employees are locked to
+  // personal (the backend also pins this, so the UI only mirrors the rule).
+  const canManage = useCanManageKnowledge();
 
   const FormSchema = z
     .object({
@@ -90,8 +97,8 @@ export function InputForm({ onOk }: IModalProps<any>) {
       // 解析方式默认 General（naive），用户可自行更换
       [ChunkMethodName]: 'naive',
       embedding_model: tenantInfo?.embd_id,
-      // 权限默认部门（员工只能由部门管理员创建，统一归属部门）
-      permission: 'department',
+      // 部门管理员默认「部门」，员工默认「个人」
+      permission: canManage ? 'department' : 'me',
     },
   });
 
@@ -145,8 +152,7 @@ export function InputForm({ onOk }: IModalProps<any>) {
         />
 
         <EmbeddingModelItem line={2} isEdit={false} />
-        {/* 权限选择隐藏：统一默认部门 */}
-        {/* <PermissionFormField /> */}
+        <PermissionFormField personalOnly={!canManage} />
         <ParseTypeItem />
         {parseType === ParseType.BuiltIn && (
           <ChunkMethodItem name={ChunkMethodName}></ChunkMethodItem>

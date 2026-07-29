@@ -499,8 +499,19 @@ class KnowledgebaseService(CommonService):
             kbs = kbs.where(cls.model.parser_id == parser_id)
         if scope == TenantPermission.COMPANY.value:
             kbs = kbs.where(cls.model.permission == TenantPermission.COMPANY.value)
+        elif scope == TenantPermission.ME.value:
+            # Personal bucket: the user's own private datasets only.
+            kbs = kbs.where(
+                (cls.model.permission == TenantPermission.ME.value)
+                & (cls.model.tenant_id == user_id)
+            )
         elif scope == "dept":
-            kbs = kbs.where(cls.model.permission != TenantPermission.COMPANY.value)
+            # Shared department (and legacy team) datasets: everything that is
+            # neither company-wide nor personal.
+            kbs = kbs.where(
+                (cls.model.permission != TenantPermission.COMPANY.value)
+                & (cls.model.permission != TenantPermission.ME.value)
+            )
 
         kbs = kbs.where(cls._visibility_and_status_filter(joined_tenant_ids, user_id))
 

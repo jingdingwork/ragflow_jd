@@ -198,8 +198,8 @@ export const useFetchNextKnowledgeListByPage = () => {
   };
 };
 
-/** Visibility bucket used to split the dataset portal into two sections. */
-export type DatasetScope = 'company' | 'dept';
+/** Visibility bucket used to split the dataset portal into sections. */
+export type DatasetScope = 'company' | 'dept' | 'me';
 
 /**
  * Paginated dataset list restricted to one visibility bucket.

@@ -5,7 +5,14 @@ import { useMemo } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
-export function PermissionFormField() {
+type PermissionFormFieldProps = {
+  /** Restrict the choice to "me" only (employees may create personal KBs only). */
+  personalOnly?: boolean;
+};
+
+export function PermissionFormField({
+  personalOnly = false,
+}: PermissionFormFieldProps) {
   const { t } = useTranslation();
   const { control } = useFormContext();
   const permission = useWatch({ control, name: 'permission' });
@@ -17,16 +24,20 @@ export function PermissionFormField() {
     return (
       Object.values(PermissionRole)
         // "team" is hidden from the UI; only "me" / "department" are offered.
-        // "company" is admin-only, so it is never selectable here.
+        // "company" is admin-only, so it is never selectable here. When
+        // personalOnly is set, "department" is dropped too, leaving just "me".
         .filter(
-          (x) => x !== PermissionRole.Team && x !== PermissionRole.Company,
+          (x) =>
+            x !== PermissionRole.Team &&
+            x !== PermissionRole.Company &&
+            (!personalOnly || x === PermissionRole.Me),
         )
         .map((x) => ({
           label: t('knowledgeConfiguration.' + x),
           value: x,
         }))
     );
-  }, [t]);
+  }, [t, personalOnly]);
 
   if (isCompany) {
     return (

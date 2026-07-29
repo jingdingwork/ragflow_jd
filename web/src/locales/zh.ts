@@ -929,8 +929,10 @@ export default {
       companySection: '公司级知识库',
       companySectionTip: '全公司可见，仅所属部门可维护',
       deptSection: '部门知识库',
-      deptSectionTip: '本部门共享及我创建的知识库',
+      deptSectionTip: '本部门共享的知识库',
       deptSectionEmpty: '本部门暂无知识库',
+      personalSection: '个人知识库',
+      personalSectionTip: '仅自己可见可用，最多 5 个',
       retrieval: {
         searchBar: '跨知识库检索',
         placeholder: '输入关键词，在所选知识库中检索…',

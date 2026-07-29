@@ -4,7 +4,7 @@ import { CardSkeleton } from '@/components/ui/skeleton';
 import { DatasetScope } from '@/hooks/use-knowledge-request';
 import { IDataset } from '@/interfaces/database/dataset';
 import { cn } from '@/lib/utils';
-import { Building2, Users } from 'lucide-react';
+import { Building2, User, Users } from 'lucide-react';
 import { ReactNode } from 'react';
 import { DatasetCard } from './dataset-card';
 import { useRenameDataset } from './use-rename-dataset';
@@ -42,7 +42,7 @@ export function DatasetSection({
   showDatasetRenameModal,
 }: DatasetSectionProps) {
   const isCompany = scope === 'company';
-  const Icon = isCompany ? Building2 : Users;
+  const Icon = isCompany ? Building2 : scope === 'me' ? User : Users;
 
   return (
     <section className="mb-8 last:mb-0">

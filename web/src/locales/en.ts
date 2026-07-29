@@ -479,8 +479,10 @@ Example: A 1 KB message with 1024-dim embedding uses ~9 KB. The 5 MB default lim
       companySectionTip:
         'Visible to everyone, maintained by the owning department',
       deptSection: 'Department knowledge bases',
-      deptSectionTip: 'Shared with your department, plus the ones you created',
+      deptSectionTip: 'Shared with your department',
       deptSectionEmpty: 'No knowledge bases in your department yet',
+      personalSection: 'Personal knowledge bases',
+      personalSectionTip: 'Visible and usable only by you, up to 5',
       retrieval: {
         searchBar: 'Search across knowledge bases',
         placeholder: 'Enter keywords to search the selected knowledge bases…',
