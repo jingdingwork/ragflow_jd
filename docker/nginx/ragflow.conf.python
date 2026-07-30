@@ -3,6 +3,11 @@ server {
     server_name _;
     root /ragflow/web/dist;
 
+    # HTTPS is injected here by docker/entrypoint.sh when a certificate is
+    # present under /etc/nginx/ssl (see docker/nginx/ssl/README.md).
+    # Empty glob = plain HTTP only, so a missing certificate never blocks startup.
+    include /etc/nginx/conf.d/ssl_enable/*.conf;
+
     gzip on;
     gzip_min_length 1k;
     gzip_comp_level 9;

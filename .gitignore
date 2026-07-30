@@ -31,6 +31,12 @@ docker/ragflow-logs/
 
 # Exclude deployment secrets (contains DB passwords)
 docker/.env
+
+# Exclude TLS material for the built-in nginx (keep the directory + README)
+docker/nginx/ssl/*
+!docker/nginx/ssl/.gitkeep
+!docker/nginx/ssl/README.md
+!docker/nginx/ssl/check-cert.sh
 /flask_session
 /logs
 rag/res/deepdoc

@@ -22,6 +22,10 @@ services:
       - "9381:9381"  # Admin
     volumes:
       - /data/logs/ragflow:/ragflow/logs
+      # HTTPS 证书目录：放在工作区之外，只放一次，发版/重建工作区都不受影响。
+      # 路径和文件名由 .env 的 NGINX_SSL_DIR / NGINX_SSL_CERT / NGINX_SSL_KEY 控制；
+      # 没有证书则自动降级为纯 HTTP。详见 docker/nginx/ssl/README.md
+      - ${NGINX_SSL_DIR:-/data/ssh_pem/ragflow_jd}:/etc/nginx/ssl:ro
     env_file: .env
     restart: unless-stopped
     extra_hosts:

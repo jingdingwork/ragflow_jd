@@ -200,6 +200,73 @@ else
 fi
 
 # -----------------------------------------------------------------------------
+# Enable HTTPS if a certificate is mounted (see docker/nginx/ssl/README.md)
+#   ENABLE_HTTPS   auto (default) | true | false
+#   FORCE_HTTPS    true redirects plain HTTP to HTTPS (default false)
+#   NGINX_SSL_CERT / NGINX_SSL_KEY  certificate paths inside the container;
+#                  when unset, the usual file names under /etc/nginx/ssl are probed
+# The snippet is regenerated on every start, so restarts are idempotent and a
+# missing/broken certificate degrades to HTTP instead of killing the container.
+# -----------------------------------------------------------------------------
+SSL_SNIPPET_DIR="$NGINX_CONF_DIR/ssl_enable"
+SSL_SNIPPET="$SSL_SNIPPET_DIR/ssl.conf"
+SSL_DIR="/etc/nginx/ssl"
+
+function pick_ssl_file() {
+    # Echo the first readable candidate under $SSL_DIR, or the first candidate
+    # (so error messages stay informative when nothing is mounted).
+    local candidate
+    for candidate in "$@"; do
+        if [ -r "$SSL_DIR/$candidate" ]; then
+            echo "$SSL_DIR/$candidate"
+            return 0
+        fi
+    done
+    echo "$SSL_DIR/$1"
+}
+
+NGINX_SSL_CERT="${NGINX_SSL_CERT:-$(pick_ssl_file fullchain.pem cert.pem server.crt server.pem tls.crt)}"
+NGINX_SSL_KEY="${NGINX_SSL_KEY:-$(pick_ssl_file privkey.pem key.pem server.key tls.key)}"
+
+mkdir -p "$SSL_SNIPPET_DIR"
+rm -f "$SSL_SNIPPET_DIR"/*.conf
+
+case "${ENABLE_HTTPS:-auto}" in
+    false|False|0|off)
+        echo "[nginx] HTTPS disabled by ENABLE_HTTPS=${ENABLE_HTTPS}"
+        ;;
+    *)
+        if [ -r "$NGINX_SSL_CERT" ] && [ -r "$NGINX_SSL_KEY" ]; then
+            {
+                echo "    listen 443 ssl;"
+                echo "    http2 on;"
+                echo "    ssl_certificate     ${NGINX_SSL_CERT};"
+                echo "    ssl_certificate_key ${NGINX_SSL_KEY};"
+                echo "    ssl_protocols TLSv1.2 TLSv1.3;"
+                echo "    ssl_prefer_server_ciphers off;"
+                echo "    ssl_session_cache shared:SSL:10m;"
+                echo "    ssl_session_timeout 1d;"
+                echo "    ssl_session_tickets off;"
+                if [[ "${FORCE_HTTPS}" == "true" ]]; then
+                    echo "    if (\$scheme = http) { return 301 https://\$host\$request_uri; }"
+                fi
+            } > "$SSL_SNIPPET"
+
+            if /usr/sbin/nginx -t 2>&1; then
+                echo "[nginx] HTTPS enabled with ${NGINX_SSL_CERT} (force redirect: ${FORCE_HTTPS:-false})"
+            else
+                rm -f "$SSL_SNIPPET"
+                echo "[nginx] WARNING: certificate rejected by 'nginx -t', falling back to HTTP only"
+            fi
+        elif [[ "${ENABLE_HTTPS}" == "true" ]]; then
+            echo "[nginx] WARNING: ENABLE_HTTPS=true but ${NGINX_SSL_CERT} / ${NGINX_SSL_KEY} is missing or unreadable; serving HTTP only"
+        else
+            echo "[nginx] no certificate at ${NGINX_SSL_CERT}, serving HTTP only"
+        fi
+        ;;
+esac
+
+# -----------------------------------------------------------------------------
 # Function(s)
 # -----------------------------------------------------------------------------
 
