@@ -1,6 +1,6 @@
 import { driver, type Driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { TOURS, TourId } from './tour-config';
@@ -26,6 +26,44 @@ function markSeen(id: TourId) {
   }
 }
 
+// A single, app-wide driver instance. The help button lives in the global
+// header (never unmounts), but React StrictMode double-invokes effects and
+// route changes re-trigger auto-start, while `startTour` awaits the anchor
+// (`waitForSelector`) before creating the driver. A per-hook ref could then
+// end up not referencing an instance created by a stale closure, leaking a
+// second live driver whose popover lingers on screen — the "old step doesn't
+// disappear on Next" bug. Keeping exactly one module-level instance and tearing
+// it (plus any orphaned DOM) down before every start guarantees a single tour.
+let activeDriver: Driver | null = null;
+
+function destroyActiveTour() {
+  try {
+    activeDriver?.destroy();
+  } catch {
+    /* already gone */
+  }
+  activeDriver = null;
+
+  // Sweep away nodes/classes any already-unreferenced instance may have left.
+  document
+    .querySelectorAll('.driver-popover, .driver-overlay, #driver-dummy-element')
+    .forEach((el) => el.remove());
+  document
+    .querySelectorAll(
+      '.driver-active-element, .driver-active-element-parent, .driver-active-element-parent-no-scroll',
+    )
+    .forEach((el) =>
+      el.classList.remove(
+        'driver-active-element',
+        'driver-active-element-parent',
+        'driver-active-element-parent-no-scroll',
+      ),
+    );
+  [document.documentElement, document.body].forEach((el) =>
+    el?.classList.remove('driver-active', 'driver-fade', 'driver-no-scroll'),
+  );
+}
+
 /** Resolve when `selector` appears in the DOM, or after `timeoutMs`. */
 function waitForSelector(
   selector: string,
@@ -45,13 +83,11 @@ function waitForSelector(
 
 export function usePageTour() {
   const { t } = useTranslation();
-  const driverRef = useRef<Driver | null>(null);
 
   // Tear down any live tour when the hook unmounts (e.g. route change).
   useEffect(() => {
     return () => {
-      driverRef.current?.destroy();
-      driverRef.current = null;
+      destroyActiveTour();
     };
   }, []);
 
@@ -80,7 +116,9 @@ export function usePageTour() {
 
       if (steps.length === 0) return;
 
-      driverRef.current?.destroy();
+      // Always start from a clean slate — destroys the previous instance and
+      // clears any orphaned overlay/popover left by a stale closure.
+      destroyActiveTour();
 
       const d = driver({
         showProgress: true,
@@ -96,10 +134,11 @@ export function usePageTour() {
         steps,
         onDestroyed: () => {
           markSeen(id);
+          if (activeDriver === d) activeDriver = null;
         },
       });
 
-      driverRef.current = d;
+      activeDriver = d;
       d.drive();
     },
     [t],
