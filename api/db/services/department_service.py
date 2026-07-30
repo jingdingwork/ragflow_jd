@@ -29,6 +29,21 @@ PATH_SEP = "/"
 # Compared case-insensitively against the user's leaf OU.
 EXCLUDED_DEPARTMENTS = {"wechat", "特殊账号", "项目统一邮箱"}
 
+# Display-name overrides for departments whose raw OU value (from the OIDC/LDAP
+# DN) should always be shown under a friendlier brand name. Keyed by the raw OU
+# value, compared case-insensitively. The department's ``path_key`` still uses
+# the raw OU value, so matching stays stable; only the shown ``name`` is mapped.
+# This is enforced on every sync/login, so it never gets overwritten back to the
+# raw value ("JDEC" -> "京鼎").
+DEPARTMENT_NAME_OVERRIDES = {"jdec": "京鼎"}
+
+
+def resolve_department_name(raw_name):
+    """Map a raw OU value to its display name via DEPARTMENT_NAME_OVERRIDES."""
+    if not raw_name:
+        return raw_name
+    return DEPARTMENT_NAME_OVERRIDES.get(str(raw_name).strip().lower(), raw_name)
+
 
 def is_excluded_department(name):
     """True if a department (leaf OU) name should be excluded from sync/cleanup."""
@@ -204,17 +219,27 @@ class DepartmentService(CommonService):
         leaf_id = None
         path_parts = []
         for name in ou_chain:
+            # path_key is always built from the raw OU chain so matching stays
+            # stable; only the stored/display name is run through the override.
             path_parts.append(name)
             path_key = PATH_SEP.join(path_parts)
+            display_name = resolve_department_name(name)
+            is_overridden = display_name != name
             node = cls.get_or_none(path_key=path_key)
             if node is not None:
                 node_id = node.id
+                # Self-heal only overridden departments so their brand name (e.g.
+                # "京鼎") is re-enforced on every sync and never reverts to the raw
+                # OU value. Non-overridden departments keep their existing name,
+                # so manual renames elsewhere are preserved.
+                if is_overridden and node.name != display_name:
+                    cls.update_by_id(node_id, {"name": display_name})
             else:
                 # CommonService.insert returns peewee's save() result (row count),
                 # not the instance, so generate the id ourselves and reuse it.
                 node_id = get_uuid()
                 try:
-                    cls.insert(id=node_id, name=name, parent_id=parent_id, path_key=path_key, status=StatusEnum.VALID.value)
+                    cls.insert(id=node_id, name=display_name, parent_id=parent_id, path_key=path_key, status=StatusEnum.VALID.value)
                 except Exception:
                     # Lost an upsert race; fetch the row the other writer created.
                     node = cls.get_or_none(path_key=path_key)
