@@ -28,24 +28,9 @@ export function Announcements() {
   // Guard so the latest announcement auto-pops at most once per mount.
   const autoPoppedRef = useRef(false);
 
-  // The pinned announcement stays fixed as the first item; the rest rotate
-  // through a single carousel slot.
+  // The home bar surfaces only the pinned announcement; everything else lives in
+  // the admin console. If nothing is pinned, the bar is hidden entirely.
   const pinned = useMemo(() => list.find((a) => a.is_pinned) ?? null, [list]);
-  const rotating = useMemo(
-    () => list.filter((a) => a !== pinned),
-    [list, pinned],
-  );
-
-  // Index of the currently-shown rotating announcement.
-  const [current, setCurrent] = useState(0);
-  useEffect(() => {
-    setCurrent(0);
-    if (rotating.length <= 1) return;
-    const timer = setInterval(() => {
-      setCurrent((i) => (i + 1) % rotating.length);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [rotating.length]);
 
   const openDetail = useCallback(
     (a: UserAnnouncement, auto = false) => {
@@ -73,7 +58,7 @@ export function Announcements() {
     setOpen(false);
   }, [selected, ackAnnouncement]);
 
-  if (list.length === 0) {
+  if (!pinned) {
     return null;
   }
 
@@ -82,41 +67,14 @@ export function Announcements() {
       <div className="flex items-center gap-3 rounded-xl border-0.5 border-border-button bg-card px-4 py-3">
         <LucideMegaphone className="size-6 text-accent-primary shrink-0" />
 
-        {pinned && (
-          <>
-            <button
-              type="button"
-              onClick={() => openDetail(pinned)}
-              className="flex items-center gap-1.5 shrink-0 max-w-[40%] text-text-primary font-medium hover:text-accent-primary transition-colors"
-            >
-              <LucidePin className="size-4 text-accent-primary shrink-0" />
-              <span className="truncate">{pinned.title}</span>
-            </button>
-            {rotating.length > 0 && (
-              <span className="h-4 w-px bg-border-button shrink-0" />
-            )}
-          </>
-        )}
-
-        {rotating.length > 0 && (
-          <div className="relative h-6 flex-1 overflow-hidden">
-            {rotating.map((a, i) => (
-              <button
-                type="button"
-                key={a.id}
-                onClick={() => openDetail(a)}
-                className={cn(
-                  'absolute inset-0 flex items-center text-left text-text-secondary hover:text-accent-primary transition-all duration-500 ease-in-out',
-                  i === current
-                    ? 'opacity-100 translate-y-0'
-                    : 'opacity-0 translate-y-full pointer-events-none',
-                )}
-              >
-                <span className="truncate">{a.title}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        <button
+          type="button"
+          onClick={() => openDetail(pinned)}
+          className="flex items-center gap-1.5 flex-1 min-w-0 text-text-primary font-medium hover:text-accent-primary transition-colors"
+        >
+          <LucidePin className="size-4 text-accent-primary shrink-0" />
+          <span className="truncate">{pinned.title}</span>
+        </button>
       </div>
 
       {/* Non-modal popup: no dark/blur backdrop, the page stays fully visible
