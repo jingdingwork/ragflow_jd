@@ -26,7 +26,14 @@ import {
 import { useIsDeptAdmin } from '@/hooks/use-user-setting-request';
 import { cn } from '@/lib/utils';
 import { Bot, Check, ChevronDown, Library } from 'lucide-react';
-import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 
@@ -47,15 +54,19 @@ function sameSet(a: string[], b: string[]) {
   return b.every((x) => s.has(x));
 }
 
+type KbOption = { label: string; value: string };
+type KbGroup = { label: string; options: KbOption[] };
+
 // Knowledge-base scope dropdown. Selections are applied (saved) when the popover
-// closes, so toggling several KBs is one save instead of one per click.
+// closes, so toggling several KBs is one save instead of one per click. Options
+// are grouped by scope (company / department / personal) with tree-like headings.
 function ChatKbSelect({
   value,
-  options,
+  groups,
   onApply,
 }: {
   value: string[];
-  options: { label: string; value: string }[];
+  groups: KbGroup[];
   onApply: (ids: string[]) => void;
 }) {
   const { t } = useTranslation();
@@ -65,6 +76,8 @@ function ChatKbSelect({
   useEffect(() => {
     setLocal(value);
   }, [value]);
+
+  const flat = useMemo(() => groups.flatMap((g) => g.options), [groups]);
 
   const toggle = useCallback((id: string) => {
     setLocal((prev) =>
@@ -86,12 +99,12 @@ function ChatKbSelect({
     if (value.length === 0) return t('chat.noKnowledgeBound');
     if (value.length === 1) {
       return (
-        options.find((o) => o.value === value[0])?.label ??
+        flat.find((o) => o.value === value[0])?.label ??
         t('chat.knowledgeCount', { count: 1 })
       );
     }
     return t('chat.knowledgeCount', { count: value.length });
-  }, [value, options, t]);
+  }, [value, flat, t]);
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -110,30 +123,35 @@ function ChatKbSelect({
           <CommandInput placeholder={t('chat.selectKnowledgeBases')} />
           <CommandList>
             <CommandEmpty>{t('chat.noKnowledgeBase')}</CommandEmpty>
-            <CommandGroup>
-              {options.map((opt) => {
-                const checked = local.includes(opt.value);
-                return (
-                  <CommandItem
-                    key={opt.value}
-                    onSelect={() => toggle(opt.value)}
-                    className="cursor-pointer"
-                  >
-                    <div
-                      className={cn(
-                        'mr-2 flex size-4 items-center justify-center rounded-sm border border-accent-primary',
-                        checked
-                          ? 'bg-accent-primary text-white'
-                          : 'opacity-50 [&_svg]:invisible',
-                      )}
+            {groups.map((group, gi) => (
+              <CommandGroup
+                key={typeof group.label === 'string' ? group.label : gi}
+                heading={group.label}
+              >
+                {group.options.map((opt) => {
+                  const checked = local.includes(opt.value);
+                  return (
+                    <CommandItem
+                      key={opt.value}
+                      onSelect={() => toggle(opt.value)}
+                      className="cursor-pointer"
                     >
-                      <Check className="size-3" />
-                    </div>
-                    <span className="truncate">{opt.label}</span>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
+                      <div
+                        className={cn(
+                          'mr-2 flex size-4 items-center justify-center rounded-sm border border-accent-primary',
+                          checked
+                            ? 'bg-accent-primary text-white'
+                            : 'opacity-50 [&_svg]:invisible',
+                        )}
+                      >
+                        <Check className="size-3" />
+                      </div>
+                      <span className="truncate">{opt.label}</span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            ))}
           </CommandList>
         </Command>
       </PopoverContent>
@@ -335,6 +353,7 @@ function ChatAgentSelect({
  * agent carries its own model and retrieval config).
  */
 export function ChatHeaderControls() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const { data } = useFetchChat();
   const { patchChat } = usePatchChat();
@@ -347,10 +366,28 @@ export function ChatHeaderControls() {
   const tagsMap = useFetchModelTags();
   // Only knowledge bases with parsed chunks are bindable for retrieval.
   const { list } = useFetchKnowledgeList(true);
-  const kbOptions = useMemo(
-    () => list.map((k) => ({ label: k.name, value: k.id })),
-    [list],
-  );
+  // Grouped by visibility scope so the dropdown shows company / department /
+  // personal as separate tree-like sections. "team" (legacy, hidden) is folded
+  // into the department group; empty groups are dropped.
+  const kbGroups = useMemo(() => {
+    const company: KbOption[] = [];
+    const dept: KbOption[] = [];
+    const personal: KbOption[] = [];
+    for (const k of list) {
+      const opt = { label: k.name, value: k.id };
+      if (k.permission === 'company') company.push(opt);
+      else if (k.permission === 'me') personal.push(opt);
+      else dept.push(opt);
+    }
+    const groups: KbGroup[] = [];
+    if (company.length)
+      groups.push({ label: t('chat.kbGroupCompany'), options: company });
+    if (dept.length)
+      groups.push({ label: t('chat.kbGroupDept'), options: dept });
+    if (personal.length)
+      groups.push({ label: t('chat.kbGroupPersonal'), options: personal });
+    return groups;
+  }, [list, t]);
 
   const { data: agentData } = useFetchAgentList({
     canvas_category: AgentCategory.AgentCanvas,
@@ -368,6 +405,23 @@ export function ChatHeaderControls() {
     () => data.dataset_ids ?? [],
     [data.dataset_ids],
   );
+
+  // Every time the user enters a chat, start with no knowledge base selected:
+  // clear any persisted binding once this chat's data has loaded. The ref guard
+  // clears exactly once per entry, and resets when the chat id changes so a
+  // re-visit clears again. User selections made during the visit still persist.
+  const clearedChatRef = useRef<string | null>(null);
+  useEffect(() => {
+    clearedChatRef.current = null;
+  }, [id]);
+  useEffect(() => {
+    if (!id || data?.id !== id) return; // wait for this chat's own data
+    if (clearedChatRef.current === id) return; // once per entry
+    clearedChatRef.current = id;
+    if ((data.dataset_ids ?? []).length > 0) {
+      patchChat({ chatId: id, params: { dataset_ids: [] } });
+    }
+  }, [id, data, patchChat]);
 
   const handleModelChange = useCallback(
     (llm_id: string) => {
@@ -405,7 +459,7 @@ export function ChatHeaderControls() {
           />
           <ChatKbSelect
             value={selectedKbIds}
-            options={kbOptions}
+            groups={kbGroups}
             onApply={handleKbApply}
           />
         </>

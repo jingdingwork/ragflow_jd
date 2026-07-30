@@ -165,35 +165,6 @@ export default function Datasets() {
             />
           )}
 
-          {/* Personal: private to the creator; everyone can create these. */}
-          <DatasetSection
-            scope="me"
-            title={t('knowledgeList.personalSection')}
-            hint={t('knowledgeList.personalSectionTip')}
-            total={personal.total}
-            page={personal.page}
-            pageSize={personal.pageSize}
-            onPageChange={personal.setPage}
-            kbs={personal.kbs}
-            loading={personal.loading}
-            showDatasetRenameModal={showDatasetRenameModal}
-            empty={
-              isFiltering ? (
-                <p className="py-6 text-sm text-text-secondary">
-                  {t('knowledgeList.noMatch')}
-                </p>
-              ) : (
-                <EmptyAppCard
-                  showIcon
-                  size="large"
-                  className="w-[480px] p-14"
-                  type={EmptyCardType.Dataset}
-                  onClick={() => showModal()}
-                />
-              )
-            }
-          />
-
           <DatasetSection
             scope="dept"
             title={t('knowledgeList.deptSection')}
@@ -213,6 +184,35 @@ export default function Datasets() {
                   {isFiltering
                     ? t('knowledgeList.noMatch')
                     : t('knowledgeList.deptSectionEmpty')}
+                </p>
+              ) : (
+                <EmptyAppCard
+                  showIcon
+                  size="large"
+                  className="w-[480px] p-14"
+                  type={EmptyCardType.Dataset}
+                  onClick={() => showModal()}
+                />
+              )
+            }
+          />
+
+          {/* Personal: private to the creator; everyone can create these. */}
+          <DatasetSection
+            scope="me"
+            title={t('knowledgeList.personalSection')}
+            hint={t('knowledgeList.personalSectionTip')}
+            total={personal.total}
+            page={personal.page}
+            pageSize={personal.pageSize}
+            onPageChange={personal.setPage}
+            kbs={personal.kbs}
+            loading={personal.loading}
+            showDatasetRenameModal={showDatasetRenameModal}
+            empty={
+              isFiltering ? (
+                <p className="py-6 text-sm text-text-secondary">
+                  {t('knowledgeList.noMatch')}
                 </p>
               ) : (
                 <EmptyAppCard
