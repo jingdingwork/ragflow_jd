@@ -132,7 +132,7 @@ export default function Datasets() {
           >
             {/* Everyone may create at least a personal knowledge base; the
                 dialog and backend restrict employees to the personal scope. */}
-            <Button onClick={showModal}>
+            <Button onClick={showModal} data-tour="datasets-create">
               <Plus className="size-[1em]" />
               {t('knowledgeList.createKnowledgeBase')}
             </Button>
@@ -142,7 +142,10 @@ export default function Datasets() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto px-5 pb-5">
+        <div
+          className="flex-1 overflow-auto px-5 pb-5"
+          data-tour="datasets-scopes"
+        >
           {/* Company-wide: hidden entirely when there is none, so the section
               header never introduces an empty block nobody can act on. */}
           {company.total > 0 && (

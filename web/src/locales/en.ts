@@ -145,14 +145,31 @@ export default {
         datasetsTitle: 'Datasets',
         datasetsDesc:
           'Datasets you can access are shown here. Click a card to view its documents and retrieved content.',
+        announcementsTitle: 'Announcement bar',
+        announcementsDesc:
+          'This bar at the top of the home page shows the latest announcements and notices. Click a title to read the full text; important announcements pop up automatically when you open the home page.',
         appsTitle: 'Apps and more',
         appsDesc:
           'Jump into recent chats, agents and memories. Use the tabs to switch between them.',
-        helpTitle: 'Reopen the guide anytime',
+        helpTitle: 'Where to find the guide',
         helpDesc:
-          'Forgot how something works? Click this help icon to reopen the guide for the current page.',
+          'Forgot how something works? Click this help icon at the top right to reopen the guide for the current page anytime.',
         announcements: 'Announcements',
         announcementAck: 'I know it',
+      },
+      datasets: {
+        welcomeTitle: 'Datasets',
+        welcomeDesc:
+          'Datasets store and retrieve your documents. They are organized into three levels by scope so you can quickly find the ones you can use.',
+        scopesTitle: 'Three dataset levels',
+        scopesDesc:
+          'The list has three parts: "Company-wide" is shared across the whole company, "Department" is shared within your department, and "Personal" is visible only to you. Scroll down to browse each.',
+        createTitle: 'Create a dataset',
+        createDesc:
+          'Create a dataset here, upload documents and pick a parsing method to make them available for retrieval and Q&A.',
+        helpTitle: 'Where to find the guide',
+        helpDesc:
+          'Click the help icon at the top right to reopen the guide for this page anytime.',
       },
       chat: {
         welcomeTitle: 'Start chatting with a model',
@@ -164,6 +181,9 @@ export default {
         controlsTitle: 'Model and datasets',
         controlsDesc:
           'Switch the chat model and the bound dataset scope here, or pick an agent to take over the conversation.',
+        modelTiersTitle: 'How to pick a model',
+        modelTiersDesc:
+          'Models are tiered by purpose — pick what fits: use a "fast" model for everyday or simple questions, a "balanced" one for general tasks, a "strong reasoning" model for complex reasoning, code or analysis, the "highest quality" model for important or formal output, and an "image" model when you need to understand pictures. Each model in the dropdown carries capability tags to guide your choice.',
         inputTitle: 'Message box',
         inputDesc:
           'Type your question and send it here. You can also attach files for reference.',

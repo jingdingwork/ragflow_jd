@@ -4,7 +4,7 @@
 // time. Steps whose anchor is missing at start are filtered out gracefully, so
 // tours stay robust when a page's content is empty or still loading.
 
-export type TourId = 'home' | 'chat' | 'agents' | 'apps';
+export type TourId = 'home' | 'datasets' | 'chat' | 'agents' | 'apps';
 
 export interface TourStepDef {
   /** CSS selector of the anchor element; omit for a centered step. */
@@ -22,6 +22,11 @@ export const TOURS: Record<TourId, TourStepDef[]> = {
       descKey: 'tour.home.navDesc',
     },
     {
+      selector: '[data-tour="home-announcements"]',
+      titleKey: 'tour.home.announcementsTitle',
+      descKey: 'tour.home.announcementsDesc',
+    },
+    {
       selector: '[data-tour="home-datasets"]',
       titleKey: 'tour.home.datasetsTitle',
       descKey: 'tour.home.datasetsDesc',
@@ -37,6 +42,27 @@ export const TOURS: Record<TourId, TourStepDef[]> = {
       descKey: 'tour.home.helpDesc',
     },
   ],
+  datasets: [
+    {
+      titleKey: 'tour.datasets.welcomeTitle',
+      descKey: 'tour.datasets.welcomeDesc',
+    },
+    {
+      selector: '[data-tour="datasets-scopes"]',
+      titleKey: 'tour.datasets.scopesTitle',
+      descKey: 'tour.datasets.scopesDesc',
+    },
+    {
+      selector: '[data-tour="datasets-create"]',
+      titleKey: 'tour.datasets.createTitle',
+      descKey: 'tour.datasets.createDesc',
+    },
+    {
+      selector: '[data-tour="tour-help"]',
+      titleKey: 'tour.datasets.helpTitle',
+      descKey: 'tour.datasets.helpDesc',
+    },
+  ],
   chat: [
     { titleKey: 'tour.chat.welcomeTitle', descKey: 'tour.chat.welcomeDesc' },
     {
@@ -48,6 +74,11 @@ export const TOURS: Record<TourId, TourStepDef[]> = {
       selector: '[data-tour="chat-controls"]',
       titleKey: 'tour.chat.controlsTitle',
       descKey: 'tour.chat.controlsDesc',
+    },
+    {
+      selector: '[data-tour="chat-controls"]',
+      titleKey: 'tour.chat.modelTiersTitle',
+      descKey: 'tour.chat.modelTiersDesc',
     },
     {
       selector: '[data-tour="chat-input"]',
@@ -99,6 +130,9 @@ export const TOURS: Record<TourId, TourStepDef[]> = {
 /** Resolve which tour applies to a route, or null if the page has none. */
 export function tourIdForPath(pathname: string): TourId | null {
   if (pathname === '/') return 'home';
+  // Knowledge-base list page (`/datasets`); the KB detail pages under `/dataset`
+  // (singular) deliberately have no tour.
+  if (pathname === '/datasets') return 'datasets';
   // Chat landing (`/chats`) redirects into `/chat/:id`; both share the tour.
   if (pathname.startsWith('/chat')) return 'chat';
   // Agent list is `/agents`; the canvas editor is `/agent/:id` (singular) and

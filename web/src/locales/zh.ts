@@ -127,13 +127,30 @@ export default {
         datasetsTitle: '知识库',
         datasetsDesc:
           '这里展示你可访问的知识库，点击卡片进入查看文档与检索内容。',
+        announcementsTitle: '公告栏',
+        announcementsDesc:
+          '首页顶部这一栏显示最新公告与通知，点标题可查看正文；重要公告进入首页时会自动弹出。',
         appsTitle: '应用与更多',
         appsDesc:
           '快速进入最近的聊天、智能体与记忆等内容，点右上角标签可切换。',
-        helpTitle: '随时重看指导',
-        helpDesc: '忘记怎么用了？点这个问号，就能重新打开当前页面的使用指导。',
+        helpTitle: '使用指导在哪',
+        helpDesc:
+          '忘记怎么用了？点右上角这个问号，就能随时重新打开当前页面的使用指导。',
         announcements: '公告',
         announcementAck: '我知道了',
+      },
+      datasets: {
+        welcomeTitle: '知识库',
+        welcomeDesc:
+          '知识库用来存放并检索你的文档。这里按范围分成三级，帮你快速找到能用的知识库。',
+        scopesTitle: '三级知识库',
+        scopesDesc:
+          '列表分为三块：「公司级」面向全公司共享；「部门级」在本部门内共享；「个人」仅自己可见。往下滚动即可分别浏览。',
+        createTitle: '新建知识库',
+        createDesc:
+          '点这里新建知识库，上传文档并选择解析方式后即可用于检索与问答。',
+        helpTitle: '使用指导在哪',
+        helpDesc: '点右上角的问号，可以随时重新打开本页的使用指导。',
       },
       chat: {
         welcomeTitle: '开始与模型对话',
@@ -144,6 +161,9 @@ export default {
         controlsTitle: '模型与知识库',
         controlsDesc:
           '在这里切换对话使用的模型、绑定的知识库范围，或选择一个智能体来接管对话。',
+        modelTiersTitle: '怎么选模型',
+        modelTiersDesc:
+          '模型按用途分档，按需选择即可：日常/简单问答选「快速」档，追求速度；一般任务选「均衡」档；复杂推理、代码或分析选「强推理」档；重要或正式输出选「最高质量」档；需要理解图片则选「图像」模型。下拉框里每个模型都带能力标签，可对照选择。',
         inputTitle: '输入框',
         inputDesc: '在这里输入问题并发送，支持上传文件作为参考。',
         helpTitle: '随时重看指导',
