@@ -504,7 +504,18 @@ class BaseDataBase:
             'retry_delay': 1,
         }
         database_config.update(pool_config)
-        self.database_connection = PooledDatabase[settings.DATABASE_TYPE.upper()].value(
+
+        # Force a 4-byte-capable connection charset for MySQL/OceanBase. Without
+        # it the client handshake negotiates 3-byte utf8, so any 4-byte
+        # character (emoji, some CJK ext) is replaced with "?" in transit before
+        # it ever reaches the (already utf8mb4) column. The server default is
+        # utf8mb4, so this only aligns the connection side.
+        db_type = settings.DATABASE_TYPE.upper()
+        if db_type in ("MYSQL", "OCEANBASE"):
+            database_config.setdefault("charset", "utf8mb4")
+            database_config.setdefault("use_unicode", True)
+
+        self.database_connection = PooledDatabase[db_type].value(
             db_name, **database_config
         )
         # self.database_connection = PooledDatabase[settings.DATABASE_TYPE.upper()].value(db_name, **database_config)
