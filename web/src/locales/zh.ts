@@ -67,6 +67,7 @@ export default {
     },
     login: {
       welcomeIntro: '欢迎使用',
+      brandName: '京鼎智能平台',
       brandTagline: '智能知识中枢 · 让工程数据高效协同',
       loginTitle: '登录账户',
       signUpTitle: '创建账户',

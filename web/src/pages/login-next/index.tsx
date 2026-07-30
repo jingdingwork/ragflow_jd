@@ -81,7 +81,11 @@ function LoginFormContent({
       </div>
       <div
         className={cn(
-          'w-full max-w-[540px] bg-bg-component/85 backdrop-blur-md',
+          // NOTE: no backdrop-filter here. This card lives inside FlipCard3D's
+          // `preserve-3d` context, and backdrop-blur inside a 3D-transformed
+          // ancestor renders as an opaque black box on some GPUs. Use a solid
+          // translucent fill instead.
+          'w-full max-w-[540px] bg-bg-component/90',
           'rounded-2xl pt-12 pl-10 pr-10 pb-3',
           'border border-border-button/80',
           'shadow-[0_20px_60px_-15px_rgba(243,152,0,0.18)]',
@@ -492,11 +496,11 @@ const Login = () => {
         </div>
 
         {/* Hero + Form */}
-        <div className="relative z-10 flex flex-col items-center justify-center min-h-[1050px] px-4 sm:px-6 lg:px-8 pt-24 pb-16">
+        <div className="relative z-10 flex flex-col items-center justify-center min-h-full px-4 sm:px-6 lg:px-8 pt-16 pb-16">
           <div className="text-center mb-12 animate-fade-in-up">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#F39800]/30 bg-[#F39800]/5 text-[11px] tracking-[0.25em] text-[#F39800] uppercase mb-6">
               <span className="size-1.5 rounded-full bg-[#F39800] animate-pulse" />
-              CTCI Intelligent Platform
+              Intelligent Platform
             </div>
             <h1 className="text-[42px] sm:text-[52px] font-medium leading-tight tracking-tight text-text-primary">
               {t('welcomeIntro')}{' '}
@@ -507,7 +511,7 @@ const Login = () => {
                   WebkitBackgroundClip: 'text',
                 }}
               >
-                RAGFlow
+                {t('brandName')}
               </span>
             </h1>
             <p className="text-text-secondary text-base mt-4 max-w-xl mx-auto leading-relaxed">

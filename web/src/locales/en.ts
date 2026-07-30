@@ -82,6 +82,7 @@ export default {
     },
     login: {
       welcomeIntro: 'Welcome to',
+      brandName: 'Intelligent Platform',
       brandTagline: 'Intelligent knowledge hub for engineering teams',
       loginTitle: 'Sign in to your account',
       signUpTitle: 'Create an account',
