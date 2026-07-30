@@ -5,7 +5,7 @@ import { usePreviewWatermark } from '@/hooks/use-watermark-request';
 import request from '@/utils/request';
 import classNames from 'classnames';
 import { renderAsync } from 'docx-preview';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './doc-preview.css';
 
 interface DocPreviewerProps {
@@ -24,9 +24,34 @@ export const DocPreviewer: React.FC<DocPreviewerProps> = ({
   className,
   url,
 }) => {
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
+
+  // docx renders fixed-width (A4/Letter) pages, so in a narrow pane (the KB
+  // preview column, chat / search preview boxes) the page is wider than the
+  // container and forces a horizontal scrollbar. Scale the whole page down with
+  // `zoom` so it fits the available width — the layout stays faithful, the
+  // horizontal scrollbar disappears and only vertical scrolling remains. Never
+  // upscale past 100% (keeps text crisp on wide panes).
+  const fitToWidth = useCallback(() => {
+    const scroller = scrollerRef.current;
+    const root = containerRef.current;
+    if (!scroller || !root) return;
+    const page = root.querySelector('section') as HTMLElement | null;
+    if (!page) return;
+    root.style.zoom = '1'; // reset before measuring the natural page width
+    const pageWidth = page.offsetWidth;
+    if (!pageWidth) return;
+    // Natural width that must fit = page + the wrapper's 16px side padding
+    // (see doc-preview.css). Compare against the scroller's inner width, minus
+    // a couple px so rounding never re-triggers a scrollbar.
+    const target = pageWidth + 32;
+    const avail = scroller.clientWidth - 2;
+    const scale = Math.min(1, avail / target);
+    root.style.zoom = scale > 0 ? String(scale) : '1';
+  }, []);
 
   // docx-preview renders opaque white pages regardless of the app theme and
   // scrolls the document inside this component, so the generic viewport overlay
@@ -111,6 +136,10 @@ export const DocPreviewer: React.FC<DocPreviewerProps> = ({
         experimental: true, // enables tab-stop / some table width handling
         useBase64URL: true, // inline images so they survive the auth'd origin
       });
+
+      // Fit the freshly rendered pages to the pane width (drops the horizontal
+      // scrollbar). rAF lets layout settle so the page width measures correctly.
+      requestAnimationFrame(fitToWidth);
     } catch (err) {
       message.error('Failed to parse document.');
       console.error('Error parsing document:', err);
@@ -126,10 +155,23 @@ export const DocPreviewer: React.FC<DocPreviewerProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
+  // Re-fit whenever the pane resizes (splitter drag, window resize, modal open).
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => fitToWidth());
+    ro.observe(scroller);
+    return () => ro.disconnect();
+  }, [fitToWidth]);
+
   return (
     <div
+      ref={scrollerRef}
+      // Force single-axis scrolling: the page is zoom-fitted to the width, so
+      // the horizontal scrollbar is suppressed and only the vertical one shows.
+      style={{ overflowX: 'hidden', overflowY: 'auto' }}
       className={classNames(
-        'relative w-full h-full bg-background-paper border border-border-normal rounded-md overflow-auto',
+        'relative w-full h-full bg-background-paper border border-border-normal rounded-md',
         className,
       )}
     >
@@ -154,16 +196,16 @@ export const DocPreviewer: React.FC<DocPreviewerProps> = ({
           </div>
         </div>
       ) : (
-        // `relative` content box grows with the rendered pages; the watermark
-        // layer is an absolute sibling (not inside the docx root, which
-        // docx-preview clears on each render) so it spans the full document
-        // height and scrolls together with the pages.
-        <div className="relative w-fit min-w-full">
-          <div ref={containerRef} className="docx-preview-root" />
+        // Full-width content box centers the (zoom-fitted, page-width) docx
+        // root; the watermark layer is an absolute sibling (not inside the docx
+        // root, which docx-preview clears on each render) so it spans the full
+        // document height/width and scrolls together with the pages.
+        <div className="relative min-w-full flex justify-center">
+          <div ref={containerRef} className="docx-preview-root w-fit" />
           {watermarkBg && (
             <div
               aria-hidden
-              className="pointer-events-none select-none absolute inset-0 z-[60] opacity-[0.10]"
+              className="pointer-events-none select-none absolute inset-0 z-[60] opacity-[0.25]"
               style={{
                 backgroundImage: watermarkBg,
                 backgroundRepeat: 'repeat',
