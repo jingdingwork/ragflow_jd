@@ -25,8 +25,12 @@ const Preview = ({
   url,
 }: PreviewProps & Partial<IProps>) => {
   const { active, text } = usePreviewWatermark();
+  // Word previews carry their own watermark (tiled onto the scrolling pages, in
+  // a fixed dark ink that stays visible on docx's always-white pages), so the
+  // generic viewport overlay is suppressed for them to avoid a double mark.
+  const isDocx = ['doc', 'docx'].indexOf(fileType) > -1;
   return (
-    <PreviewWatermark active={active} text={text} className="h-full">
+    <PreviewWatermark active={active && !isDocx} text={text} className="h-full">
       {fileType === 'pdf' && highlights && setWidthAndHeight && (
         <section className="h-full">
           <PdfPreviewer

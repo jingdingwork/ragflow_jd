@@ -61,7 +61,10 @@ const DocumentViewer = () => {
   return (
     <NoSaveGuard active={!!downloadDisabled}>
       <PreviewWatermark
-        active={watermarkActive}
+        // Word previews (DocPreviewer) tile their own dark watermark onto the
+        // scrolling pages, so the generic viewport overlay is skipped for docx
+        // to avoid doubling and the white-on-white invisibility in dark mode.
+        active={watermarkActive && ext !== 'docx'}
         text={watermarkText}
         className="w-full h-full"
       >

@@ -1,9 +1,11 @@
+import { buildWatermarkDataUri } from '@/components/preview-watermark';
 import message from '@/components/ui/message';
 import { Spin } from '@/components/ui/spin';
+import { usePreviewWatermark } from '@/hooks/use-watermark-request';
 import request from '@/utils/request';
 import classNames from 'classnames';
 import { renderAsync } from 'docx-preview';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import './doc-preview.css';
 
 interface DocPreviewerProps {
@@ -25,6 +27,22 @@ export const DocPreviewer: React.FC<DocPreviewerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
+
+  // docx-preview renders opaque white pages regardless of the app theme and
+  // scrolls the document inside this component, so the generic viewport overlay
+  // in <PreviewWatermark> is both wrong-colored (white-on-white in dark mode)
+  // and unable to cover scrolled-away pages. Tile the mark straight onto the
+  // scrolling content with a fixed dark fill so it stays visible on the white
+  // pages and repeats across every page.
+  const { active: watermarkActive, text: watermarkText } =
+    usePreviewWatermark();
+  const watermarkBg = useMemo(
+    () =>
+      watermarkActive && watermarkText
+        ? buildWatermarkDataUri(watermarkText, '#000000')
+        : undefined,
+    [watermarkActive, watermarkText],
+  );
 
   // Determines whether the Blob represents a .docx document by checking for the ZIP
   // file signature ("PK") in the initial bytes. A valid .docx file is a ZIP container
@@ -136,7 +154,23 @@ export const DocPreviewer: React.FC<DocPreviewerProps> = ({
           </div>
         </div>
       ) : (
-        <div ref={containerRef} className="docx-preview-root" />
+        // `relative` content box grows with the rendered pages; the watermark
+        // layer is an absolute sibling (not inside the docx root, which
+        // docx-preview clears on each render) so it spans the full document
+        // height and scrolls together with the pages.
+        <div className="relative w-fit min-w-full">
+          <div ref={containerRef} className="docx-preview-root" />
+          {watermarkBg && (
+            <div
+              aria-hidden
+              className="pointer-events-none select-none absolute inset-0 z-[60] opacity-[0.10]"
+              style={{
+                backgroundImage: watermarkBg,
+                backgroundRepeat: 'repeat',
+              }}
+            />
+          )}
+        </div>
       )}
     </div>
   );

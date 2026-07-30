@@ -19,7 +19,7 @@ interface PreviewWatermarkProps {
 // (data URI), an isolated rendering context where `currentColor` does NOT
 // inherit the host element's `color` — it would silently fall back to black
 // and vanish in dark mode. The caller passes a theme-aware color instead.
-function buildWatermarkDataUri(text: string, fill: string) {
+export function buildWatermarkDataUri(text: string, fill: string) {
   const safe = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
