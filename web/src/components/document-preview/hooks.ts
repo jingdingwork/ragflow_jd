@@ -4,9 +4,11 @@ import { useGetPipelineResultSearchParams } from '@/pages/dataflow-result/hooks'
 import api, { restAPIv1 } from '@/utils/api';
 import { getAuthorization } from '@/utils/authorization-util';
 import jsPreviewExcel from '@js-preview/excel';
+// The renderer positions columns / merged cells / borders purely through this
+// stylesheet; without it the grid collapses and the sheet looks scrambled.
+import '@js-preview/excel/lib/index.css';
 import { useSize } from 'ahooks';
 import axios from 'axios';
-import mammoth from 'mammoth';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export const useDocumentResizeObserver = () => {
@@ -125,45 +127,6 @@ export const useFetchExcel = (filePath: string) => {
   }, [fetchDocumentAsync]);
 
   return { status, containerRef, error };
-};
-
-export const useFetchDocx = (filePath: string) => {
-  const [succeed, setSucceed] = useState(true);
-  const [error, setError] = useState<string>();
-  const { fetchDocument } = useFetchDocument();
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const fetchDocumentAsync = useCallback(async () => {
-    try {
-      const jsonFile = await fetchDocument(filePath);
-      mammoth
-        .convertToHtml(
-          { arrayBuffer: jsonFile.data },
-          { includeDefaultStyleMap: true },
-        )
-        .then((result) => {
-          setSucceed(true);
-          const docEl = document.createElement('div');
-          docEl.className = 'document-container';
-          docEl.innerHTML = result.value;
-          const container = containerRef.current;
-          if (container) {
-            container.innerHTML = docEl.outerHTML;
-          }
-        })
-        .catch(() => {
-          setSucceed(false);
-        });
-    } catch (error: any) {
-      setError(error.toString());
-    }
-  }, [filePath, fetchDocument]);
-
-  useEffect(() => {
-    fetchDocumentAsync();
-  }, [fetchDocumentAsync]);
-
-  return { succeed, containerRef, error };
 };
 
 export const useCatchDocumentError = (url: string) => {

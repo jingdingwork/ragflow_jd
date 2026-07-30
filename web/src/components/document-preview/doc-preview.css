@@ -1,0 +1,17 @@
+/* Fit docx-preview's page canvas into the preview pane. docx-preview injects
+   its own styles for `.docx-wrapper` (gray canvas) and `section.docx` (white
+   A4-like pages); we only adjust the surrounding chrome so pages sit cleanly
+   on the app's paper background in both light and dark themes. The page bodies
+   stay white on purpose — that is the authored Word appearance. */
+.docx-preview-root .docx-wrapper {
+  background: transparent;
+  padding: 16px;
+  gap: 16px;
+}
+
+.docx-preview-root .docx-wrapper > section.docx {
+  margin-bottom: 0;
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 8%),
+    0 2px 12px rgb(0 0 0 / 12%);
+}
