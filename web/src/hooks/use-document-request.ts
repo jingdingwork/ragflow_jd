@@ -63,6 +63,26 @@ export const enum DocumentApiAction {
 
 export type UploadProgress = { current: number; total: number };
 
+// Backend marker prefixed to a per-file upload error when the file was
+// rejected by the sensitive-word gate. Followed by the comma-joined words.
+// Keep in sync with SENSITIVE_HIT_PREFIX in
+// api/db/services/sensitive_word_service.py.
+const SENSITIVE_HIT_PREFIX = '__SENSITIVE_WORDS__:';
+
+// Turn a raw per-file backend error into a user-facing reason. Sensitive-word
+// rejections are localized and list the offending words; anything else is
+// shown as-is (stripped of the leading "filename: ").
+function toFileErrorReason(fileName: string, rawMessage: string): string {
+  const msg = rawMessage || '';
+  const idx = msg.indexOf(SENSITIVE_HIT_PREFIX);
+  if (idx >= 0) {
+    const words = msg.slice(idx + SENSITIVE_HIT_PREFIX.length).trim();
+    return i18n.t('knowledgeDetails.sensitiveWordHit', { words });
+  }
+  const prefix = `${fileName}: `;
+  return msg.startsWith(prefix) ? msg.slice(prefix.length) : msg;
+}
+
 export const useUploadNextDocument = () => {
   const queryClient = useQueryClient();
   const { id } = useParams();
@@ -72,6 +92,10 @@ export const useUploadNextDocument = () => {
   // Per-file upload progress, so a folder upload of many files shows how many
   // have finished. `null` when no upload is in flight.
   const [progress, setProgress] = useState<UploadProgress | null>(null);
+  // Per-file rejection reasons (filename -> localized message), so the upload
+  // dialog can flag exactly which files were blocked and why (e.g. sensitive
+  // words). Reset at the start of every upload.
+  const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
 
   const {
     data,
@@ -97,11 +121,13 @@ export const useUploadNextDocument = () => {
       // a newline-joined message listing the failures otherwise.
       const succeeded: any[] = [];
       const errors: string[] = [];
+      const perFileErrors: Record<string, string> = {};
       const total = fileList.length;
       // Folder the user is currently browsing; blank = root. Plain uploads land
       // here; folder-drag uploads nest their own subtree beneath it (backend).
       const parentPath = searchParams.get('folder') ?? '';
       setProgress({ current: 0, total });
+      setFileErrors({});
 
       for (const file of fileList as any[]) {
         const formData = new FormData();
@@ -123,11 +149,14 @@ export const useUploadNextDocument = () => {
               succeeded.push(...data);
             }
           } else {
-            errors.push(get(ret, 'message') || `${file.name}: upload failed`);
+            const msg = get(ret, 'message') || `${file.name}: upload failed`;
+            errors.push(msg);
+            perFileErrors[file.name] = toFileErrorReason(file.name, msg);
           }
         } catch (error) {
           console.warn(error);
           errors.push(`${file.name}: ${error}`);
+          perFileErrors[file.name] = toFileErrorReason(file.name, `${error}`);
         }
         // Advance after each file finishes (success or failure) so the bar
         // reflects "files processed", not "files succeeded".
@@ -139,6 +168,8 @@ export const useUploadNextDocument = () => {
           queryKey: [DocumentApiAction.FetchDocumentList],
         });
       }
+
+      setFileErrors(perFileErrors);
 
       if (errors.length === 0) {
         return { code: 0, data: succeeded, message: '', status: 0 };
@@ -155,7 +186,7 @@ export const useUploadNextDocument = () => {
     },
   });
 
-  return { uploadDocument: mutateAsync, loading, data, progress };
+  return { uploadDocument: mutateAsync, loading, data, progress, fileErrors };
 };
 
 export const useFetchDocumentList = (loop = true) => {

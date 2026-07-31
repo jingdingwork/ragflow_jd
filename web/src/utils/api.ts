@@ -423,6 +423,11 @@ export default {
   adminDeptFolderFiles: (id: string) =>
     `${restAPIv1}/admin/dept-folders/${id}/files`,
 
+  adminListSensitiveWords: `${restAPIv1}/admin/sensitive-words`,
+  adminAddSensitiveWord: `${restAPIv1}/admin/sensitive-words`,
+  adminSensitiveWord: (id: string) =>
+    `${restAPIv1}/admin/sensitive-words/${id}`,
+
   adminListAnnouncements: `${restAPIv1}/admin/announcements`,
   adminCreateAnnouncement: `${restAPIv1}/admin/announcements`,
   adminAnnouncement: (id: string) => `${restAPIv1}/admin/announcements/${id}`,

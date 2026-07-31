@@ -1597,6 +1597,18 @@ class SystemSettings(DataBaseModel):
     class Meta:
         db_table = "system_settings"
 
+
+class SensitiveWord(DataBaseModel):
+    """Admin-managed sensitive words. When the ``kb.sensitive_filter.enabled``
+    system setting is on, uploaded documents whose fast-extracted text contains
+    any of these words are rejected before being stored."""
+    id = CharField(max_length=32, primary_key=True)
+    word = CharField(max_length=255, null=False, help_text="sensitive word or phrase", index=True)
+    created_by = CharField(max_length=32, null=True, help_text="admin who added it", index=False)
+
+    class Meta:
+        db_table = "sensitive_word"
+
 def alter_db_add_column(migrator, table_name, column_name, column_type):
     try:
         migrate(migrator.add_column(table_name, column_name, column_type))

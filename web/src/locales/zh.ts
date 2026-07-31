@@ -281,6 +281,15 @@ export default {
         previewWatermark: '预览水印',
         previewWatermarkTip:
           '开启后，聊天引用、知识库文件、搜索结果等所有预览页面会叠加当前用户的工号与昵称水印，便于截图溯源。',
+        sensitiveWords: '敏感词过滤',
+        sensitiveWordsDescription:
+          '维护敏感词清单。开启后，上传知识库文件时会快速扫描文档内容，命中任一敏感词的文件将被拒绝上传。',
+        sensitiveFilterEnabled: '启用敏感词拦截',
+        sensitiveFilterEnabledTip:
+          '开启后，上传的文档会做一次快速文本扫描（不做 OCR，几乎不影响上传速度），命中敏感词的文件不会被保存；扫描件、图片等无法直接提取文字的文件会放行。',
+        sensitiveWordPlaceholder: '输入敏感词',
+        addWord: '添加',
+        word: '敏感词',
       },
       registrationWhitelist: '注册白名单',
       roles: '角色',
@@ -1038,6 +1047,7 @@ export default {
       parseFile: '解析文件',
       submittingParseTasks: '正在提交解析任务…',
       pleaseWait: '请稍候',
+      sensitiveWordHit: '命中敏感词：{{words}}，已阻止上传',
       emptyMetadata: '无元数据',
       localUpload: '本地上传',
       fileSize: '文件大小',

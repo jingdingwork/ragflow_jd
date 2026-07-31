@@ -9,6 +9,7 @@ import {
 import { IModalProps } from '@/interfaces/common';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { TFunction } from 'i18next';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -43,11 +44,24 @@ export type UploadFormSchemaType = z.infer<
 
 const UploadFormId = 'UploadFormId';
 
+// Name of a fileList entry, which may be a bare File or a {file, path} pair
+// (folder uploads carry the relative path alongside the File).
+function entryName(entry: unknown): string {
+  if (entry instanceof File) return entry.name;
+  const f = (entry as { file?: File })?.file;
+  return f?.name ?? '';
+}
+
 type UploadFormProps = {
   submit: (values?: UploadFormSchemaType) => void;
   showParseOnCreation?: boolean;
+  fileErrors?: Record<string, string>;
 };
-function UploadForm({ submit, showParseOnCreation }: UploadFormProps) {
+function UploadForm({
+  submit,
+  showParseOnCreation,
+  fileErrors,
+}: UploadFormProps) {
   const { t } = useTranslation();
   const FormSchema = buildUploadFormSchema(t);
 
@@ -59,6 +73,19 @@ function UploadForm({ submit, showParseOnCreation }: UploadFormProps) {
       fileList: [],
     },
   });
+
+  // After an upload with rejections, drop the files that succeeded (they are
+  // already persisted) and keep only the flagged ones, so the user sees just
+  // the failures and a re-submit won't duplicate the successful files.
+  useEffect(() => {
+    if (!fileErrors || Object.keys(fileErrors).length === 0) return;
+    const current = form.getValues('fileList') || [];
+    const remaining = current.filter((f) => fileErrors[entryName(f)]);
+    if (remaining.length !== current.length) {
+      form.setValue('fileList', remaining, { shouldValidate: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileErrors]);
 
   return (
     <Form {...form}>
@@ -88,6 +115,7 @@ function UploadForm({ submit, showParseOnCreation }: UploadFormProps) {
               onValueChange={field.onChange}
               accept={{}}
               maxSize={300 * 1024 * 1024}
+              errors={fileErrors}
               data-testid="dataset-upload-dropzone"
             />
           )}
@@ -102,6 +130,9 @@ type FileUploadDialogProps = IModalProps<UploadFormSchemaType> &
     // Per-file upload progress; when set and uploading, a progress bar shows
     // how many of the batch have finished (useful for folder uploads).
     progress?: { current: number; total: number } | null;
+    // Per-file rejection reasons (filename -> message), e.g. sensitive-word
+    // hits; rendered inline next to the flagged file in the list.
+    fileErrors?: Record<string, string>;
   };
 export function FileUploadDialog({
   hideModal,
@@ -109,6 +140,7 @@ export function FileUploadDialog({
   loading,
   showParseOnCreation = false,
   progress,
+  fileErrors,
 }: FileUploadDialogProps) {
   const { t } = useTranslation();
 
@@ -136,7 +168,11 @@ export function FileUploadDialog({
           </TabsContent>
           <TabsContent value="password">{t('common.comingSoon')}</TabsContent>
         </Tabs> */}
-        <UploadForm submit={onOk!} showParseOnCreation={showParseOnCreation} />
+        <UploadForm
+          submit={onOk!}
+          showParseOnCreation={showParseOnCreation}
+          fileErrors={fileErrors}
+        />
         {showProgress && (
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs text-text-secondary">

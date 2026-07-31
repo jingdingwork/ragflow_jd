@@ -35,6 +35,7 @@ interface FileCardProps {
   file: File;
   onRemove: () => void;
   progress?: number;
+  error?: string;
 }
 
 interface FilePreviewProps {
@@ -60,7 +61,7 @@ function FilePreview({ file }: FilePreviewProps) {
   );
 }
 
-function FileCard({ file, progress, onRemove }: FileCardProps) {
+function FileCard({ file, progress, error, onRemove }: FileCardProps) {
   return (
     <div className="relative flex items-center gap-2.5">
       <div className="flex flex-1 gap-2.5 overflow-hidden">
@@ -71,7 +72,12 @@ function FileCard({ file, progress, onRemove }: FileCardProps) {
           <div className="flex flex-col gap-px">
             <Tooltip>
               <TooltipTrigger asChild>
-                <p className=" w-fit line-clamp-1 text-sm font-medium text-foreground/80 text-ellipsis truncate max-w-[370px]">
+                <p
+                  className={cn(
+                    'w-fit line-clamp-1 text-sm font-medium text-ellipsis truncate max-w-[370px]',
+                    error ? 'text-red-500' : 'text-foreground/80',
+                  )}
+                >
                   {file.name}
                 </p>
               </TooltipTrigger>
@@ -79,9 +85,13 @@ function FileCard({ file, progress, onRemove }: FileCardProps) {
                 {file.name}
               </TooltipContent>
             </Tooltip>
-            <p className="text-xs text-text-secondary">
-              {formatBytes(file.size)}
-            </p>
+            {error ? (
+              <p className="text-xs text-red-500">{error}</p>
+            ) : (
+              <p className="text-xs text-text-secondary">
+                {formatBytes(file.size)}
+              </p>
+            )}
           </div>
           {progress ? <Progress value={progress} /> : null}
         </div>
@@ -139,6 +149,13 @@ interface FileUploaderProps extends Omit<
   progresses?: Record<string, number>;
 
   /**
+   * Per-file error messages keyed by file name. When present for a file, the
+   * card renders the message in red instead of the file size.
+   * @type Record<string, string> | undefined
+   */
+  errors?: Record<string, string>;
+
+  /**
    * Accepted file types for the uploader.
    * @type { [key: string]: string[]}
    * @default
@@ -193,6 +210,7 @@ export function FileUploader(props: FileUploaderProps) {
     onValueChange,
     onUpload,
     progresses,
+    errors,
     accept = {
       'image/*': [],
     },
@@ -452,6 +470,7 @@ export function FileUploader(props: FileUploaderProps) {
                 file={file}
                 onRemove={() => onRemove(index)}
                 progress={progresses?.[file.name]}
+                error={errors?.[file.name]}
               />
             ))}
           </div>

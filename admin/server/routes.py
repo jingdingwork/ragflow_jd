@@ -25,7 +25,7 @@ from flask_login import current_user, login_required, logout_user
 
 from auth import login_verify, login_admin, check_admin_auth
 from responses import success_response, error_response
-from services import UserMgr, DepartmentMgr, GlobalLLMMgr, ModelCatalogMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, KbPermissionMgr, RetrievalMgr, PromptMgr, FolderMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr, AnnouncementMgr
+from services import UserMgr, DepartmentMgr, GlobalLLMMgr, ModelCatalogMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, KbPermissionMgr, RetrievalMgr, PromptMgr, FolderMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr, AnnouncementMgr, SensitiveWordMgr
 from roles import RoleMgr
 from api.common.exceptions import AdminException
 from common.versions import get_ragflow_version
@@ -464,6 +464,41 @@ def update_dept_folder(connector_id):
 def delete_dept_folder(connector_id):
     try:
         return success_response(FolderMgr.delete(connector_id), "Delete department folder", 0)
+    except ValueError as e:
+        return error_response(str(e), 400)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/sensitive-words", methods=["GET"])
+@login_required
+@check_admin_auth
+def list_sensitive_words():
+    try:
+        return success_response(SensitiveWordMgr.list_all(), "List sensitive words", 0)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/sensitive-words", methods=["POST"])
+@login_required
+@check_admin_auth
+def add_sensitive_word():
+    try:
+        data = request.get_json() or {}
+        return success_response(SensitiveWordMgr.add(data), "Add sensitive word", 0)
+    except ValueError as e:
+        return error_response(str(e), 400)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/sensitive-words/<word_id>", methods=["DELETE"])
+@login_required
+@check_admin_auth
+def delete_sensitive_word(word_id):
+    try:
+        return success_response(SensitiveWordMgr.delete(word_id), "Delete sensitive word", 0)
     except ValueError as e:
         return error_response(str(e), 400)
     except Exception as e:

@@ -31,6 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import message from '@/components/ui/message';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
@@ -47,8 +48,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   MODEL_CAPABILITY_I18N,
   ModelCatalogItem,
+  addSensitiveWord,
   deleteModelCatalog,
+  deleteSensitiveWord,
   listModelCatalog,
+  listSensitiveWords,
   listVariables,
   setVariable,
   syncModelCatalog,
@@ -60,9 +64,11 @@ import { ModelCatalogDialog } from './components/model-catalog-dialog';
 enum SystemSettingsTab {
   ModelSettings = 'model-settings',
   FileManagement = 'file-management',
+  SensitiveWords = 'sensitive-words',
 }
 
 const WATERMARK_SETTING = 'file.watermark.enabled';
+const SENSITIVE_FILTER_SETTING = 'kb.sensitive_filter.enabled';
 
 function FileManagementPane() {
   const { t } = useTranslation();
@@ -119,6 +125,196 @@ function FileManagementPane() {
             disabled={toggle.isPending}
             onCheckedChange={(v) => toggle.mutate(v)}
           />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SensitiveWordsPane() {
+  const { t } = useTranslation();
+  const [newWord, setNewWord] = useState('');
+
+  const { data: enabled, refetch: refetchEnabled } = useQuery({
+    queryKey: ['admin/variables', SENSITIVE_FILTER_SETTING],
+    queryFn: async () => {
+      const res = await listVariables();
+      const row = res?.data?.data?.find(
+        (v) => v.name === SENSITIVE_FILTER_SETTING,
+      );
+      // Default OFF: this is a blocking gate, so it must be opted into.
+      if (!row) return false;
+      return String(row.value).trim().toLowerCase() === 'true';
+    },
+  });
+
+  const {
+    data: words,
+    isFetching,
+    refetch: refetchWords,
+  } = useQuery({
+    queryKey: ['admin/sensitive-words'],
+    queryFn: async () => {
+      const res = await listSensitiveWords();
+      return res?.data?.data ?? [];
+    },
+  });
+
+  const toggle = useMutation({
+    mutationKey: ['admin/variables/set', SENSITIVE_FILTER_SETTING],
+    mutationFn: async (next: boolean) => {
+      const res = await setVariable(
+        SENSITIVE_FILTER_SETTING,
+        next ? 'true' : 'false',
+      );
+      return res?.data;
+    },
+    onSuccess: (res) => {
+      if (res?.code === 0) {
+        message.success(t('admin.saveSuccess'));
+        refetchEnabled();
+      }
+    },
+    retry: false,
+  });
+
+  const addMutation = useMutation({
+    mutationKey: ['admin/sensitive-words/add'],
+    mutationFn: async (word: string) => {
+      const res = await addSensitiveWord(word);
+      return res?.data;
+    },
+    onSuccess: (res) => {
+      if (res?.code === 0) {
+        message.success(t('admin.saveSuccess'));
+        setNewWord('');
+        refetchWords();
+      } else if (res?.message) {
+        message.error(res.message);
+      }
+    },
+    retry: false,
+  });
+
+  const deleteMutation = useMutation({
+    mutationKey: ['admin/sensitive-words/delete'],
+    mutationFn: async (id: string) => {
+      const res = await deleteSensitiveWord(id);
+      return res?.data;
+    },
+    onSuccess: (res) => {
+      if (res?.code === 0) {
+        message.success(t('admin.saveSuccess'));
+        refetchWords();
+      }
+    },
+    retry: false,
+  });
+
+  const submitAdd = () => {
+    const w = newWord.trim();
+    if (!w || addMutation.isPending) return;
+    addMutation.mutate(w);
+  };
+
+  return (
+    <Card className="!shadow-none bg-transparent">
+      <CardHeader className="space-y-1.5">
+        <CardTitle className="text-xl leading-none">
+          {t('admin.systemSettingsPage.sensitiveWords')}
+        </CardTitle>
+        <CardDescription className="text-text-secondary">
+          {t('admin.systemSettingsPage.sensitiveWordsDescription')}
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-6">
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-border-default p-4 max-w-2xl">
+          <div className="space-y-1">
+            <div className="font-medium">
+              {t('admin.systemSettingsPage.sensitiveFilterEnabled')}
+            </div>
+            <div className="text-sm text-text-secondary">
+              {t('admin.systemSettingsPage.sensitiveFilterEnabledTip')}
+            </div>
+          </div>
+          <Switch
+            checked={!!enabled}
+            disabled={toggle.isPending}
+            onCheckedChange={(v) => toggle.mutate(v)}
+          />
+        </div>
+
+        <div className="max-w-2xl space-y-3">
+          <div className="flex items-center gap-2">
+            <Input
+              value={newWord}
+              placeholder={t(
+                'admin.systemSettingsPage.sensitiveWordPlaceholder',
+              )}
+              onChange={(e) => setNewWord(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  submitAdd();
+                }
+              }}
+              className="max-w-xs"
+            />
+            <ButtonLoading
+              variant="highlighted"
+              loading={addMutation.isPending}
+              onClick={submitAdd}
+            >
+              <LucidePlus className="size-4 mr-1" />
+              {t('admin.systemSettingsPage.addWord')}
+            </ButtonLoading>
+            <Button
+              size="icon-lg"
+              variant="outline"
+              onClick={() => refetchWords()}
+              disabled={isFetching}
+            >
+              <LucideRefreshCw
+                className={isFetching ? 'size-4 animate-spin' : 'size-4'}
+              />
+            </Button>
+          </div>
+
+          <div className="border border-border-default rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('admin.systemSettingsPage.word')}</TableHead>
+                  <TableHead className="text-right">
+                    {t('admin.actions')}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {words && words.length > 0 ? (
+                  words.map((w) => (
+                    <TableRow key={w.id}>
+                      <TableCell className="font-medium">{w.word}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={deleteMutation.isPending}
+                          onClick={() => deleteMutation.mutate(w.id)}
+                        >
+                          <LucideTrash2 className="size-3.5 mr-1" />
+                          {t('admin.delete')}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableEmpty columnsLength={2} />
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -397,6 +593,9 @@ function AdminSystemSettings() {
               <TabsTrigger value={SystemSettingsTab.FileManagement}>
                 {t('admin.systemSettingsPage.fileManagement')}
               </TabsTrigger>
+              <TabsTrigger value={SystemSettingsTab.SensitiveWords}>
+                {t('admin.systemSettingsPage.sensitiveWords')}
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value={SystemSettingsTab.ModelSettings}>
@@ -405,6 +604,10 @@ function AdminSystemSettings() {
 
             <TabsContent value={SystemSettingsTab.FileManagement}>
               <FileManagementPane />
+            </TabsContent>
+
+            <TabsContent value={SystemSettingsTab.SensitiveWords}>
+              <SensitiveWordsPane />
             </TabsContent>
           </Tabs>
         </CardContent>

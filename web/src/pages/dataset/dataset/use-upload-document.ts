@@ -4,7 +4,6 @@ import {
   useRunDocument,
   useUploadNextDocument,
 } from '@/hooks/use-document-request';
-import { getUnSupportedFilesCount } from '@/utils/document-util';
 import { useCallback } from 'react';
 
 export const useHandleUploadDocument = () => {
@@ -13,7 +12,8 @@ export const useHandleUploadDocument = () => {
     hideModal: hideDocumentUploadModal,
     showModal: showDocumentUploadModal,
   } = useSetModalState();
-  const { uploadDocument, loading, progress } = useUploadNextDocument();
+  const { uploadDocument, loading, progress, fileErrors } =
+    useUploadNextDocument();
   const { runDocumentByIds } = useRunDocument();
 
   const onDocumentUploadOk = useCallback(
@@ -42,13 +42,10 @@ export const useHandleUploadDocument = () => {
           return 0;
         }
 
-        // For partial success (code 500), check if any files were uploaded
-        const count = getUnSupportedFilesCount(ret?.message);
-        if (count !== fileList.length) {
-          hideDocumentUploadModal();
-          return 0;
-        }
-
+        // Any failure (code 500): keep the dialog open so the per-file error
+        // annotations (e.g. sensitive-word hits) stay visible. Succeeded files
+        // are already persisted and pruned from the list by the dialog, so a
+        // re-submit only retries the flagged ones.
         return ret?.code;
       }
     },
@@ -58,6 +55,7 @@ export const useHandleUploadDocument = () => {
   return {
     documentUploadLoading: loading,
     documentUploadProgress: progress,
+    documentUploadFileErrors: fileErrors,
     onDocumentUploadOk,
     documentUploadVisible,
     hideDocumentUploadModal,

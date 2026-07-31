@@ -595,6 +595,7 @@ Example: A 1 KB message with 1024-dim embedding uses ~9 KB. The 5 MB default lim
       parseFile: 'Parse file',
       submittingParseTasks: 'Submitting parse tasks…',
       pleaseWait: 'Please wait',
+      sensitiveWordHit: 'Blocked: contains sensitive word(s) {{words}}',
       emptyMetadata: 'No metadata',
       metadataField: 'Metadata field',
       systemAttribute: 'System attribute',
@@ -3159,6 +3160,15 @@ Important structured information may include: names, dates, locations, events, k
         previewWatermark: 'Preview watermark',
         previewWatermarkTip:
           'When enabled, every preview (chat citations, knowledge base files, search results) overlays the current user’s employee id and nickname, making leaked screenshots traceable.',
+        sensitiveWords: 'Sensitive words',
+        sensitiveWordsDescription:
+          'Maintain the sensitive-word blocklist. When enabled, uploaded knowledge base files are quickly scanned and any file containing a listed word is rejected.',
+        sensitiveFilterEnabled: 'Enable sensitive-word filtering',
+        sensitiveFilterEnabledTip:
+          'When enabled, uploaded documents get a fast text scan (no OCR, negligible impact on upload speed); files that hit a sensitive word are not saved. Scanned files and images, whose text cannot be extracted directly, are allowed through.',
+        sensitiveWordPlaceholder: 'Enter a sensitive word',
+        addWord: 'Add',
+        word: 'Word',
       },
       registrationWhitelist: 'Registration whitelist',
       roles: 'Roles',

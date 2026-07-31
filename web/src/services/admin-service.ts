@@ -1042,6 +1042,25 @@ export const rebuildDeptFolder = (id: string) =>
     api.adminRebuildDeptFolder(id),
   );
 
+// Sensitive-word blocklist used to gate document uploads.
+export type SensitiveWord = {
+  id: string;
+  word: string;
+  created_by: string | null;
+  create_date: string | null;
+};
+
+export const listSensitiveWords = () =>
+  request.get<ResponseData<SensitiveWord[]>>(api.adminListSensitiveWords);
+
+export const addSensitiveWord = (word: string) =>
+  request.post<ResponseData<{ word: string }>>(api.adminAddSensitiveWord, {
+    word,
+  });
+
+export const deleteSensitiveWord = (id: string) =>
+  request.delete<ResponseData<{ id: string }>>(api.adminSensitiveWord(id));
+
 export type Announcement = {
   id: string;
   title: string;

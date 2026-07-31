@@ -58,6 +58,7 @@ from api.db.services.user_service import TenantService, UserTenantService
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.services.document_service import DocumentService
 from api.db.services.system_settings_service import SystemSettingsService
+from api.db.services.sensitive_word_service import SensitiveWordService, invalidate_cache as invalidate_sensitive_cache
 from api.db.services.api_service import APITokenService, API4ConversationService
 from api.db.services.conversation_service import ConversationService
 from api.db.services.application_service import (
@@ -1946,6 +1947,42 @@ class SettingsMgr:
                 "data_type": data_type,
             }
             SystemSettingsService.save(**new_setting)
+
+
+class SensitiveWordMgr:
+    """Admin CRUD for the sensitive-word blocklist used at document upload."""
+
+    @staticmethod
+    def list_all():
+        rows = SensitiveWordService.list_words()
+        return [
+            {
+                "id": r.id,
+                "word": r.word,
+                "created_by": r.created_by,
+                "create_date": str(r.create_date) if getattr(r, "create_date", None) else None,
+            }
+            for r in rows
+        ]
+
+    @staticmethod
+    def add(data):
+        word = (data.get("word") or "").strip()
+        if not word:
+            raise ValueError("word is required.")
+        if len(word) > 255:
+            raise ValueError("word must be 255 characters or less.")
+        if SensitiveWordService.word_exists(word):
+            raise ValueError("This word already exists.")
+        SensitiveWordService.insert(word=word, created_by=data.get("created_by"))
+        invalidate_sensitive_cache()
+        return {"word": word}
+
+    @staticmethod
+    def delete(word_id):
+        SensitiveWordService.delete_by_id(word_id)
+        invalidate_sensitive_cache()
+        return {"id": word_id}
 
 
 class ConfigMgr:

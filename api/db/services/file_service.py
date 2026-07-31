@@ -38,6 +38,7 @@ from common.misc_utils import get_uuid
 from common.ssrf_guard import assert_url_is_safe
 from common.constants import TaskStatus, FileSource, ParserType, MAXIMUM_PAGE_NUMBER
 from api.db.services.knowledgebase_service import KnowledgebaseService
+from api.db.services.sensitive_word_service import SENSITIVE_HIT_PREFIX, scan_blob
 from api.db.services.task_service import TaskService
 from api.utils.file_utils import filename_type, read_potential_broken_pdf, thumbnail_img, sanitize_path
 from rag.llm.cv_model import GptV4
@@ -581,6 +582,15 @@ class FileService(CommonService):
                 blob = file.read()
                 if filetype == FileType.PDF.value:
                     blob = read_potential_broken_pdf(blob)
+
+                # Sensitive-word gate: fast text scan (no OCR); reject the file
+                # before persisting anything if any configured word is hit. The
+                # machine-readable prefix lets the frontend localize the reason.
+                hits = scan_blob(filename, blob)
+                if hits:
+                    err.append(f"{file.filename}: {SENSITIVE_HIT_PREFIX}{','.join(hits)}")
+                    continue
+
                 settings.STORAGE_IMPL.put(kb.id, location, blob)
 
 
