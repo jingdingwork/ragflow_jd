@@ -778,6 +778,18 @@ def list_ingestion_logs(
 
     if log_type == "file":
         logs, total = PipelineOperationLogService.get_file_logs_by_kb_id(dataset_id, page, page_size, orderby, desc, keywords, status_filter, None, None, create_date_from, create_date_to)
+
+        # A completion log is only written when a parse task finishes, so files
+        # that are parsing right now would be invisible here (no progress shown).
+        # Surface them as live "running" rows at the top of the first page, so
+        # long as the status filter doesn't exclude RUNNING. They carry the
+        # document's live progress and turn into a normal log row on completion.
+        running_num = _STATUS_NAME_TO_NUM["RUNNING"]
+        if (page or 1) <= 1 and (not status_filter or running_num in status_filter):
+            running_rows = PipelineOperationLogService.get_running_file_rows(dataset_id, keywords, create_date_from, create_date_to)
+            if running_rows:
+                logs = running_rows + logs
+                total += len(running_rows)
     else:
         logs, total = PipelineOperationLogService.get_dataset_logs_by_kb_id(dataset_id, page, page_size, orderby, desc, status_filter, create_date_from, create_date_to, keywords)
     for lg in logs:

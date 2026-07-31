@@ -248,6 +248,63 @@ class PipelineOperationLogService(CommonService):
 
     @classmethod
     @DB.connection_context()
+    def get_running_file_rows(cls, kb_id, keywords=None, create_date_from=None, create_date_to=None):
+        """
+        Synthetic file-log rows for documents that are parsing *right now*.
+
+        A pipeline operation log is only written when a task finishes (see
+        task_executor's ``finally``), so an in-flight parse has no log row and the
+        file-log view would show no progress until it completes. Return one row
+        per currently-running document (``Document.run == RUNNING``) carrying the
+        document's live ``progress`` / ``progress_msg``, shaped like the columns
+        the file-log table consumes so the caller can prepend them.
+        """
+        q = Document.select(
+            Document.id,
+            Document.name,
+            Document.suffix,
+            Document.type,
+            Document.source_type,
+            Document.progress,
+            Document.progress_msg,
+            Document.process_begin_at,
+            Document.create_time,
+            Document.create_date,
+        ).where((Document.kb_id == kb_id) & (Document.run == TaskStatus.RUNNING.value))
+        if keywords:
+            q = q.where(fn.LOWER(Document.name).contains(keywords.lower()))
+        if create_date_from:
+            q = q.where(Document.create_date >= create_date_from)
+        if create_date_to:
+            q = q.where(Document.create_date <= create_date_to)
+        q = q.order_by(Document.process_begin_at.desc())
+
+        rows = []
+        for d in q.dicts():
+            rows.append(
+                {
+                    # Synthetic id: no real log row exists for the in-flight run yet.
+                    "id": f"running:{d['id']}",
+                    "document_id": d["id"],
+                    "kb_id": kb_id,
+                    "document_name": d.get("name"),
+                    "document_suffix": d.get("suffix"),
+                    "document_type": d.get("type"),
+                    "source_from": d.get("source_type"),
+                    "progress": d.get("progress"),
+                    "progress_msg": d.get("progress_msg"),
+                    "process_begin_at": d.get("process_begin_at"),
+                    "task_type": PipelineTaskType.PARSE,
+                    # Numeric here; list_ingestion_logs maps it to "RUNNING".
+                    "operation_status": TaskStatus.RUNNING.value,
+                    "create_time": d.get("create_time"),
+                    "create_date": d.get("create_date"),
+                }
+            )
+        return rows
+
+    @classmethod
+    @DB.connection_context()
     def get_documents_info(cls, id):
         fields = [Document.id, Document.name, Document.progress, Document.kb_id]
         return cls.model.select(*fields).join(Document, on=(cls.model.document_id == Document.id)).where(cls.model.id == id).dicts()

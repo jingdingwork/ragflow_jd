@@ -56,6 +56,15 @@ const useFetchFileLogList = () => {
       }
       return previousData;
     },
+    // While a file is still parsing the list carries a live "RUNNING" row, so
+    // poll to advance its progress; stop once nothing is running.
+    refetchInterval: (query) => {
+      const logs = (query.state.data as IFileLogList | undefined)?.logs ?? [];
+      const hasRunning = logs.some(
+        (l) => String(l.operation_status).toUpperCase() === 'RUNNING',
+      );
+      return hasRunning ? 3000 : false;
+    },
     enabled: true,
     queryFn: async () => {
       const { data: res = {} } = await listDataPipelineLogDocument(
