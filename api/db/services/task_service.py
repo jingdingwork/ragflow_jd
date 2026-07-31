@@ -419,6 +419,16 @@ def queue_tasks(doc: dict, bucket: str, name: str, priority: int):
     else:
         parse_task_array.append(new_task())
 
+    if not parse_task_array:
+        # A PDF/Excel whose page/row count could not be determined (e.g. a corrupt
+        # or encrypted PDF that pdfplumber can't open, so total_page_number returns
+        # None -> pages=0 -> range() yields nothing) produces no per-range tasks.
+        # Fall back to a single whole-document task so the file is still queued: it
+        # will either parse (some engines, e.g. MinerU, read files pdfplumber can't)
+        # or fail with a clear per-document error in the task executor -- instead of
+        # crashing the whole ingest batch on bulk_insert_into_db([]) (IndexError).
+        parse_task_array.append(new_task())
+
     chunking_config = DocumentService.get_chunking_config(doc["id"])
     for task in parse_task_array:
         hasher = xxhash.xxh64()
