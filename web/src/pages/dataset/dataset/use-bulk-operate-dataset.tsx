@@ -44,7 +44,11 @@ export function useBulkOperateDataset({
   );
   const { knowledgeBase } = useKnowledgeBaseContext();
 
-  const { runDocumentByIds } = useRunDocument();
+  const {
+    runDocumentByIds,
+    loading: runLoading,
+    progress: runProgress,
+  } = useRunDocument();
   const { setDocumentStatus } = useSetDocumentStatus();
   const { removeDocument } = useRemoveDocument();
   const { visible, showModal, hideModal } = useSetModalState();
@@ -67,6 +71,11 @@ export function useBulkOperateDataset({
 
   const runDocument = useCallback(
     async (run: number, option?: { delete: boolean; apply_kb: boolean }) => {
+      // Block re-entry while a batch is still being submitted so a slow, large
+      // selection can't be double-triggered by an impatient second click.
+      if (runLoading) {
+        return;
+      }
       const nonVirtualKeys = selectedRowKeys.filter(
         (x) =>
           !documents.some((y) => x === y.id && y.type === DocumentType.Virtual),
@@ -83,7 +92,7 @@ export function useBulkOperateDataset({
       });
       hideModal();
     },
-    [documents, runDocumentByIds, selectedRowKeys, hideModal, t],
+    [documents, runDocumentByIds, selectedRowKeys, hideModal, t, runLoading],
   );
 
   const handleRunClick = useCallback(
@@ -183,5 +192,7 @@ export function useBulkOperateDataset({
     hideModal,
     showModal,
     handleRunClick,
+    runLoading,
+    runProgress,
   };
 }

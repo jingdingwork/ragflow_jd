@@ -351,8 +351,17 @@ export const useSetDocumentStatus = () => {
 };
 
 // This hook is used to run a document by its IDs
+// Enqueue in small batches so a large selection (e.g. 50 files) neither blocks
+// on a single long request nor leaves the user without feedback: the backend
+// enqueues each doc synchronously, so one request for 50 docs can take many
+// seconds. Batching keeps each request quick and lets a progress bar advance.
+const RUN_DOCUMENT_BATCH_SIZE = 5;
+
 export const useRunDocument = () => {
   const queryClient = useQueryClient();
+  // Batch progress; `null` when no run is in flight. Only surfaced for real
+  // batches (a single-file run stays snappy with no progress UI).
+  const [progress, setProgress] = useState<UploadProgress | null>(null);
 
   const {
     data,
@@ -369,27 +378,44 @@ export const useRunDocument = () => {
       run: number;
       option?: { delete: boolean; apply_kb: boolean };
     }) => {
+      const total = documentIds.length;
+      if (total > RUN_DOCUMENT_BATCH_SIZE) {
+        setProgress({ current: 0, total });
+      }
+
+      let code: number | undefined = 0;
+      for (let i = 0; i < total; i += RUN_DOCUMENT_BATCH_SIZE) {
+        const slice = documentIds.slice(i, i + RUN_DOCUMENT_BATCH_SIZE);
+        const ret = await kbService.documentIngest({
+          doc_ids: slice,
+          run,
+          ...(option || {}),
+        });
+        code = get(ret, 'data.code');
+        if (code !== 0) {
+          break;
+        }
+        // Advance after each batch finishes so the bar reflects docs enqueued.
+        setProgress((p) =>
+          p ? { current: Math.min(p.current + slice.length, total), total } : p,
+        );
+      }
+
       queryClient.invalidateQueries({
         queryKey: [DocumentApiAction.FetchDocumentList],
       });
-      const ret = await kbService.documentIngest({
-        doc_ids: documentIds,
-        run,
-        ...(option || {}),
-      });
-      const code = get(ret, 'data.code');
       if (code === 0) {
-        queryClient.invalidateQueries({
-          queryKey: [DocumentApiAction.FetchDocumentList],
-        });
         message.success(i18n.t('message.operated'));
       }
 
       return code;
     },
+    onSettled: () => {
+      setProgress(null);
+    },
   });
 
-  return { runDocumentByIds: mutateAsync, loading, data };
+  return { runDocumentByIds: mutateAsync, loading, data, progress };
 };
 
 export const useRemoveDocument = () => {

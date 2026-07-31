@@ -1036,6 +1036,8 @@ export default {
       applyAutoMetadataSettings: '应用全局自动元数据设置',
       parseFileTip: '您确定要解析吗？',
       parseFile: '解析文件',
+      submittingParseTasks: '正在提交解析任务…',
+      pleaseWait: '请稍候',
       emptyMetadata: '无元数据',
       localUpload: '本地上传',
       fileSize: '文件大小',

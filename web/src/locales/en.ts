@@ -593,6 +593,8 @@ Example: A 1 KB message with 1024-dim embedding uses ~9 KB. The 5 MB default lim
       applyAutoMetadataSettings: 'Apply global auto-metadata settings',
       parseFileTip: 'Are you sure to parse?',
       parseFile: 'Parse file',
+      submittingParseTasks: 'Submitting parse tasks…',
+      pleaseWait: 'Please wait',
       emptyMetadata: 'No metadata',
       metadataField: 'Metadata field',
       systemAttribute: 'System attribute',

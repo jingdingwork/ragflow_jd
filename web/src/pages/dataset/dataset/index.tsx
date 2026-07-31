@@ -37,6 +37,7 @@ import { DatasetTable } from './dataset-table';
 import { FolderBar } from './folder-bar';
 import Generate from './generate-button/generate';
 import { MoveToFolderDialog } from './move-to-folder-dialog';
+import { ParseProgressModal } from './parse-progress-modal';
 import { ReparseDialog } from './reparse-dialog';
 import { useBulkOperateDataset } from './use-bulk-operate-dataset';
 import { useCreateEmptyDocument } from './use-create-empty-document';
@@ -172,6 +173,7 @@ export default function Dataset() {
     visible: reparseDialogVisible,
     hideModal: hideReparseDialogModal,
     handleRunClick: handleOperationIconClick,
+    runProgress,
   } = useBulkOperateDataset({
     documents,
     rowSelection,
@@ -432,6 +434,7 @@ export default function Dataset() {
             hideModal={hideReparseDialogModal}
           ></ReparseDialog>
         )}
+        <ParseProgressModal progress={runProgress} />
       </CardContent>
     </Card>
   );
