@@ -398,6 +398,9 @@ export default {
   // File-download restriction toggle (content stays searchable/citable)
   adminKbDownloadLimit: (kbId: string) =>
     `${restAPIv1}/admin/es/knowledgebases/${kbId}/download-limit`,
+  // Big-file escape hatch: lift per-file upload size limit for this KB
+  adminKbUploadLimit: (kbId: string) =>
+    `${restAPIv1}/admin/es/knowledgebases/${kbId}/upload-limit`,
   adminEsKbStats: (kbId: string) =>
     `${restAPIv1}/admin/es/knowledgebases/${kbId}/stats`,
   adminEsKbDocuments: (kbId: string) =>

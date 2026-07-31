@@ -344,6 +344,11 @@ async def update_dataset(tenant_id: str, dataset_id: str, req: dict, acting_user
     if "parse_type" in req:
         del req["parse_type"]
 
+    # Download restriction is an admin-only control (managed via the admin
+    # console's set_download_limit). Strip it from user-facing dataset updates so
+    # a regular user can't unlock downloads on their own KB by crafting a request.
+    req.pop("download_disabled", None)
+
     if not KnowledgebaseService.update_by_id(kb.id, req):
         return False, "Update dataset error.(Database error)"
 

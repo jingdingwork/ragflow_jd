@@ -377,6 +377,7 @@ export default function Dataset() {
             loading={documentUploadLoading}
             progress={documentUploadProgress}
             fileErrors={documentUploadFileErrors}
+            unlimitedSize={Boolean(knowledgeBase?.upload_unlimited)}
             showParseOnCreation
           ></FileUploadDialog>
         )}

@@ -633,6 +633,7 @@ export type EsKnowledgebase = {
   department_name: string | null;
   permission: string;
   download_disabled: boolean;
+  upload_unlimited: boolean;
   doc_num: number;
   chunk_num: number;
   token_num: number;
@@ -699,6 +700,12 @@ export const setKbDownloadLimit = (kbId: string, enabled: boolean) =>
   request.put<
     ResponseData<{ id: string; name: string; download_disabled: boolean }>
   >(api.adminKbDownloadLimit(kbId), { enabled });
+
+/** Enable / disable the KB's big-file escape hatch (lifts per-file size limit). */
+export const setKbUploadLimit = (kbId: string, enabled: boolean) =>
+  request.put<
+    ResponseData<{ id: string; name: string; upload_unlimited: boolean }>
+  >(api.adminKbUploadLimit(kbId), { enabled });
 
 export const esGetKbStats = (kbId: string) =>
   request.get<ResponseData<EsKbStats>>(api.adminEsKbStats(kbId));

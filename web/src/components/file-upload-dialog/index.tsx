@@ -56,11 +56,15 @@ type UploadFormProps = {
   submit: (values?: UploadFormSchemaType) => void;
   showParseOnCreation?: boolean;
   fileErrors?: Record<string, string>;
+  // When true, the KB has the admin big-file escape hatch on: lift the client
+  // per-file cap to the global framework ceiling (1 GB) instead of 100 MB.
+  unlimitedSize?: boolean;
 };
 function UploadForm({
   submit,
   showParseOnCreation,
   fileErrors,
+  unlimitedSize,
 }: UploadFormProps) {
   const { t } = useTranslation();
   const FormSchema = buildUploadFormSchema(t);
@@ -114,7 +118,7 @@ function UploadForm({
               value={field.value}
               onValueChange={field.onChange}
               accept={{}}
-              maxSize={300 * 1024 * 1024}
+              maxSize={unlimitedSize ? 1024 * 1024 * 1024 : 100 * 1024 * 1024}
               errors={fileErrors}
               data-testid="dataset-upload-dropzone"
             />
@@ -126,7 +130,7 @@ function UploadForm({
 }
 
 type FileUploadDialogProps = IModalProps<UploadFormSchemaType> &
-  Pick<UploadFormProps, 'showParseOnCreation'> & {
+  Pick<UploadFormProps, 'showParseOnCreation' | 'unlimitedSize'> & {
     // Per-file upload progress; when set and uploading, a progress bar shows
     // how many of the batch have finished (useful for folder uploads).
     progress?: { current: number; total: number } | null;
@@ -141,6 +145,7 @@ export function FileUploadDialog({
   showParseOnCreation = false,
   progress,
   fileErrors,
+  unlimitedSize,
 }: FileUploadDialogProps) {
   const { t } = useTranslation();
 
@@ -172,6 +177,7 @@ export function FileUploadDialog({
           submit={onOk!}
           showParseOnCreation={showParseOnCreation}
           fileErrors={fileErrors}
+          unlimitedSize={unlimitedSize}
         />
         {showProgress && (
           <div className="space-y-1.5">

@@ -45,6 +45,11 @@ export interface IDataset {
    * previewable (view-only).
    */
   download_disabled?: boolean;
+  /**
+   * Admin big-file escape hatch: when true, per-file upload size limits are
+   * lifted for this KB (upload-time and parse-time), up to the global 1 GB cap.
+   */
+  upload_unlimited?: boolean;
   pipeline_id: string;
   raptor_task_finish_at: string;
   raptor_task_id: string;

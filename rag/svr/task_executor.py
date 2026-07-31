@@ -262,7 +262,9 @@ async def get_storage_binary(bucket, name):
 
 @timeout(60 * 80, 1)
 async def build_chunks(task, progress_callback):
-    if task["size"] > settings.DOC_MAXIMUM_SIZE:
+    # Admin can lift the per-file size cap for a KB (big-file escape hatch); such
+    # docs skip the parse-time size gate too, otherwise they'd upload but never parse.
+    if task["size"] > settings.DOC_MAXIMUM_SIZE and not KnowledgebaseService.is_upload_unlimited(task["kb_id"]):
         set_progress(task["id"], prog=-1, msg="File size exceeds( <= %dMb )" %
                                               (int(settings.DOC_MAXIMUM_SIZE / 1024 / 1024)))
         return []

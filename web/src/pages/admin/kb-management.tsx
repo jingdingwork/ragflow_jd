@@ -11,6 +11,7 @@ import {
   LucideDownload,
   LucideEye,
   LucideFolder,
+  LucideHardDriveUpload,
   LucideLock,
   LucideRefreshCw,
   LucideSearch,
@@ -51,6 +52,7 @@ import {
   esSearchChunks,
   setKbCompanyLevel,
   setKbDownloadLimit,
+  setKbUploadLimit,
 } from '@/services/admin-service';
 
 const PAGE_SIZE = 20;
@@ -165,6 +167,15 @@ function AdminKbManagement() {
         queryClient.invalidateQueries({ queryKey: ['admin/kb/list'] });
       },
     });
+
+  // Toggle the KB's big-file escape hatch (lifts per-file upload size limit).
+  const { mutate: toggleUploadLimit, isPending: togglingUpload } = useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+      setKbUploadLimit(id, enabled),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin/kb/list'] });
+    },
+  });
 
   // Stats for the selected KB.
   const { data: stats, refetch: refetchStats } = useQuery({
@@ -425,6 +436,15 @@ function AdminKbManagement() {
                         {t('admin.kbDownloadLimited')}
                       </Badge>
                     )}
+                    {selectedKb?.upload_unlimited && (
+                      <Badge
+                        variant="secondary"
+                        className="border-accent-primary text-accent-primary"
+                      >
+                        <LucideHardDriveUpload className="size-3 mr-1" />
+                        {t('admin.kbUploadUnlimited')}
+                      </Badge>
+                    )}
                     {selectedKb && (
                       <div className="ml-auto flex items-center gap-2">
                         <Button
@@ -473,6 +493,26 @@ function AdminKbManagement() {
                             ? t('admin.kbUnsetDownloadLimit')
                             : t('admin.kbSetDownloadLimit')}
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={cn(
+                            selectedKb.upload_unlimited &&
+                              'border-accent-primary text-accent-primary',
+                          )}
+                          disabled={togglingUpload}
+                          onClick={() =>
+                            toggleUploadLimit({
+                              id: selectedKb.id,
+                              enabled: !selectedKb.upload_unlimited,
+                            })
+                          }
+                        >
+                          <LucideHardDriveUpload className="size-4 mr-1" />
+                          {selectedKb.upload_unlimited
+                            ? t('admin.kbRestoreUploadLimit')
+                            : t('admin.kbLiftUploadLimit')}
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -481,6 +521,9 @@ function AdminKbManagement() {
                   </p>
                   <p className="text-xs text-text-secondary">
                     {t('admin.kbDownloadLimitTip')}
+                  </p>
+                  <p className="text-xs text-text-secondary">
+                    {t('admin.kbUploadLimitTip')}
                   </p>
 
                   {/* Stats panel */}

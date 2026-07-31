@@ -1211,7 +1211,7 @@ class EsDataMgr:
         rows = (
             model.select(
                 model.id, model.name, model.tenant_id, model.created_by,
-                model.department_id, model.permission, model.download_disabled,
+                model.department_id, model.permission, model.download_disabled, model.upload_unlimited,
                 model.doc_num, model.chunk_num, model.token_num,
                 model.language, model.parser_id, model.create_date,
             )
@@ -1410,6 +1410,19 @@ class KbPermissionMgr:
         if enabled != bool(kb.download_disabled):
             KnowledgebaseService.update_by_id(kb_id, {"download_disabled": enabled})
         return {"id": kb_id, "name": kb.name, "download_disabled": enabled}
+
+    @staticmethod
+    def set_upload_limit(kb_id, enabled):
+        """Toggle the KB's big-file escape hatch. When enabled, per-file size caps
+        are lifted for uploads into this KB (upload-time and parse-time), up to the
+        global framework/nginx request-body ceiling (default 1 GB)."""
+        ok, kb = KnowledgebaseService.get_by_id(kb_id)
+        if not ok or not kb:
+            raise AdminException("Knowledge base not found", 404)
+        enabled = bool(enabled)
+        if enabled != bool(kb.upload_unlimited):
+            KnowledgebaseService.update_by_id(kb_id, {"upload_unlimited": enabled})
+        return {"id": kb_id, "name": kb.name, "upload_unlimited": enabled}
 
 
 class RetrievalMgr:

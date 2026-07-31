@@ -487,6 +487,11 @@ export default {
       kbDownloadLimited: '禁止下载',
       kbDownloadLimitTip:
         '开启后，该知识库内容仍可被检索和聊天引用、可在线预览，但文件禁止下载（知识库、搜索结果、聊天引用处均不可下载）。',
+      kbLiftUploadLimit: '解除上传限制',
+      kbRestoreUploadLimit: '恢复上传限制',
+      kbUploadUnlimited: '已解除大小限制',
+      kbUploadLimitTip:
+        '解除后，向该知识库上传的单个文件和文件夹不再受 100MB 限制（上传与解析均放开），可用于大文件；受系统整体上限约束（默认单文件最大 1GB）。',
       kbEmpty: '暂无知识库',
       kbPickHint: '从左侧选择一个知识库，查看其文档存储数据。',
       kbCount: '共 {{count}} 个知识库',
@@ -1162,7 +1167,7 @@ export default {
       changeSpecificCategory: '更改特定类别',
       uploadTitle: '点击或拖拽文件至此区域即可上传',
       uploadDescription:
-        '支持单个或批量上传文件，也可整个文件夹上传，单个文件不超过 300MB。请勿上传违禁文件。',
+        '支持单个或批量上传文件，也可整个文件夹上传，单个文件不超过 100MB。请勿上传违禁文件。',
       chunk: '解析块',
       bulk: '批量',
       cancel: '取消',

@@ -757,7 +757,8 @@ async def _upload_local_documents(kb, tenant_id):
         file_obj.seek(0, 2)
         file_size = file_obj.tell()
         file_obj.seek(0)
-        if file_size > MAX_SINGLE_FILE_SIZE:
+        # Admin can lift the per-file cap for this KB (big-file escape hatch).
+        if not getattr(kb, "upload_unlimited", False) and file_size > MAX_SINGLE_FILE_SIZE:
             msg = f"File '{file_obj.filename}' is too large. Each file must be {MAX_SINGLE_FILE_SIZE // (1024 * 1024)} MB or less."
             logging.error(msg)
             return get_error_data_result(message=msg, code=RetCode.ARGUMENT_ERROR)

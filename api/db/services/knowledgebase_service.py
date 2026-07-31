@@ -569,6 +569,14 @@ class KnowledgebaseService(CommonService):
 
     @classmethod
     @DB.connection_context()
+    def is_upload_unlimited(cls, kb_id) -> bool:
+        """True when the admin lifted per-file size limits for this KB (big-file
+        escape hatch, applied at upload and parse time). Unknown KB -> False."""
+        row = cls.model.select(cls.model.upload_unlimited).where(cls.model.id == kb_id).first()
+        return bool(row and row.upload_unlimited)
+
+    @classmethod
+    @DB.connection_context()
     def get_kb_by_id(cls, kb_id, user_id):
         # Get dataset by ID and user ID
         # Args:

@@ -720,7 +720,7 @@ Example: A 1 KB message with 1024-dim embedding uses ~9 KB. The 5 MB default lim
       changeSpecificCategory: 'Change specific category',
       uploadTitle: 'Drag and drop your file here to upload',
       uploadDescription:
-        'Upload a single file, multiple files, or a whole folder. Each file must not exceed 300 MB. Do not upload prohibited files.',
+        'Upload a single file, multiple files, or a whole folder. Each file must not exceed 100 MB. Do not upload prohibited files.',
       chunk: 'Chunk',
       bulk: 'Bulk',
       cancel: 'Cancel',
@@ -3372,6 +3372,11 @@ Important structured information may include: names, dates, locations, events, k
       kbDownloadLimited: 'Downloads off',
       kbDownloadLimitTip:
         'When on, the knowledge base stays searchable, citable in chat and previewable, but its files cannot be downloaded (in the knowledge base, search results, or chat citations).',
+      kbLiftUploadLimit: 'Lift upload limit',
+      kbRestoreUploadLimit: 'Restore upload limit',
+      kbUploadUnlimited: 'Size limit lifted',
+      kbUploadLimitTip:
+        'When lifted, single files and folders uploaded to this knowledge base are no longer capped at 100 MB (both upload and parsing), so large files are allowed — subject to the global system ceiling (single file up to 1 GB by default).',
       kbEmpty: 'No knowledge bases',
       kbPickHint:
         'Select a knowledge base on the left to inspect its document-store data.',
