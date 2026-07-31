@@ -1604,6 +1604,21 @@ def _run_sync(user_id:str, req):
         if all([rerun_with_delete, str(doc.run) == TaskStatus.DONE.value]):
             DocumentService.clear_chunk_num_when_rerun(doc_id)
 
+        # Re-parsing a document that is still being parsed: cancel its in-flight
+        # tasks first. queue_tasks() (via DocumentService.run below) deletes the
+        # old task rows, which would otherwise merely orphan -- not stop -- the
+        # worker already processing them, so two workers would parse the same
+        # document at once, wasting compute and possibly leaving stale chunks.
+        # Setting the redis cancel flag makes that worker abort at its next
+        # progress checkpoint; the freshly-queued tasks get new ids and are
+        # unaffected. Done before the delete/update below so the old task rows
+        # (whose ids we cancel by) still exist. CANCEL runs handle their own
+        # cancellation above.
+        if str(req["run"]) == TaskStatus.RUNNING.value:
+            has_unfinished_task = any((task.progress or 0) < 1 for task in TaskService.query(doc_id=doc_id))
+            if has_unfinished_task:
+                cancel_all_task_of(doc_id)
+
         DocumentService.update_by_id(doc_id, info)
         if req.get("delete", False):
             TaskService.filter_delete([Task.doc_id == doc_id])
