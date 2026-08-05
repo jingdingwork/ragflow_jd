@@ -749,6 +749,7 @@ export type ParseQueueItem = {
   type: string;
   queue_pos: number | null;
   can_prioritize: boolean;
+  can_parse: boolean;
   create_date: string | null;
   update_date: string | null;
 };
@@ -778,6 +779,16 @@ export const prioritizeParseDoc = (docId: string) =>
   request.post<
     ResponseData<{ doc_id: string; name: string; priority: number }>
   >(api.adminParseQueuePrioritize(docId));
+
+/** Batch-start parsing for not-yet-started documents. */
+export const parseParseDocs = (docIds: string[]) =>
+  request.post<
+    ResponseData<{
+      parsed: number;
+      skipped: number;
+      skipped_detail: { doc_id: string; reason: string }[];
+    }>
+  >(api.adminParseQueueParse, { doc_ids: docIds });
 
 export type AdminFeedbackStatus = 'open' | 'in_progress' | 'done';
 

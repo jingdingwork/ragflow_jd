@@ -7,6 +7,7 @@ import {
   LucideChevronLeft,
   LucideChevronRight,
   LucideChevronsUp,
+  LucidePlay,
   LucideRefreshCw,
   LucideSearch,
 } from 'lucide-react';
@@ -17,6 +18,7 @@ import { TableEmpty } from '@/components/table-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import message from '@/components/ui/message';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -35,6 +37,7 @@ import {
   ParseQueueStatus,
   esListKnowledgebases,
   listParseQueue,
+  parseParseDocs,
   prioritizeParseDoc,
 } from '@/services/admin-service';
 
@@ -83,12 +86,15 @@ function AdminParseQueue() {
   const [searchInput, setSearchInput] = useState<string>('');
   const [keyword, setKeyword] = useState<string>('');
   const [page, setPage] = useState<number>(1);
+  // Selected doc ids for batch parse (only not-yet-started docs are selectable).
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // Debounce the file-name search so typing doesn't fire a request per keystroke.
   useEffect(() => {
     const id = setTimeout(() => {
       setKeyword(searchInput.trim());
       setPage(1);
+      setSelected(new Set());
     }, 400);
     return () => clearTimeout(id);
   }, [searchInput]);
@@ -177,20 +183,76 @@ function AdminParseQueue() {
     },
   });
 
+  // Ids on the current page that can be batch-parsed (not-yet-started only).
+  const parsableIds = useMemo(
+    () => items.filter((it) => it.can_parse).map((it) => it.doc_id),
+    [items],
+  );
+  const selectedCount = selected.size;
+  const allParsableSelected =
+    parsableIds.length > 0 && parsableIds.every((id) => selected.has(id));
+  const someParsableSelected = parsableIds.some((id) => selected.has(id));
+
+  const clearSelection = () => setSelected(new Set());
+
+  const toggleOne = (docId: string, checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(docId);
+      else next.delete(docId);
+      return next;
+    });
+  };
+
+  const toggleAll = (checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      parsableIds.forEach((id) => (checked ? next.add(id) : next.delete(id)));
+      return next;
+    });
+  };
+
+  const parseMutation = useMutation({
+    mutationKey: ['admin/parse-queue/parse'],
+    mutationFn: async (docIds: string[]) =>
+      (await parseParseDocs(docIds))?.data,
+    retry: false,
+    onSuccess: (res) => {
+      if (res?.code === 0) {
+        message.success(
+          t('admin.pqParseSubmitted', {
+            parsed: res.data?.parsed ?? 0,
+            skipped: res.data?.skipped ?? 0,
+          }),
+        );
+        clearSelection();
+        refetch();
+      } else if (res?.message) {
+        message.error(res.message);
+      }
+    },
+    onError: (err: any) => {
+      message.error(err?.message || t('admin.pqParseFailed'));
+    },
+  });
+
   const changeStatus = (value: string) => {
     setStatus(value);
     setPage(1);
+    clearSelection();
   };
 
   const changeDepartment = (value: string) => {
     setDepartmentId(value);
     setKbId(ALL);
     setPage(1);
+    clearSelection();
   };
 
   const changeKb = (value: string) => {
     setKbId(value);
     setPage(1);
+    clearSelection();
   };
 
   const renderQueueCell = (it: ParseQueueItem) => {
@@ -216,6 +278,14 @@ function AdminParseQueue() {
       prioritizeMutation.variables === it.doc_id;
     return (
       <TableRow key={it.doc_id}>
+        <TableCell className="w-8">
+          <Checkbox
+            checked={selected.has(it.doc_id)}
+            disabled={!it.can_parse}
+            onCheckedChange={(v) => toggleOne(it.doc_id, v === true)}
+            aria-label={t('admin.pqSelectRow')}
+          />
+        </TableCell>
         <TableCell className="font-medium max-w-[18rem]">
           <span className="line-clamp-2 break-all">{it.name}</span>
         </TableCell>
@@ -269,16 +339,28 @@ function AdminParseQueue() {
       <ScrollArea className="size-full">
         <CardHeader className="space-y-0 flex flex-row justify-between items-center">
           <CardTitle>{t('admin.pqTitle')}</CardTitle>
-          <Button
-            size="icon-lg"
-            variant="outline"
-            onClick={() => refetch()}
-            disabled={isFetching}
-          >
-            <LucideRefreshCw
-              className={cn('size-4', isFetching && 'animate-spin')}
-            />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="highlighted"
+              disabled={selectedCount === 0 || parseMutation.isPending}
+              onClick={() => parseMutation.mutate(Array.from(selected))}
+            >
+              <LucidePlay className="size-4 mr-1" />
+              {selectedCount > 0
+                ? t('admin.pqParseSelectedCount', { count: selectedCount })
+                : t('admin.pqParseSelected')}
+            </Button>
+            <Button
+              size="icon-lg"
+              variant="outline"
+              onClick={() => refetch()}
+              disabled={isFetching}
+            >
+              <LucideRefreshCw
+                className={cn('size-4', isFetching && 'animate-spin')}
+              />
+            </Button>
+          </div>
         </CardHeader>
 
         <CardContent className="space-y-4">
@@ -332,6 +414,20 @@ function AdminParseQueue() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8">
+                    <Checkbox
+                      checked={
+                        allParsableSelected
+                          ? true
+                          : someParsableSelected
+                            ? 'indeterminate'
+                            : false
+                      }
+                      disabled={parsableIds.length === 0}
+                      onCheckedChange={(v) => toggleAll(v === true)}
+                      aria-label={t('admin.pqSelectAll')}
+                    />
+                  </TableHead>
                   <TableHead>{t('admin.pqColFile')}</TableHead>
                   <TableHead>{t('admin.pqColDept')}</TableHead>
                   <TableHead>{t('admin.pqColKb')}</TableHead>
@@ -348,7 +444,7 @@ function AdminParseQueue() {
                 {items.length > 0 ? (
                   items.map(renderRow)
                 ) : (
-                  <TableEmpty columnsLength={8} />
+                  <TableEmpty columnsLength={9} />
                 )}
               </TableBody>
             </Table>

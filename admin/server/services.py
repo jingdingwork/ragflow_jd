@@ -1549,6 +1549,7 @@ class ParseQueueMgr:
                 "type": d["type"],
                 "queue_pos": queue_pos.get(d["id"]),
                 "can_prioritize": d["_status"] in (cls.ST_UNSTART, cls.ST_QUEUED),
+                "can_parse": d["_status"] == cls.ST_UNSTART,
                 "create_date": str(d["create_date"]) if d.get("create_date") else None,
                 "update_date": str(d["update_date"]) if d.get("update_date") else None,
             })
@@ -1593,6 +1594,62 @@ class ParseQueueMgr:
         # sitting in Redis become no-ops (the executor drops tasks whose row is gone).
         queue_tasks(doc_dict, bucket, name, 1)
         return {"doc_id": doc_id, "name": doc.name, "priority": 1}
+
+    @classmethod
+    def parse_batch(cls, doc_ids):
+        """Start parsing a batch of not-yet-started documents (admin bulk parse).
+
+        Only documents that have never been parsed (run == UNSTART, no in-flight
+        task) are actually started; anything already parsing / done / failed /
+        cancelled is skipped and reported back, so the admin can safely pass a
+        page's worth of ids without worrying about clobbering running work.
+        Mirrors the production start-parse path (:meth:`DocumentService.run`,
+        priority 0) so table field-map / pipeline handling stays identical.
+        """
+        doc_ids = [d for d in (doc_ids or []) if d]
+        if not doc_ids:
+            raise AdminException("No documents selected.", 400)
+
+        parsed, skipped = [], []
+        kb_table_num_map = {}
+        for doc_id in doc_ids:
+            ok, doc = DocumentService.get_by_id(doc_id)
+            if not ok or not doc:
+                skipped.append({"doc_id": doc_id, "reason": "not_found"})
+                continue
+
+            run = doc.run
+            has_unfinished = any(
+                0 <= (t.progress or 0) < 1 for t in TaskService.query(doc_id=doc_id)
+            )
+            if run == TaskStatus.DONE.value:
+                skipped.append({"doc_id": doc_id, "reason": "done"})
+                continue
+            if run == TaskStatus.RUNNING.value or has_unfinished:
+                skipped.append({"doc_id": doc_id, "reason": "running"})
+                continue
+            if run in (TaskStatus.FAIL.value, TaskStatus.CANCEL.value):
+                # Re-parse failed / cancelled docs from the normal document UI.
+                skipped.append({"doc_id": doc_id, "reason": "not_unstart"})
+                continue
+
+            tenant_id = DocumentService.get_tenant_id(doc_id)
+            if not tenant_id:
+                skipped.append({"doc_id": doc_id, "reason": "no_tenant"})
+                continue
+
+            DocumentService.update_by_id(
+                doc_id, {"run": TaskStatus.RUNNING.value, "progress": 0}
+            )
+            doc_dict = doc.to_dict()
+            DocumentService.run(tenant_id, doc_dict, kb_table_num_map)
+            parsed.append(doc_id)
+
+        return {
+            "parsed": len(parsed),
+            "skipped": len(skipped),
+            "skipped_detail": skipped,
+        }
 
 
 class FeedbackMgr:

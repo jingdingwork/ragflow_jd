@@ -3342,6 +3342,13 @@ Important structured information may include: names, dates, locations, events, k
       pqAllKbs: 'All knowledge bases',
       pqSearchPlaceholder: 'Search file name',
       pqTotal: '{{count}} files',
+      pqParseSelected: 'Batch parse',
+      pqParseSelectedCount: 'Batch parse ({{count}})',
+      pqParseSubmitted:
+        'Queued {{parsed}} document(s) for parsing, skipped {{skipped}}',
+      pqParseFailed: 'Batch parse failed',
+      pqSelectRow: 'Select row',
+      pqSelectAll: 'Select all parseable',
       feedbackManagement: 'Feedback',
       fbAll: 'All',
       fbStatusOpen: 'Open',

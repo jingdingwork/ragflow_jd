@@ -412,6 +412,7 @@ export default {
   adminParseQueue: `${restAPIv1}/admin/parse-queue`,
   adminParseQueuePrioritize: (docId: string) =>
     `${restAPIv1}/admin/parse-queue/${docId}/prioritize`,
+  adminParseQueueParse: `${restAPIv1}/admin/parse-queue/parse`,
 
   adminFeedbacks: `${restAPIv1}/admin/feedbacks`,
   adminFeedback: (id: string) => `${restAPIv1}/admin/feedbacks/${id}`,

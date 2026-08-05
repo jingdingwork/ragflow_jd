@@ -961,6 +961,21 @@ def parse_queue_prioritize(doc_id):
         return error_response(str(e), 500)
 
 
+@admin_bp.route("/parse-queue/parse", methods=["POST"])
+@login_required
+@check_admin_auth
+def parse_queue_parse():
+    try:
+        body = request.json or {}
+        doc_ids = body.get("doc_ids") or []
+        res = ParseQueueMgr.parse_batch(doc_ids)
+        return success_response(res, "Documents queued for parsing", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
 @admin_bp.route("/retrieval/test", methods=["POST"])
 @login_required
 @check_admin_auth
