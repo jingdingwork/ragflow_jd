@@ -414,7 +414,8 @@ def get_parser_config(chunk_method, parser_config):
     }
     key_mapping = {
         "naive": {
-            "layout_recognize": "DeepDOC",
+            # 默认 PDF 解析器使用 MinerU（env 自动注册的模型 mineru-from-env-1），与前端建库默认保持一致
+            "layout_recognize": "mineru-from-env-1@MinerU",
             "chunk_token_num": 512,
             "delimiter": "\n",
             "auto_keywords": 0,
