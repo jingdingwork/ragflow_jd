@@ -1168,6 +1168,37 @@ class AnnouncementView(DataBaseModel):
         indexes = ((("announcement_id", "user_id"), True),)
 
 
+class Feedback(DataBaseModel):
+    """User-submitted product feedback / optimization suggestion.
+
+    Submitted from the top-right header dialog on the user side; managed (viewed,
+    triaged, resolved) from the admin console only. ``modules`` records which
+    product areas the feedback is about (chat / knowledge / app); ``priority`` is
+    the submitter's 1-5 star urgency; ``images`` holds MinIO object keys of pasted
+    screenshots (bucket ``feedback``), fetched and inlined only in the admin detail
+    view. Submitter identity and department are denormalized so the admin list can
+    show "who / when" without extra joins.
+    """
+
+    id = CharField(max_length=32, primary_key=True)
+    created_by = CharField(max_length=32, null=False, help_text="submitter user id", index=True)
+    submitter_name = CharField(max_length=100, null=True, help_text="submitter nickname (denormalized)")
+    submitter_email = CharField(max_length=255, null=True, help_text="submitter email (denormalized)")
+    department_id = CharField(max_length=32, null=True, help_text="submitter department id", index=True)
+    department_name = CharField(max_length=255, null=True, help_text="submitter department name (denormalized)")
+    modules = JSONField(null=False, default=[], help_text="affected modules: chat|knowledge|app")
+    content = LongTextField(null=True, help_text="feedback body text")
+    priority = IntegerField(null=False, default=3, help_text="1-5 star urgency", index=True)
+    images = JSONField(null=False, default=[], help_text="MinIO object keys of pasted screenshots")
+    status = CharField(max_length=16, null=False, default="open", help_text="open|in_progress|done", index=True)
+    admin_note = TextField(null=True, help_text="admin handling note", default="")
+    handled_by = CharField(max_length=32, null=True, help_text="admin user id who last handled it")
+    handled_at = DateTimeField(null=True, index=True)
+
+    class Meta:
+        db_table = "feedback"
+
+
 class Task(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     doc_id = CharField(max_length=32, null=False, index=True)

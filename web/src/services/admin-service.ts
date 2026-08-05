@@ -779,6 +779,81 @@ export const prioritizeParseDoc = (docId: string) =>
     ResponseData<{ doc_id: string; name: string; priority: number }>
   >(api.adminParseQueuePrioritize(docId));
 
+export type AdminFeedbackStatus = 'open' | 'in_progress' | 'done';
+
+export type AdminFeedbackListItem = {
+  id: string;
+  submitter_name: string;
+  submitter_email: string | null;
+  department_name: string | null;
+  modules: string[];
+  content: string;
+  priority: number;
+  image_count: number;
+  status: AdminFeedbackStatus;
+  admin_note: string;
+  handled_at: string | null;
+  create_time: number;
+  create_date: string | null;
+};
+
+export type AdminFeedbackStats = {
+  total: number;
+  open: number;
+  in_progress: number;
+  done: number;
+};
+
+export type AdminFeedbackListResult = {
+  items: AdminFeedbackListItem[];
+  total: number;
+  page: number;
+  size: number;
+  stats: AdminFeedbackStats;
+};
+
+export type AdminFeedbackDetail = {
+  id: string;
+  created_by: string;
+  submitter_name: string;
+  submitter_email: string | null;
+  department_name: string | null;
+  modules: string[];
+  content: string;
+  priority: number;
+  images: string[]; // base64 data URIs
+  status: AdminFeedbackStatus;
+  admin_note: string;
+  handled_by: string | null;
+  handled_at: string | null;
+  create_time: number;
+  create_date: string | null;
+};
+
+export const listFeedbacks = (params: {
+  status?: string;
+  module?: string;
+  priority?: string | number;
+  keyword?: string;
+  page?: number;
+  size?: number;
+}) =>
+  request.get<ResponseData<AdminFeedbackListResult>>(api.adminFeedbacks, {
+    params,
+  });
+
+export const getFeedbackDetail = (id: string) =>
+  request.get<ResponseData<AdminFeedbackDetail>>(api.adminFeedback(id));
+
+export const updateFeedback = (
+  id: string,
+  params: { status?: string; admin_note?: string },
+) =>
+  request.put<ResponseData<{ id: string; status: string }>>(
+    api.adminFeedback(id),
+    params,
+  );
+
 export type RetrievalChunk = {
   chunk_id: string;
   doc_id: string;

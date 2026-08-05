@@ -25,7 +25,7 @@ from flask_login import current_user, login_required, logout_user
 
 from auth import login_verify, login_admin, check_admin_auth
 from responses import success_response, error_response
-from services import UserMgr, DepartmentMgr, GlobalLLMMgr, ModelCatalogMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, KbPermissionMgr, ParseQueueMgr, RetrievalMgr, PromptMgr, FolderMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr, AnnouncementMgr, SensitiveWordMgr
+from services import UserMgr, DepartmentMgr, GlobalLLMMgr, ModelCatalogMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, KbPermissionMgr, ParseQueueMgr, FeedbackMgr, RetrievalMgr, PromptMgr, FolderMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr, AnnouncementMgr, SensitiveWordMgr
 from roles import RoleMgr
 from api.common.exceptions import AdminException
 from common.versions import get_ragflow_version
@@ -873,6 +873,56 @@ def es_kb_chunk_detail(kb_id, chunk_id):
     try:
         chunk = EsDataMgr.get_chunk(kb_id, chunk_id)
         return success_response(chunk, "Chunk detail", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/feedbacks", methods=["GET"])
+@login_required
+@check_admin_auth
+def feedback_list():
+    try:
+        status = request.args.get("status", "") or ""
+        module = request.args.get("module", "") or ""
+        priority = request.args.get("priority", "") or ""
+        keyword = request.args.get("keyword", "") or ""
+        page = int(request.args.get("page", 1) or 1)
+        size = int(request.args.get("size", 20) or 20)
+        res = FeedbackMgr.list_feedbacks(status, module, priority, keyword, page, size)
+        return success_response(res, "Feedback list", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/feedbacks/<feedback_id>", methods=["GET"])
+@login_required
+@check_admin_auth
+def feedback_detail(feedback_id):
+    try:
+        res = FeedbackMgr.get_feedback(feedback_id)
+        return success_response(res, "Feedback detail", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/feedbacks/<feedback_id>", methods=["PUT"])
+@login_required
+@check_admin_auth
+def feedback_update(feedback_id):
+    try:
+        body = request.get_json(force=True) or {}
+        status = body.get("status")
+        admin_note = body.get("admin_note")
+        res = FeedbackMgr.update_feedback(
+            feedback_id, status=status, admin_note=admin_note, handler_id=current_user.id
+        )
+        return success_response(res, "Feedback updated", 0)
     except AdminException as e:
         return error_response(e.message, e.code)
     except Exception as e:

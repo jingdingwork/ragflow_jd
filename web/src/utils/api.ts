@@ -413,6 +413,9 @@ export default {
   adminParseQueuePrioritize: (docId: string) =>
     `${restAPIv1}/admin/parse-queue/${docId}/prioritize`,
 
+  adminFeedbacks: `${restAPIv1}/admin/feedbacks`,
+  adminFeedback: (id: string) => `${restAPIv1}/admin/feedbacks/${id}`,
+
   adminRetrievalTest: `${restAPIv1}/admin/retrieval/test`,
 
   adminListPrompts: `${restAPIv1}/admin/prompts`,
@@ -440,6 +443,9 @@ export default {
   adminAnnouncement: (id: string) => `${restAPIv1}/admin/announcements/${id}`,
   adminPinAnnouncement: (id: string) =>
     `${restAPIv1}/admin/announcements/${id}/pin`,
+
+  // User-side feedback (header dialog)
+  submitFeedback: `${restAPIv1}/feedback`,
 
   // User-side announcements (home page)
   listAnnouncements: `${restAPIv1}/announcements`,

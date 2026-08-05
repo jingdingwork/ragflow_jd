@@ -15,11 +15,14 @@
 #
 
 import asyncio
+import base64
 import json
 import os
 import logging
 import re
 from typing import Any
+
+from peewee import fn
 
 from werkzeug.security import check_password_hash
 from common.constants import ActiveEnum
@@ -72,6 +75,11 @@ from api.db.services.application_service import (
 from api.db.db_models import APIToken, DB, Conversation, API4Conversation, Dialog, UserCanvas
 from api.db.services.task_service import TaskService, queue_tasks, cancel_all_task_of
 from api.db.services.file2document_service import File2DocumentService
+from api.db.services.feedback_service import (
+    FeedbackService,
+    FEEDBACK_IMAGE_BUCKET,
+    FEEDBACK_STATUSES,
+)
 from common.constants import StatusEnum, TaskStatus
 from common.doc_store.doc_store_base import OrderByExpr
 from common.misc_utils import get_uuid
@@ -1585,6 +1593,135 @@ class ParseQueueMgr:
         # sitting in Redis become no-ops (the executor drops tasks whose row is gone).
         queue_tasks(doc_dict, bucket, name, 1)
         return {"doc_id": doc_id, "name": doc.name, "priority": 1}
+
+
+class FeedbackMgr:
+    """Admin-side triage of user-submitted feedback (admin console only).
+
+    Read: paginated list (with lightweight per-status stats) + a single-item detail
+    that inlines screenshots as base64 data URIs read from the MinIO ``feedback``
+    bucket (the admin API authenticates by Authorization header, so ``<img src>``
+    tags can't carry auth -- inlining sidesteps that). Write: update status /
+    handling note, forming the closed loop.
+    """
+
+    _MIME_BY_EXT = {
+        "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+        "gif": "image/gif", "webp": "image/webp", "bmp": "image/bmp",
+    }
+
+    @staticmethod
+    def _stats():
+        F = FeedbackService.model
+        out = {"total": 0, "open": 0, "in_progress": 0, "done": 0}
+        for r in F.select(F.status, fn.COUNT(F.id).alias("c")).group_by(F.status).dicts():
+            out["total"] += r["c"]
+            if r["status"] in out:
+                out[r["status"]] = r["c"]
+        return out
+
+    @classmethod
+    def list_feedbacks(cls, status=None, module=None, priority=None, keyword="", page=1, size=20):
+        F = FeedbackService.model
+        q = F.select(
+            F.id, F.created_by, F.submitter_name, F.submitter_email,
+            F.department_id, F.department_name, F.modules, F.content, F.priority,
+            F.images, F.status, F.admin_note, F.handled_by, F.handled_at,
+            F.create_time, F.create_date,
+        )
+        if status:
+            q = q.where(F.status == status)
+        if priority:
+            try:
+                q = q.where(F.priority == int(priority))
+            except (TypeError, ValueError):
+                pass
+        if keyword:
+            q = q.where(F.content.contains(keyword))
+        q = q.order_by(F.create_time.desc())
+        rows = list(q.dicts())
+
+        # `modules` is a JSON array; filter it in Python (low-volume internal tool).
+        if module:
+            rows = [r for r in rows if module in (r.get("modules") or [])]
+
+        total = len(rows)
+        page = max(1, int(page or 1))
+        size = max(1, int(size or 20))
+        start = (page - 1) * size
+        page_rows = rows[start:start + size]
+
+        items = []
+        for r in page_rows:
+            items.append({
+                "id": r["id"],
+                "submitter_name": r["submitter_name"] or r["created_by"],
+                "submitter_email": r["submitter_email"],
+                "department_name": r["department_name"],
+                "modules": r["modules"] or [],
+                "content": r["content"] or "",
+                "priority": r["priority"],
+                "image_count": len(r["images"] or []),
+                "status": r["status"],
+                "admin_note": r["admin_note"] or "",
+                "handled_at": str(r["handled_at"]) if r.get("handled_at") else None,
+                "create_time": r["create_time"],
+                "create_date": str(r["create_date"]) if r.get("create_date") else None,
+            })
+
+        return {"items": items, "total": total, "page": page, "size": size, "stats": cls._stats()}
+
+    @classmethod
+    def get_feedback(cls, fid):
+        ok, fb = FeedbackService.get_by_id(fid)
+        if not ok or not fb:
+            raise AdminException("Feedback not found", 404)
+
+        images = []
+        for key in (fb.images or []):
+            try:
+                blob = settings.STORAGE_IMPL.get(FEEDBACK_IMAGE_BUCKET, key)
+                if not blob:
+                    continue
+                ext = key.rsplit(".", 1)[-1].lower() if "." in key else "png"
+                mime = cls._MIME_BY_EXT.get(ext, "image/png")
+                b64 = base64.b64encode(blob).decode("ascii")
+                images.append(f"data:{mime};base64,{b64}")
+            except Exception as e:
+                logging.warning(f"FeedbackMgr.get_feedback load image {key} failed: {e}")
+
+        return {
+            "id": fb.id,
+            "created_by": fb.created_by,
+            "submitter_name": fb.submitter_name or fb.created_by,
+            "submitter_email": fb.submitter_email,
+            "department_name": fb.department_name,
+            "modules": fb.modules or [],
+            "content": fb.content or "",
+            "priority": fb.priority,
+            "images": images,
+            "status": fb.status,
+            "admin_note": fb.admin_note or "",
+            "handled_by": fb.handled_by,
+            "handled_at": str(fb.handled_at) if fb.handled_at else None,
+            "create_time": fb.create_time,
+            "create_date": str(fb.create_date) if fb.create_date else None,
+        }
+
+    @staticmethod
+    def update_feedback(fid, status=None, admin_note=None, handler_id=None):
+        ok, fb = FeedbackService.get_by_id(fid)
+        if not ok or not fb:
+            raise AdminException("Feedback not found", 404)
+        data = {"handled_by": handler_id, "handled_at": datetime.now()}
+        if status is not None:
+            if status not in FEEDBACK_STATUSES:
+                raise AdminException("Invalid status", 400)
+            data["status"] = status
+        if admin_note is not None:
+            data["admin_note"] = admin_note
+        FeedbackService.update_by_id(fid, data)
+        return {"id": fid, "status": data.get("status", fb.status)}
 
 
 class KbPermissionMgr:

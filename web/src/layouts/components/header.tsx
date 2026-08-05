@@ -1,4 +1,5 @@
 import { CtciFullLogo } from '@/components/ctci-logo';
+import { FeedbackButton } from '@/components/feedback/feedback-button';
 import { RAGFlowAvatar } from '@/components/ragflow-avatar';
 import { TourHelpButton } from '@/components/tour/tour-help-button';
 import { Button } from '@/components/ui/button';
@@ -100,6 +101,8 @@ export function Header({
         </DropdownMenu>
 
         <ThemeButton />
+
+        <FeedbackButton />
 
         <TourHelpButton />
 

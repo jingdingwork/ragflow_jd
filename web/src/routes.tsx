@@ -78,6 +78,7 @@ export enum Routes {
   AdminPrompts = `${Admin}/prompts`,
   AdminKbManagement = `${Admin}/kb-management`,
   AdminParseQueue = `${Admin}/parse-queue`,
+  AdminFeedback = `${Admin}/feedback`,
   AdminRetrievalTest = `${Admin}/retrieval-test`,
   AdminAnnouncements = `${Admin}/announcements`,
   AdminSandboxSettings = `${Admin}/sandbox-settings`,
@@ -424,6 +425,10 @@ const routeConfigOptions = [
               {
                 path: Routes.AdminParseQueue,
                 Component: () => import('@/pages/admin/parse-queue'),
+              },
+              {
+                path: Routes.AdminFeedback,
+                Component: () => import('@/pages/admin/feedback'),
               },
               {
                 path: Routes.AdminRetrievalTest,

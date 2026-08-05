@@ -10,6 +10,7 @@ import {
   LucideFileText,
   LucideLayoutGrid,
   LucideMegaphone,
+  LucideMessageSquareHeart,
   LucideMessagesSquare,
   LucideMonitor,
   LucideNetwork,
@@ -85,6 +86,11 @@ const AdminNavigationLayout = () => {
         path: Routes.AdminParseQueue,
         name: t('admin.pqTitle'),
         icon: <LucideFileStack className="size-[1em]" />,
+      },
+      {
+        path: Routes.AdminFeedback,
+        name: t('admin.feedbackManagement'),
+        icon: <LucideMessageSquareHeart className="size-[1em]" />,
       },
       {
         path: Routes.AdminRetrievalTest,
