@@ -86,7 +86,10 @@ export function Announcements() {
             onOpenAutoFocus={(e) => e.preventDefault()}
             className={cn(
               'fixed left-1/2 top-24 z-50 w-[92vw] max-w-lg -translate-x-1/2',
-              'rounded-xl border-0.5 border-border-button bg-bg-base p-6 shadow-2xl',
+              // A backdrop-less popup floats over a possibly-white page, so it
+              // needs a clearly visible edge: 1px border-default (0.2 alpha),
+              // not the near-invisible 0.5px border-button (0.1 alpha).
+              'rounded-xl border border-border-default bg-bg-base p-6 shadow-2xl',
               'data-[state=open]:animate-in data-[state=closed]:animate-out',
               'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
               'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',

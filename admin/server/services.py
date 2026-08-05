@@ -70,7 +70,9 @@ from api.db.services.application_service import (
     APP_PACKAGE_BUCKET,
 )
 from api.db.db_models import APIToken, DB, Conversation, API4Conversation, Dialog, UserCanvas
-from common.constants import StatusEnum
+from api.db.services.task_service import TaskService, queue_tasks, cancel_all_task_of
+from api.db.services.file2document_service import File2DocumentService
+from common.constants import StatusEnum, TaskStatus
 from common.doc_store.doc_store_base import OrderByExpr
 from common.misc_utils import get_uuid
 from common import settings
@@ -1364,6 +1366,225 @@ class EsDataMgr:
             if not EsDataMgr._DROP_FIELD_RE.search(k)
         }
         return cleaned
+
+
+class ParseQueueMgr:
+    """Cross-department view of every knowledge-base document's parse state, plus a
+    queue-jump control (admin console only).
+
+    Read side (:meth:`list_queue`): lists documents in scope (optionally filtered by
+    department / knowledge base / file-name), derives a status
+    (unstart / queued / parsing / done / failed / cancelled) from ``Document.run``
+    and the document's per-page ``Task`` rows, and computes each waiting document's
+    position in the global parse queue.
+
+    Write side (:meth:`prioritize`): re-enqueues a not-yet-started document's tasks at
+    priority 1. The task executor drains the priority-1 stream before the default one
+    (see ``settings.get_svr_queue_names``), so the document is parsed next. It does
+    *not* preempt a document that is already parsing (the executor has no preemption);
+    such requests are rejected.
+    """
+
+    ST_UNSTART = "unstart"
+    ST_QUEUED = "queued"
+    ST_PARSING = "parsing"
+    ST_DONE = "done"
+    ST_FAILED = "failed"
+    ST_CANCELLED = "cancelled"
+
+    # Documents that are not finished yet -- the actionable set shown by default.
+    ACTIVE = (ST_PARSING, ST_QUEUED, ST_UNSTART)
+
+    @staticmethod
+    def _dept_name_map(dept_ids):
+        out = {}
+        dept_ids = [d for d in dept_ids if d]
+        if not dept_ids:
+            return out
+        try:
+            dmodel = DepartmentService.model
+            for d in dmodel.select(dmodel.id, dmodel.name).where(dmodel.id.in_(dept_ids)):
+                out[d.id] = d.name
+        except Exception as e:
+            logging.warning(f"ParseQueueMgr._dept_name_map failed: {e}")
+        return out
+
+    @classmethod
+    def list_queue(cls, status=None, department_id=None, kb_id=None, keyword="", page=1, size=50):
+        Doc = DocumentService.model
+        Kb = KnowledgebaseService.model
+        Tsk = TaskService.model
+
+        # 1. Resolve the knowledge bases in scope (valid only, optional dept/kb filter).
+        kb_q = Kb.select(Kb.id, Kb.name, Kb.department_id, Kb.tenant_id).where(
+            Kb.status == StatusEnum.VALID.value
+        )
+        if kb_id:
+            kb_q = kb_q.where(Kb.id == kb_id)
+        if department_id:
+            kb_q = kb_q.where(Kb.department_id == department_id)
+        kb_rows = list(kb_q.dicts())
+        if not kb_rows:
+            return {"items": [], "total": 0, "page": page, "size": size,
+                    "queue_total": 0, "status_counts": {}}
+        kb_ids = [k["id"] for k in kb_rows]
+        dept_map = cls._dept_name_map({k["department_id"] for k in kb_rows})
+        kb_map = {
+            k["id"]: {
+                "kb_name": k["name"],
+                "department_id": k["department_id"],
+                "department_name": dept_map.get(k["department_id"]) if k["department_id"] else None,
+            }
+            for k in kb_rows
+        }
+
+        # 2. Global queue order over all waiting-or-running tasks in scope
+        #    (0 <= progress < 1, so finished=1 and failed=-1 tasks are excluded).
+        #    Rank documents by (max priority desc, earliest task time asc) -- exactly
+        #    the order the executor consumes them.
+        agg = {}  # doc_id -> {"prio", "ct", "started"}
+        task_q = (
+            Tsk.select(Tsk.doc_id, Tsk.priority, Tsk.progress, Tsk.create_time)
+            .join(Doc, on=(Tsk.doc_id == Doc.id))
+            .where(Doc.kb_id.in_(kb_ids), Tsk.progress >= 0, Tsk.progress < 1)
+        )
+        for t in task_q.dicts():
+            ct = t["create_time"] or 0
+            started = (t["progress"] or 0) > 0
+            a = agg.get(t["doc_id"])
+            if a is None:
+                agg[t["doc_id"]] = {"prio": t["priority"] or 0, "ct": ct, "started": started}
+            else:
+                a["prio"] = max(a["prio"], t["priority"] or 0)
+                a["ct"] = min(a["ct"], ct)
+                a["started"] = a["started"] or started
+        ordered = sorted(agg.keys(), key=lambda d: (-agg[d]["prio"], agg[d]["ct"]))
+        queue_pos = {d: i + 1 for i, d in enumerate(ordered)}
+        queue_total = len(ordered)
+
+        # 3. Lightweight scan of all in-scope documents to classify + count
+        #    (parser_config -- the heavy field -- is fetched later for the page only).
+        doc_q = Doc.select(
+            Doc.id, Doc.kb_id, Doc.name, Doc.parser_id, Doc.run, Doc.progress,
+            Doc.size, Doc.type, Doc.create_time, Doc.create_date, Doc.update_date,
+        ).where(Doc.kb_id.in_(kb_ids))
+        if keyword:
+            doc_q = doc_q.where(Doc.name.contains(keyword))
+        docs = list(doc_q.dicts())
+
+        def classify(d):
+            run = d["run"]
+            if run == TaskStatus.DONE.value:
+                return cls.ST_DONE
+            if run == TaskStatus.FAIL.value:
+                return cls.ST_FAILED
+            if run == TaskStatus.CANCEL.value:
+                return cls.ST_CANCELLED
+            if run == TaskStatus.RUNNING.value:
+                a = agg.get(d["id"])
+                return cls.ST_PARSING if (a and a["started"]) else cls.ST_QUEUED
+            return cls.ST_UNSTART
+
+        status_counts = {k: 0 for k in (
+            cls.ST_UNSTART, cls.ST_QUEUED, cls.ST_PARSING,
+            cls.ST_DONE, cls.ST_FAILED, cls.ST_CANCELLED,
+        )}
+        for d in docs:
+            d["_status"] = classify(d)
+            status_counts[d["_status"]] += 1
+
+        # 4. Pick the requested bucket. Default ("active") = every not-finished doc.
+        if not status or status == "active":
+            selected = [d for d in docs if d["_status"] in cls.ACTIVE]
+        else:
+            selected = [d for d in docs if d["_status"] == status]
+
+        def sort_key(d):
+            pos = queue_pos.get(d["id"])
+            if pos is not None:
+                return (0, pos, 0)
+            # not in the queue (unstart / done / failed / ...): newest first
+            return (1, 0, -(d["create_time"] or 0))
+
+        selected.sort(key=sort_key)
+
+        total = len(selected)
+        page = max(1, int(page or 1))
+        size = max(1, int(size or 50))
+        start = (page - 1) * size
+        page_items = selected[start:start + size]
+
+        # 5. Enrich only the page slice with parse-method detail.
+        page_ids = [d["id"] for d in page_items]
+        cfg_map = {}
+        if page_ids:
+            for r in Doc.select(Doc.id, Doc.parser_config).where(Doc.id.in_(page_ids)):
+                cfg_map[r.id] = r.parser_config or {}
+
+        items = []
+        for d in page_items:
+            cfg = cfg_map.get(d["id"], {})
+            layout = cfg.get("layout_recognize") if isinstance(cfg, dict) else None
+            meta = kb_map.get(d["kb_id"], {})
+            items.append({
+                "doc_id": d["id"],
+                "name": d["name"],
+                "kb_id": d["kb_id"],
+                "kb_name": meta.get("kb_name"),
+                "department_id": meta.get("department_id"),
+                "department_name": meta.get("department_name"),
+                "status": d["_status"],
+                "progress": d["progress"],
+                "parser_id": d["parser_id"],
+                "layout_recognize": layout or "DeepDOC",
+                "size": d["size"],
+                "type": d["type"],
+                "queue_pos": queue_pos.get(d["id"]),
+                "can_prioritize": d["_status"] in (cls.ST_UNSTART, cls.ST_QUEUED),
+                "create_date": str(d["create_date"]) if d.get("create_date") else None,
+                "update_date": str(d["update_date"]) if d.get("update_date") else None,
+            })
+
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "size": size,
+            "queue_total": queue_total,
+            "status_counts": status_counts,
+        }
+
+    @staticmethod
+    def prioritize(doc_id):
+        ok, doc = DocumentService.get_by_id(doc_id)
+        if not ok or not doc:
+            raise AdminException("Document not found", 404)
+
+        run = doc.run
+        started = any(0 < (t.progress or 0) < 1 for t in TaskService.query(doc_id=doc_id))
+        if run == TaskStatus.DONE.value:
+            raise AdminException("Document is already parsed.", 400)
+        if run == TaskStatus.RUNNING.value and started:
+            raise AdminException(
+                "Document is already being parsed; a running document cannot jump the queue.", 400)
+        if run not in (TaskStatus.UNSTART.value, TaskStatus.RUNNING.value, None, ""):
+            # failed / cancelled documents: re-parse them from the normal document UI.
+            raise AdminException(
+                "Only not-yet-started or queued documents can jump the queue.", 400)
+
+        # If the document is queued (RUNNING but not yet picked up), cancel its old
+        # in-flight tasks first -- mirrors the production re-parse path and closes the
+        # race where a worker grabs the task between the check above and re-enqueue.
+        if run == TaskStatus.RUNNING.value:
+            cancel_all_task_of(doc_id)
+
+        doc_dict = doc.to_dict()
+        bucket, name = File2DocumentService.get_storage_address(doc_id=doc_id)
+        # Re-enqueue this document's tasks at priority 1. queue_tasks deletes the old
+        # Task rows and inserts fresh ones, so any stale priority-0 messages still
+        # sitting in Redis become no-ops (the executor drops tasks whose row is gone).
+        queue_tasks(doc_dict, bucket, name, 1)
+        return {"doc_id": doc_id, "name": doc.name, "priority": 1}
 
 
 class KbPermissionMgr:

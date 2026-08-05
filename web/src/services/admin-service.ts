@@ -726,6 +726,59 @@ export const esGetChunkDetail = (kbId: string, chunkId: string) =>
     api.adminEsKbChunkDetail(kbId, chunkId),
   );
 
+export type ParseQueueStatus =
+  | 'unstart'
+  | 'queued'
+  | 'parsing'
+  | 'done'
+  | 'failed'
+  | 'cancelled';
+
+export type ParseQueueItem = {
+  doc_id: string;
+  name: string;
+  kb_id: string;
+  kb_name: string | null;
+  department_id: string | null;
+  department_name: string | null;
+  status: ParseQueueStatus;
+  progress: number;
+  parser_id: string;
+  layout_recognize: string;
+  size: number;
+  type: string;
+  queue_pos: number | null;
+  can_prioritize: boolean;
+  create_date: string | null;
+  update_date: string | null;
+};
+
+export type ParseQueueResult = {
+  items: ParseQueueItem[];
+  total: number;
+  page: number;
+  size: number;
+  queue_total: number;
+  status_counts: Partial<Record<ParseQueueStatus, number>>;
+};
+
+/** List every knowledge-base document with its parse state + queue position. */
+export const listParseQueue = (params: {
+  status?: string;
+  department_id?: string;
+  kb_id?: string;
+  keyword?: string;
+  page?: number;
+  size?: number;
+}) =>
+  request.get<ResponseData<ParseQueueResult>>(api.adminParseQueue, { params });
+
+/** Move a not-yet-started / queued document to the front of the parse queue. */
+export const prioritizeParseDoc = (docId: string) =>
+  request.post<
+    ResponseData<{ doc_id: string; name: string; priority: number }>
+  >(api.adminParseQueuePrioritize(docId));
+
 export type RetrievalChunk = {
   chunk_id: string;
   doc_id: string;

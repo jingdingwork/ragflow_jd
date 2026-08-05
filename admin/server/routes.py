@@ -25,7 +25,7 @@ from flask_login import current_user, login_required, logout_user
 
 from auth import login_verify, login_admin, check_admin_auth
 from responses import success_response, error_response
-from services import UserMgr, DepartmentMgr, GlobalLLMMgr, ModelCatalogMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, KbPermissionMgr, RetrievalMgr, PromptMgr, FolderMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr, AnnouncementMgr, SensitiveWordMgr
+from services import UserMgr, DepartmentMgr, GlobalLLMMgr, ModelCatalogMgr, ChatHistoryMgr, ApplicationMgr, EsDataMgr, KbPermissionMgr, ParseQueueMgr, RetrievalMgr, PromptMgr, FolderMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr, AnnouncementMgr, SensitiveWordMgr
 from roles import RoleMgr
 from api.common.exceptions import AdminException
 from common.versions import get_ragflow_version
@@ -873,6 +873,38 @@ def es_kb_chunk_detail(kb_id, chunk_id):
     try:
         chunk = EsDataMgr.get_chunk(kb_id, chunk_id)
         return success_response(chunk, "Chunk detail", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/parse-queue", methods=["GET"])
+@login_required
+@check_admin_auth
+def parse_queue_list():
+    try:
+        status = request.args.get("status", "") or ""
+        department_id = request.args.get("department_id", "") or ""
+        kb_id = request.args.get("kb_id", "") or ""
+        keyword = request.args.get("keyword", "") or ""
+        page = int(request.args.get("page", 1) or 1)
+        size = int(request.args.get("size", 50) or 50)
+        res = ParseQueueMgr.list_queue(status, department_id, kb_id, keyword, page, size)
+        return success_response(res, "Parse queue", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/parse-queue/<doc_id>/prioritize", methods=["POST"])
+@login_required
+@check_admin_auth
+def parse_queue_prioritize(doc_id):
+    try:
+        res = ParseQueueMgr.prioritize(doc_id)
+        return success_response(res, "Document moved to the front of the parse queue", 0)
     except AdminException as e:
         return error_response(e.message, e.code)
     except Exception as e:

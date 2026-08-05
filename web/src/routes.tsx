@@ -77,7 +77,7 @@ export enum Routes {
   AdminApplications = `${Admin}/applications`,
   AdminPrompts = `${Admin}/prompts`,
   AdminKbManagement = `${Admin}/kb-management`,
-  AdminDeptFolders = `${Admin}/dept-folders`,
+  AdminParseQueue = `${Admin}/parse-queue`,
   AdminRetrievalTest = `${Admin}/retrieval-test`,
   AdminAnnouncements = `${Admin}/announcements`,
   AdminSandboxSettings = `${Admin}/sandbox-settings`,
@@ -422,8 +422,8 @@ const routeConfigOptions = [
                 Component: () => import('@/pages/admin/kb-management'),
               },
               {
-                path: Routes.AdminDeptFolders,
-                Component: () => import('@/pages/admin/dept-folders'),
+                path: Routes.AdminParseQueue,
+                Component: () => import('@/pages/admin/parse-queue'),
               },
               {
                 path: Routes.AdminRetrievalTest,

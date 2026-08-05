@@ -130,6 +130,10 @@ export default {
       memories: 'Memory',
       apps: 'Apps',
     },
+    home: {
+      announcements: 'Announcements',
+      announcementAck: 'Got it',
+    },
     tour: {
       helpButton: 'Getting started',
       next: 'Next',
@@ -154,8 +158,6 @@ export default {
         helpTitle: 'Where to find the guide',
         helpDesc:
           'Forgot how something works? Click this help icon at the top right to reopen the guide for the current page anytime.',
-        announcements: 'Announcements',
-        announcementAck: 'I know it',
       },
       datasets: {
         welcomeTitle: 'Datasets',
@@ -3299,6 +3301,32 @@ Important structured information may include: names, dates, locations, events, k
       promptSort: 'Sort',
       esData: 'Data maintenance',
       kbManagement: 'Knowledge base management',
+      pqTitle: 'File management',
+      pqHint:
+        'Parse status and queue position of every knowledge-base file. Not-started or queued files can jump the queue; a file that is already parsing cannot be preempted.',
+      pqColFile: 'File',
+      pqColDept: 'Department',
+      pqColKb: 'Knowledge base',
+      pqColMethod: 'Parse method',
+      pqColStatus: 'Status',
+      pqColQueue: 'Queue',
+      pqColSize: 'Size',
+      pqStatusUnstart: 'Not parsed',
+      pqStatusQueued: 'Queued',
+      pqStatusParsing: 'Parsing',
+      pqStatusDone: 'Done',
+      pqStatusFailed: 'Failed',
+      pqStatusCancelled: 'Cancelled',
+      pqTabActive: 'Pending',
+      pqPrioritize: 'Prioritize',
+      pqPrioritizeDisabledTip:
+        'Only not-started or queued files can jump the queue',
+      pqPrioritized: 'Moved to the front of the parse queue',
+      pqPrioritizeFailed: 'Failed to prioritize',
+      pqAllDepartments: 'All departments',
+      pqAllKbs: 'All knowledge bases',
+      pqSearchPlaceholder: 'Search file name',
+      pqTotal: '{{count}} files',
       deptFolderManagement: 'File management',
       deptFolderPageHint:
         'Bind a department shared folder (mounted on the server) to a knowledge base. The folder is synced automatically every night, and you can also sync incrementally or rebuild fully on demand.',

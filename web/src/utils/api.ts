@@ -409,6 +409,10 @@ export default {
     `${restAPIv1}/admin/es/knowledgebases/${kbId}/chunks`,
   adminEsKbChunkDetail: (kbId: string, chunkId: string) =>
     `${restAPIv1}/admin/es/knowledgebases/${kbId}/chunks/${chunkId}`,
+  adminParseQueue: `${restAPIv1}/admin/parse-queue`,
+  adminParseQueuePrioritize: (docId: string) =>
+    `${restAPIv1}/admin/parse-queue/${docId}/prioritize`,
+
   adminRetrievalTest: `${restAPIv1}/admin/retrieval/test`,
 
   adminListPrompts: `${restAPIv1}/admin/prompts`,
