@@ -118,7 +118,7 @@ export default {
       announcementAck: '我知道了',
     },
     feedback: {
-      title: '意见反馈',
+      title: '反馈',
       modules: '相关模块',
       module_chat: '聊天',
       module_knowledge: '知识库',
