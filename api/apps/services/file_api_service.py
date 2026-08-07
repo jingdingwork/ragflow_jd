@@ -24,6 +24,7 @@ from api.db.services import duplicate_name
 from api.db.services.document_service import DocumentService
 from api.db.services.file2document_service import File2DocumentService
 from api.db.services.file_service import FileService
+from api.db.services.user_department_grant_service import UserDepartmentGrantService
 from api.utils.file_utils import filename_type
 from common import settings
 from common.constants import FileSource
@@ -177,15 +178,22 @@ def list_files(tenant_id: str, args: dict):
     return True, {"total": total, "files": files, "parent_folder": parent_folder.to_json()}
 
 
-def list_department_files(department_id: str, args: dict):
+def list_department_files(department_id: str, args: dict, user_id: str = None):
     """
-    List department-visible files (flat) shared within a department.
+    List department-visible files (flat) shared within a department, plus any
+    departments the user has a cross-department grant for.
 
-    :param department_id: the viewer's department id
+    :param department_id: the viewer's home department id
     :param args: query arguments (keywords, page, page_size, orderby, desc)
+    :param user_id: the viewer's user id, used to resolve cross-department grants
     :return: (success, result)
     """
-    if not department_id:
+    dept_ids = set()
+    if department_id:
+        dept_ids.add(department_id)
+    if user_id:
+        dept_ids |= UserDepartmentGrantService.granted_read_dept_ids(user_id)
+    if not dept_ids:
         return True, {"total": 0, "files": []}
     keywords = args.get("keywords", "")
     page_number = int(args.get("page", 1))
@@ -193,7 +201,7 @@ def list_department_files(department_id: str, args: dict):
     orderby = args.get("orderby", "create_time")
     desc = args.get("desc", True)
     files, total = FileService.get_department_files(
-        department_id, page_number, items_per_page, orderby, desc, keywords
+        dept_ids, page_number, items_per_page, orderby, desc, keywords
     )
     return True, {"total": total, "files": files}
 

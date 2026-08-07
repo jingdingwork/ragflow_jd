@@ -98,8 +98,16 @@ class FileService(CommonService):
 
     @classmethod
     @DB.connection_context()
-    def get_department_files(cls, department_id, page_number, items_per_page, orderby, desc, keywords):
-        """Flat list of department-visible files shared within a department, with owner info."""
+    def get_department_files(cls, department_ids, page_number, items_per_page, orderby, desc, keywords):
+        """Flat list of department-visible files shared within one or more
+        departments (the viewer's home department plus any cross-department
+        grants), with owner info. ``department_ids`` is a single id or an
+        iterable of ids."""
+        if isinstance(department_ids, str):
+            department_ids = [department_ids]
+        department_ids = [d for d in (department_ids or []) if d]
+        if not department_ids:
+            return [], 0
         fields = [
             cls.model.id,
             cls.model.name,
@@ -116,7 +124,7 @@ class FileService(CommonService):
             cls.model.select(*fields)
             .join(User, on=(cls.model.created_by == User.id))
             .where(
-                (cls.model.department_id == department_id)
+                (cls.model.department_id.in_(department_ids))
                 & (cls.model.permission == TenantPermission.DEPARTMENT.value)
                 & (cls.model.type != FileType.FOLDER.value)
             )

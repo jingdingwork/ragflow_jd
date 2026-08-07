@@ -3218,6 +3218,18 @@ Important structured information may include: names, dates, locations, events, k
       revokeDeptAdmin: 'Revoke dept admin',
       deptAdminHint:
         'Department admins can edit/delete department-visible resources of their own department.',
+      cancel: 'Cancel',
+      deptGrants: 'Cross-department access',
+      deptGrantsTitle: 'Cross-department access — {{name}}',
+      deptGrantsHint:
+        'Grant this user access to additional departments, independent of their home-department role and of directory sync. Granting a department includes all of its sub-departments.',
+      deptGrantsSearchPlaceholder: 'Search departments',
+      deptGrantsNoResult: 'No departments found',
+      deptGrantsSelectedCount: '{{count}} department(s) configured',
+      deptGrantNone: 'None',
+      deptGrantEmployee: 'Employee',
+      deptGrantAdmin: 'Dept admin',
+      deptGrantHome: 'Home',
       impersonate: 'Login as',
       impersonateHint:
         'Sign in as this user (new tab) to troubleshoot. Replaces your session in this browser — use a separate/incognito window to keep your admin session.',

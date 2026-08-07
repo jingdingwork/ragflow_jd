@@ -70,7 +70,11 @@ def _descendant_ids(root_ids, children_map):
 @DB.connection_context()
 def resolve_visible_app_ids(department_id):
     """
-    Return the set of application ids visible to a user in ``department_id``.
+    Return the set of application ids visible to a user.
+
+    ``department_id`` may be a single department id or an iterable of ids (a
+    user's home department plus any cross-department grants); an app visible to
+    any of them is included.
 
     Visibility semantics:
       - ``visibility == 'all'``  -> visible to everyone.
@@ -90,17 +94,22 @@ def resolve_visible_app_ids(department_id):
     if not department_id:
         return visible
 
-    # 2. Walk the department's ancestor chain; an app authorized on any ancestor
-    #    (or the department itself) is visible (= subtree inheritance, resolved
-    #    bottom-up so we don't need to expand every authorized subtree).
+    start_ids = [department_id] if isinstance(department_id, str) else [d for d in department_id if d]
+    if not start_ids:
+        return visible
+
+    # 2. Walk each starting department's ancestor chain; an app authorized on any
+    #    ancestor (or the department itself) is visible (= subtree inheritance,
+    #    resolved bottom-up so we don't need to expand every authorized subtree).
+    #    ``ancestor_ids`` doubles as the visited set, so shared ancestors and
+    #    cycles are each walked only once.
     ancestor_ids = set()
-    cur = department_id
-    seen = set()
-    while cur and cur not in seen:
-        seen.add(cur)
-        ancestor_ids.add(cur)
-        dept = Department.get_or_none(Department.id == cur)
-        cur = dept.parent_id if dept else None
+    for start in start_ids:
+        cur = start
+        while cur and cur not in ancestor_ids:
+            ancestor_ids.add(cur)
+            dept = Department.get_or_none(Department.id == cur)
+            cur = dept.parent_id if dept else None
 
     if ancestor_ids:
         for row in ApplicationVisibility.select(ApplicationVisibility.application_id).where(

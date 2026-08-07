@@ -18,6 +18,7 @@ from copy import deepcopy
 from api.db.db_models import DB, SharedConversation
 from api.db.services.common_service import CommonService
 from api.db.services.department_service import DepartmentService
+from api.db.services.user_department_grant_service import UserDepartmentGrantService
 from common.constants import StatusEnum
 from common.misc_utils import get_uuid
 
@@ -86,9 +87,32 @@ class SharedConversationService(CommonService):
         return obj if ok else None
 
     @classmethod
+    def _read_dept_ids(cls, user):
+        """Department ids whose share zone ``user`` may read: their home
+        department subtree plus any cross-department grant subtrees."""
+        dept_id = getattr(user, "department_id", None)
+        ids = DepartmentService.collect_subtree_ids(dept_id) if dept_id else set()
+        ids |= UserDepartmentGrantService.granted_read_dept_ids(user.id)
+        return ids
+
+    @classmethod
+    def _admin_over(cls, user, department_id):
+        """True if ``user`` may govern shared copies in ``department_id``: a home
+        department admin over their own subtree, or a cross-department dept-admin
+        grantee covering that department subtree."""
+        if not department_id:
+            return False
+        if getattr(user, "is_dept_admin", False):
+            home = getattr(user, "department_id", None)
+            if home and department_id in DepartmentService.collect_subtree_ids(home):
+                return True
+        return department_id in UserDepartmentGrantService.granted_admin_dept_ids(user.id)
+
+    @classmethod
     def _can_manage(cls, user, row):
-        """Department admins govern every copy within their department subtree."""
-        return bool(getattr(user, "is_dept_admin", False))
+        """Govern a copy: home-department admin over their subtree, or a
+        cross-department dept-admin grantee covering the copy's department."""
+        return cls._admin_over(user, row.department_id)
 
     @classmethod
     def _can_delete(cls, user, row):
@@ -130,18 +154,18 @@ class SharedConversationService(CommonService):
         Department admins see everything in the subtree (pending and hidden
         included) so they can review, publish, hide/unhide and delete.
         """
-        dept_id = getattr(user, "department_id", None)
-        subtree = DepartmentService.collect_subtree_ids(dept_id) if dept_id else set()
-        is_admin = bool(getattr(user, "is_dept_admin", False))
+        read_ids = cls._read_dept_ids(user)
 
         q = cls.model.select().where(
             cls.model.status == StatusEnum.VALID.value,
         )
         rows = []
         for row in q.order_by(cls.model.sort.asc(), cls.model.create_time.desc()):
-            if row.department_id not in subtree:
+            if row.department_id not in read_ids:
                 continue
-            if is_admin:
+            # Admins (home-subtree or cross-department grant) see everything in
+            # that department; members see published copies plus their own pending.
+            if cls._admin_over(user, row.department_id):
                 rows.append(row)
                 continue
             if row.owner_id == user.id and row.visibility == VISIBILITY_PENDING:
@@ -154,8 +178,7 @@ class SharedConversationService(CommonService):
     @DB.connection_context()
     def _is_visible_to(cls, user, row):
         """Whether ``user`` may view ``row`` (same rules as list_visible)."""
-        subtree = DepartmentService.collect_subtree_ids(getattr(user, "department_id", None))
-        if row.department_id not in subtree:
+        if row.department_id not in cls._read_dept_ids(user):
             return False
         if cls._can_manage(user, row):
             return True
@@ -184,7 +207,7 @@ class SharedConversationService(CommonService):
         ok, row = cls.get_by_id(shared_id)
         if not ok or row.status != StatusEnum.VALID.value:
             return False, "Shared conversation not found!"
-        if not cls._can_manage(user, row) or row.department_id not in DepartmentService.collect_subtree_ids(getattr(user, "department_id", None)):
+        if not cls._can_manage(user, row):
             return False, "No authorization."
         cls.update_by_id(shared_id, {"visibility": VISIBILITY_DEPARTMENT, "hidden": False})
         return True, ""
@@ -195,7 +218,7 @@ class SharedConversationService(CommonService):
         ok, row = cls.get_by_id(shared_id)
         if not ok or row.status != StatusEnum.VALID.value:
             return False, "Shared conversation not found!"
-        if not cls._can_manage(user, row) or row.department_id not in DepartmentService.collect_subtree_ids(getattr(user, "department_id", None)):
+        if not cls._can_manage(user, row):
             return False, "No authorization."
         cls.update_by_id(shared_id, {"hidden": bool(hidden)})
         return True, ""
@@ -208,8 +231,6 @@ class SharedConversationService(CommonService):
             return False, "Shared conversation not found!"
         if not cls._can_delete(user, row):
             return False, "No authorization."
-        if cls._can_manage(user, row) and row.department_id not in DepartmentService.collect_subtree_ids(getattr(user, "department_id", None)):
-            return False, "No authorization."
         cls.update_by_id(shared_id, {"status": StatusEnum.INVALID.value})
         return True, ""
 
@@ -220,7 +241,7 @@ class SharedConversationService(CommonService):
         ok, row = cls.get_by_id(shared_id)
         if not ok or row.status != StatusEnum.VALID.value:
             return False, "Shared conversation not found!"
-        if not cls._can_manage(user, row) or row.department_id not in DepartmentService.collect_subtree_ids(getattr(user, "department_id", None)):
+        if not cls._can_manage(user, row):
             return False, "No authorization."
         name = (name or "").strip()
         if not name:
@@ -233,15 +254,19 @@ class SharedConversationService(CommonService):
     def reorder(cls, user, ordered_ids):
         """Persist the share-zone display order. Department admins only; only ids
         within the admin's subtree are touched, in the given order."""
-        if not getattr(user, "is_dept_admin", False):
+        admin_ids = set()
+        home = getattr(user, "department_id", None)
+        if getattr(user, "is_dept_admin", False) and home:
+            admin_ids |= DepartmentService.collect_subtree_ids(home)
+        admin_ids |= UserDepartmentGrantService.granted_admin_dept_ids(user.id)
+        if not admin_ids:
             return False, "No authorization."
-        subtree = DepartmentService.collect_subtree_ids(getattr(user, "department_id", None))
         sort_value = 0
         for shared_id in ordered_ids or []:
             ok, row = cls.get_by_id(shared_id)
             if not ok or row.status != StatusEnum.VALID.value:
                 continue
-            if row.department_id not in subtree:
+            if row.department_id not in admin_ids:
                 continue
             cls.update_by_id(shared_id, {"sort": sort_value})
             sort_value += 1

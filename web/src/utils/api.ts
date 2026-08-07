@@ -353,6 +353,8 @@ export default {
     `${restAPIv1}/admin/users/${email}/impersonate`,
   adminSetDeptAdmin: (email: string) =>
     `${restAPIv1}/admin/users/${email}/dept-admin`,
+  adminUserDeptGrants: (email: string) =>
+    `${restAPIv1}/admin/users/${email}/dept-grants`,
   adminResyncAllDepartmentModels: `${restAPIv1}/admin/departments/llm/resync-all`,
   adminResyncDepartmentModels: (departmentId: string) =>
     `${restAPIv1}/admin/departments/${departmentId}/llm/resync`,

@@ -555,6 +555,33 @@ def set_dept_admin(email):
         return error_response(str(e), 500)
 
 
+@admin_bp.route("/users/<email>/dept-grants", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_dept_grants(email):
+    try:
+        result = UserMgr.list_dept_grants(email)
+        return success_response(result, "Get department grants", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/users/<email>/dept-grants", methods=["POST"])
+@login_required
+@check_admin_auth
+def set_dept_grants(email):
+    try:
+        data = request.get_json() or {}
+        result = UserMgr.replace_dept_grants(email, data.get("grants", []))
+        return success_response(result, "Set department grants", 0)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
 @admin_bp.route("/users/<email>/impersonate", methods=["POST"])
 @login_required
 @check_admin_auth

@@ -19,6 +19,7 @@ from api.db import TenantPermission
 from api.db.db_models import File, Knowledgebase, User
 from api.db.services.file_service import FileService
 from api.db.services.knowledgebase_service import KnowledgebaseService
+from api.db.services.user_department_grant_service import UserDepartmentGrantService
 from api.db.services.user_service import TenantService
 
 
@@ -28,25 +29,36 @@ def _user_department_id(user_id: str):
 
 
 def check_file_department_permission(file: dict | File, other: str) -> bool:
-    """True if the file is department-visible and `other` is in the same department."""
+    """True if the file is department-visible and `other` is in the same
+    department, or has a cross-department grant (employee or dept admin) covering
+    the file's department subtree."""
     file = file.to_dict() if isinstance(file, File) else file
     if file.get("permission") != TenantPermission.DEPARTMENT.value:
         return False
-    dept = _user_department_id(other)
-    return bool(dept and file.get("department_id") == dept)
+    file_dept = file.get("department_id")
+    if not file_dept:
+        return False
+    if file_dept == _user_department_id(other):
+        return True
+    return file_dept in UserDepartmentGrantService.granted_read_dept_ids(other)
 
 
 def check_file_department_manageable(file: dict | File, other: str) -> bool:
-    """True if `other` may govern the department-visible file: owner or department admin."""
+    """True if `other` may govern the department-visible file: owner, a department
+    admin of its department, or a cross-department dept-admin grantee covering
+    the file's department subtree."""
     file = file.to_dict() if isinstance(file, File) else file
     if file.get("created_by") == other or file.get("tenant_id") == other:
         return True
     if file.get("permission") != TenantPermission.DEPARTMENT.value:
         return False
+    file_dept = file.get("department_id")
+    if not file_dept:
+        return False
     u = User.get_or_none(User.id == other)
-    return bool(
-        u and getattr(u, "is_dept_admin", False) and u.department_id and file.get("department_id") == u.department_id
-    )
+    if u and getattr(u, "is_dept_admin", False) and u.department_id and file_dept == u.department_id:
+        return True
+    return file_dept in UserDepartmentGrantService.granted_admin_dept_ids(other)
 
 
 def check_kb_team_permission(kb: dict | Knowledgebase, other: str) -> bool:

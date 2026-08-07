@@ -22,6 +22,7 @@ from api.db.db_models import DB, Document, Knowledgebase, User, UserCanvas
 from api.db.services.common_service import CommonService
 from common.time_utils import current_timestamp, datetime_format
 from api.db.services import duplicate_name
+from api.db.services.user_department_grant_service import UserDepartmentGrantService
 from api.db.services.user_service import TenantService
 from common.misc_utils import get_uuid
 from common.constants import StatusEnum
@@ -78,6 +79,13 @@ class KnowledgebaseService(CommonService):
                 (cls.model.department_id == user_dept_id)
                 & (cls.model.permission == TenantPermission.DEPARTMENT.value)
             )
+        # Cross-department grants widen read access to the granted subtrees.
+        granted_read = UserDepartmentGrantService.granted_read_dept_ids(user_id)
+        if granted_read:
+            visibility = visibility | (
+                (cls.model.department_id.in_(granted_read))
+                & (cls.model.permission == TenantPermission.DEPARTMENT.value)
+            )
         return visibility & (cls.model.status == StatusEnum.VALID.value)
 
     @classmethod
@@ -112,6 +120,9 @@ class KnowledgebaseService(CommonService):
         if kb["permission"] == TenantPermission.DEPARTMENT.value:
             u = User.get_or_none(User.id == user_id)
             if u and getattr(u, "is_dept_admin", False) and u.department_id and kb["department_id"] == u.department_id:
+                return True
+            # Cross-department dept-admin grant covering the dataset's department.
+            if kb["department_id"] and kb["department_id"] in UserDepartmentGrantService.granted_admin_dept_ids(user_id):
                 return True
         return False
 
@@ -548,10 +559,13 @@ class KnowledgebaseService(CommonService):
         if kb.permission == TenantPermission.COMPANY.value:
             return True
 
-        # Department-visible KB: accessible to users of the same department
+        # Department-visible KB: accessible to users of the same department, or
+        # via a cross-department grant covering the KB's department subtree.
         if kb.permission == TenantPermission.DEPARTMENT.value:
             user_dept_id = cls._user_department_id(user_id)
-            return bool(user_dept_id and kb.department_id == user_dept_id)
+            if user_dept_id and kb.department_id == user_dept_id:
+                return True
+            return bool(kb.department_id and kb.department_id in UserDepartmentGrantService.granted_read_dept_ids(user_id))
 
         if kb.permission != TenantPermission.TEAM.value:
             return False

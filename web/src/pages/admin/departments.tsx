@@ -10,6 +10,7 @@ import {
   LucideDownload,
   LucideFolderSync,
   LucideLogIn,
+  LucideNetwork,
   LucidePackageSearch,
   LucideRefreshCw,
   LucideSearch,
@@ -50,6 +51,7 @@ import {
 } from '@/services/admin-service';
 
 import { DepartmentLlmDialog } from './components/department-llm-dialog';
+import { UserDeptGrantsDialog } from './components/user-dept-grants-dialog';
 import { UserLlmDialog } from './components/user-llm-dialog';
 
 function flattenIds(nodes: DepartmentNode[], acc: string[] = []) {
@@ -213,6 +215,12 @@ function AdminDepartments() {
     nickname: string;
   } | null>(null);
   const [userEditOpen, setUserEditOpen] = useState(false);
+  const [grantsUser, setGrantsUser] = useState<{
+    email: string;
+    nickname: string;
+    departmentId: string | null;
+  } | null>(null);
+  const [grantsOpen, setGrantsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [highlightEmail, setHighlightEmail] = useState<string | null>(null);
   const highlightRowRef = useRef<HTMLTableRowElement | null>(null);
@@ -225,6 +233,15 @@ function AdminDepartments() {
   const openUserEdit = (email: string, nickname: string) => {
     setUserEdit({ email, nickname });
     setUserEditOpen(true);
+  };
+
+  const openGrants = (
+    email: string,
+    nickname: string,
+    departmentId: string | null,
+  ) => {
+    setGrantsUser({ email, nickname, departmentId });
+    setGrantsOpen(true);
   };
 
   const deptAdminMutation = useMutation({
@@ -647,6 +664,21 @@ function AdminDepartments() {
                             <Button
                               size="sm"
                               variant="outline"
+                              title={t('admin.deptGrantsHint')}
+                              onClick={() =>
+                                openGrants(
+                                  member.email,
+                                  member.nickname,
+                                  selectedNode?.id ?? null,
+                                )
+                              }
+                            >
+                              <LucideNetwork className="size-3.5 mr-1" />
+                              {t('admin.deptGrants')}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
                               title={t('admin.impersonateHint')}
                               disabled={impersonateMutation.isPending}
                               onClick={() =>
@@ -688,6 +720,19 @@ function AdminDepartments() {
         onOpenChange={(o) => {
           setUserEditOpen(o);
           if (!o) setUserEdit(null);
+        }}
+        onSaved={() => refetch()}
+      />
+
+      <UserDeptGrantsDialog
+        email={grantsUser?.email ?? null}
+        nickname={grantsUser?.nickname ?? ''}
+        homeDepartmentId={grantsUser?.departmentId ?? null}
+        tree={tree}
+        open={grantsOpen}
+        onOpenChange={(o) => {
+          setGrantsOpen(o);
+          if (!o) setGrantsUser(null);
         }}
         onSaved={() => refetch()}
       />

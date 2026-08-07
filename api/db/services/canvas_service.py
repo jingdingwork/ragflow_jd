@@ -25,6 +25,7 @@ from api.db.db_models import DB, CanvasTemplate, User, UserCanvas, API4Conversat
 from api.db.services.api_service import API4ConversationService
 from api.db.services.common_service import CommonService
 from api.db.services.user_canvas_version import UserCanvasVersionService
+from api.db.services.user_department_grant_service import UserDepartmentGrantService
 from common.misc_utils import get_uuid, thread_pool_exec
 from api.utils.api_utils import get_data_openai
 import tiktoken
@@ -51,11 +52,15 @@ class UserCanvasService(CommonService):
 
     @classmethod
     def _is_dept_admin_for(cls, permission, department_id, user_id):
-        """True if user is a department admin governing a department-visible resource in their dept."""
+        """True if user is a department admin governing a department-visible
+        resource in their own department, or via a cross-department dept-admin
+        grant covering the resource's department subtree."""
         if permission != TenantPermission.DEPARTMENT.value:
             return False
         u = User.get_or_none(User.id == user_id)
-        return bool(u and getattr(u, "is_dept_admin", False) and u.department_id and department_id == u.department_id)
+        if u and getattr(u, "is_dept_admin", False) and u.department_id and department_id == u.department_id:
+            return True
+        return bool(department_id and department_id in UserDepartmentGrantService.granted_admin_dept_ids(user_id))
 
     @classmethod
     @DB.connection_context()
@@ -94,6 +99,11 @@ class UserCanvasService(CommonService):
         if dept_id:
             visibility = visibility | (
                 (cls.model.department_id == dept_id) & (cls.model.permission == TenantPermission.DEPARTMENT.value)
+            )
+        granted_read = UserDepartmentGrantService.granted_read_dept_ids(user_id)
+        if granted_read:
+            visibility = visibility | (
+                (cls.model.department_id.in_(granted_read)) & (cls.model.permission == TenantPermission.DEPARTMENT.value)
             )
         return visibility
 
@@ -335,10 +345,14 @@ class UserCanvasService(CommonService):
         tids = [t.tenant_id for t in UserTenantService.query(user_id=tenant_id)]
         if c["user_id"] == tenant_id:
             return True
-        # Department-visible agent: accessible to users of the same department
+        # Department-visible agent: accessible to users of the same department,
+        # or via a cross-department grant covering the agent's department subtree.
         if c["permission"] == TenantPermission.DEPARTMENT.value:
             dept_id = cls._user_department_id(tenant_id)
-            return bool(dept_id and c.get("department_id") == dept_id)
+            if dept_id and c.get("department_id") == dept_id:
+                return True
+            agent_dept = c.get("department_id")
+            return bool(agent_dept and agent_dept in UserDepartmentGrantService.granted_read_dept_ids(tenant_id))
         if c["user_id"] not in tids:
             return False
         if c["permission"] != TenantPermission.TEAM.value:

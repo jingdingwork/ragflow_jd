@@ -167,7 +167,7 @@ async def list_department_files():
             "desc": request.args.get("desc", "true").lower() != "false",
         }
         success, result = file_api_service.list_department_files(
-            getattr(current_user, "department_id", None), args
+            getattr(current_user, "department_id", None), args, current_user.id
         )
         if success:
             return get_result(data=result)

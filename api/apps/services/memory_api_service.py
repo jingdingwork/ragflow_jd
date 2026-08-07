@@ -16,6 +16,7 @@
 from api.apps import current_user
 from api.db import TenantPermission
 from api.db.services.memory_service import MemoryService
+from api.db.services.user_department_grant_service import UserDepartmentGrantService
 from api.db.services.user_service import UserTenantService
 from api.db.services.canvas_service import UserCanvasService
 from api.db.services.task_service import TaskService
@@ -55,7 +56,10 @@ def _memory_accessible(memory) -> bool:
         return True
     if memory.permissions == TenantPermission.DEPARTMENT.value:
         dept = getattr(current_user, "department_id", None)
-        return bool(dept and getattr(memory, "department_id", None) == dept)
+        mem_dept = getattr(memory, "department_id", None)
+        if dept and mem_dept == dept:
+            return True
+        return bool(mem_dept and mem_dept in UserDepartmentGrantService.granted_read_dept_ids(current_user.id))
     if memory.permissions != TenantPermission.TEAM.value:
         return False
     return memory.tenant_id in _joined_tenant_ids(current_user.id)
@@ -69,11 +73,10 @@ def _memory_manageable(memory) -> bool:
         return memory.tenant_id in _joined_tenant_ids(current_user.id)
     if memory.permissions == TenantPermission.DEPARTMENT.value:
         dept = getattr(current_user, "department_id", None)
-        return bool(
-            getattr(current_user, "is_dept_admin", False)
-            and dept
-            and getattr(memory, "department_id", None) == dept
-        )
+        mem_dept = getattr(memory, "department_id", None)
+        if getattr(current_user, "is_dept_admin", False) and dept and mem_dept == dept:
+            return True
+        return bool(mem_dept and mem_dept in UserDepartmentGrantService.granted_admin_dept_ids(current_user.id))
     return False
 
 
@@ -261,6 +264,7 @@ async def list_memory(filter_params: dict, keywords: str, page: int=1, page_size
         "storage_type": filter_params.get("storage_type"),
         "accessible_user_id": current_user.id,
         "accessible_department_id": getattr(current_user, "department_id", None),
+        "accessible_department_ids": UserDepartmentGrantService.granted_read_dept_ids(current_user.id),
     }
     allowed_tenant_ids = _joined_tenant_ids(current_user.id)
     tenant_ids = _split_filter_values(filter_params.get("tenant_id") or filter_params.get("owner_ids"))

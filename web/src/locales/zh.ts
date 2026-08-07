@@ -337,6 +337,18 @@ export default {
       makeDeptAdmin: '设为部门管理员',
       revokeDeptAdmin: '取消部门管理员',
       deptAdminHint: '部门管理员可编辑/删除本部门内对部门可见的资源。',
+      cancel: '取消',
+      deptGrants: '跨部门权限',
+      deptGrantsTitle: '配置跨部门权限 — {{name}}',
+      deptGrantsHint:
+        '为该用户单独授予其他部门的访问权限，与其本部门角色及部门同步互不影响；授予某部门即包含其所有子部门。',
+      deptGrantsSearchPlaceholder: '搜索部门',
+      deptGrantsNoResult: '未找到部门',
+      deptGrantsSelectedCount: '已配置 {{count}} 个部门',
+      deptGrantNone: '无',
+      deptGrantEmployee: '员工',
+      deptGrantAdmin: '部门管理员',
+      deptGrantHome: '本部门',
       impersonate: '以其身份登录',
       impersonateHint:
         '以该用户身份登录（新标签页）以排查问题。会替换当前浏览器中的会话——请使用独立/隐身窗口以保留管理员会话。',

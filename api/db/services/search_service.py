@@ -21,6 +21,7 @@ from common.constants import StatusEnum
 from api.db import TenantPermission
 from api.db.db_models import DB, Search, User
 from api.db.services.common_service import CommonService
+from api.db.services.user_department_grant_service import UserDepartmentGrantService
 from common.time_utils import current_timestamp, datetime_format
 
 
@@ -61,6 +62,8 @@ class SearchService(CommonService):
             u = User.get_or_none(User.id == user_id)
             if u and getattr(u, "is_dept_admin", False) and u.department_id and search.department_id == u.department_id:
                 return True
+            if search.department_id and search.department_id in UserDepartmentGrantService.granted_admin_dept_ids(user_id):
+                return True
         return False
 
     @classmethod
@@ -77,7 +80,9 @@ class SearchService(CommonService):
             return True
         if search.permission == TenantPermission.DEPARTMENT.value:
             dept = cls._user_department_id(user_id)
-            return bool(dept and search.department_id == dept)
+            if dept and search.department_id == dept:
+                return True
+            return bool(search.department_id and search.department_id in UserDepartmentGrantService.granted_read_dept_ids(user_id))
         if search.permission == TenantPermission.TEAM.value:
             joined = TenantService.get_joined_tenants_by_user_id(user_id)
             return any(t["tenant_id"] == search.tenant_id for t in joined)
@@ -133,6 +138,11 @@ class SearchService(CommonService):
         if dept_id:
             visibility = visibility | (
                 (cls.model.department_id == dept_id) & (cls.model.permission == TenantPermission.DEPARTMENT.value)
+            )
+        granted_read = UserDepartmentGrantService.granted_read_dept_ids(user_id)
+        if granted_read:
+            visibility = visibility | (
+                (cls.model.department_id.in_(granted_read)) & (cls.model.permission == TenantPermission.DEPARTMENT.value)
             )
         query = (
             cls.model.select(*fields)

@@ -424,6 +424,26 @@ export const setDeptAdmin = (email: string, isDeptAdmin: boolean) =>
     { is_dept_admin: isDeptAdmin },
   );
 
+// Cross-department access grants for a user, orthogonal to `is_dept_admin`
+// (which governs the home department) and never touched by OIDC sync.
+export type DeptGrantRole = 'employee' | 'dept_admin';
+
+export type DeptGrant = {
+  department_id: string;
+  role: DeptGrantRole;
+};
+
+export const getUserDeptGrants = (email: string) =>
+  request.get<ResponseData<{ email: string; grants: DeptGrant[] }>>(
+    api.adminUserDeptGrants(email),
+  );
+
+export const saveUserDeptGrants = (email: string, grants: DeptGrant[]) =>
+  request.post<ResponseData<{ email: string; count: number }>>(
+    api.adminUserDeptGrants(email),
+    { grants },
+  );
+
 export const getUserLlm = (email: string) =>
   request.get<ResponseData<UserLlmConfig>>(api.adminUserLlm(email));
 

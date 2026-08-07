@@ -759,6 +759,27 @@ class Department(DataBaseModel):
         db_table = "department"
 
 
+class UserDepartmentGrant(DataBaseModel):
+    """Manual cross-department access grants, independent of the OIDC-derived
+    ``User.department_id`` / ``User.is_dept_admin``. Each row gives ``user_id``
+    access to ``department_id`` (and its subtree) either as an ``employee``
+    (read/use department-visible resources) or as a ``dept_admin`` (also govern
+    them). OIDC sync never touches these rows — it only refreshes the user's
+    home ``department_id`` — so grants purely widen access on top of the home
+    department."""
+    id = CharField(max_length=32, primary_key=True)
+    user_id = CharField(max_length=32, null=False, help_text="user id the grant applies to", index=True)
+    department_id = CharField(max_length=32, null=False, help_text="granted department id (subtree included at check time)", index=True)
+    role = CharField(max_length=16, null=False, help_text="employee | dept_admin", default="employee", index=True)
+    status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
+
+    class Meta:
+        db_table = "user_department_grant"
+        indexes = (
+            (("user_id", "department_id"), True),
+        )
+
+
 class DepartmentLLM(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     department_id = CharField(max_length=32, null=False, help_text="department id", unique=True, index=True)

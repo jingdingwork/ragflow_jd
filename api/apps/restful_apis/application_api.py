@@ -28,10 +28,22 @@ from api.db.services.application_service import (
     resolve_visible_app_ids,
     list_versions,
 )
+from api.db.services.user_department_grant_service import UserDepartmentGrantService
 from api.utils.api_utils import get_json_result, get_data_error_result, server_error_response
 from common.constants import StatusEnum
 from common.misc_utils import thread_pool_exec
 from common import settings
+
+
+def _effective_department_ids(user):
+    """The user's home department plus any cross-department grant subtrees,
+    used to resolve department-scoped application visibility."""
+    ids = set()
+    home = getattr(user, "department_id", None)
+    if home:
+        ids.add(home)
+    ids |= UserDepartmentGrantService.granted_read_dept_ids(user.id)
+    return ids
 
 
 def _version_to_dict(v):
@@ -51,8 +63,7 @@ def _version_to_dict(v):
 def my_applications():
     """List applications visible to the current user (subtree-inherited department visibility)."""
     try:
-        department_id = getattr(current_user, "department_id", None)
-        visible_ids = resolve_visible_app_ids(department_id)
+        visible_ids = resolve_visible_app_ids(_effective_department_ids(current_user))
         if not visible_ids:
             return get_json_result(data=[])
 
@@ -94,8 +105,7 @@ def application_catalog():
     download expose their ``url`` / installation packages.
     """
     try:
-        department_id = getattr(current_user, "department_id", None)
-        accessible_ids = resolve_visible_app_ids(department_id)
+        accessible_ids = resolve_visible_app_ids(_effective_department_ids(current_user))
         departments, dept_app_ids, public_app_ids = build_department_app_map()
 
         referenced = set(public_app_ids)
@@ -161,8 +171,7 @@ def application_catalog():
 async def download_application(application_id):
     """Download an application's installation package (specific version, or the latest)."""
     try:
-        department_id = getattr(current_user, "department_id", None)
-        visible_ids = resolve_visible_app_ids(department_id)
+        visible_ids = resolve_visible_app_ids(_effective_department_ids(current_user))
         if application_id not in visible_ids:
             return get_data_error_result(message="Application not found or not accessible")
 

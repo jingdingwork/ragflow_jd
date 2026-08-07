@@ -93,6 +93,7 @@ class MemoryService(CommonService):
         allowed_ids = filter_dict.get("tenant_id")
         accessible_uid = filter_dict.get("accessible_user_id")
         accessible_dept = filter_dict.get("accessible_department_id")
+        accessible_dept_ids = filter_dict.get("accessible_department_ids")
         if accessible_uid:
             # own memories + team memories within joined tenants + department memories of own department
             cond = cls.model.tenant_id == accessible_uid
@@ -102,6 +103,8 @@ class MemoryService(CommonService):
                 cond = cond | (cls.model.permissions == "team")
             if accessible_dept:
                 cond = cond | ((cls.model.department_id == accessible_dept) & (cls.model.permissions == "department"))
+            if accessible_dept_ids:
+                cond = cond | ((cls.model.department_id.in_(list(accessible_dept_ids))) & (cls.model.permissions == "department"))
             memories = memories.where(cond)
         elif allowed_ids:
             memories = memories.where(cls.model.tenant_id.in_(allowed_ids))

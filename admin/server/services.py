@@ -29,6 +29,7 @@ from common.constants import ActiveEnum
 from api.db import TenantPermission
 from api.db.services import UserService
 from api.db.services.department_service import DepartmentService, fetch_keycloak_users
+from api.db.services.user_department_grant_service import UserDepartmentGrantService
 from api.db.services.department_llm_service import (
     fetch_models as fetch_department_models,
     save_department_config,
@@ -163,6 +164,28 @@ class UserMgr:
         user = users[0]
         UserService.update_user(user.id, {"is_dept_admin": bool(is_admin)})
         return {"email": user.email, "is_dept_admin": bool(is_admin)}
+
+    @staticmethod
+    def list_dept_grants(email):
+        """List a user's cross-department access grants (by email)."""
+        users = UserService.query(email=email)
+        if not users:
+            raise UserNotFoundError(email)
+        user = users[0]
+        return {"email": user.email, "grants": UserDepartmentGrantService.list_grants(user.id)}
+
+    @staticmethod
+    def replace_dept_grants(email, grants):
+        """Replace a user's cross-department access grants (by email). ``grants``
+        is a list of ``{department_id, role}`` (role: employee | dept_admin).
+        This is orthogonal to ``is_dept_admin``, which governs the home
+        department, and is never touched by OIDC sync."""
+        users = UserService.query(email=email)
+        if not users:
+            raise UserNotFoundError(email)
+        user = users[0]
+        result = UserDepartmentGrantService.replace_grants(user.id, grants or [])
+        return {"email": user.email, **result}
 
     @staticmethod
     def impersonate_user(email):
