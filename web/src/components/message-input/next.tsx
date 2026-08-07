@@ -133,10 +133,32 @@ export function NextMessageInput({
   }, [isUploading, pressEnter]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // 输入法组合中(如中文选词上屏)的回车不触发发送/换行,避免半句误发。
+    if (e.nativeEvent.isComposing) return;
+    if (e.key !== 'Enter') return;
+
+    // Ctrl+回车:换行。textarea 对 Ctrl+Enter 无原生换行,需手动在光标处插入 \n。
+    if (e.ctrlKey) {
       e.preventDefault();
-      submit();
+      const el = e.currentTarget;
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      const nextValue = `${value.slice(0, start)}\n${value.slice(end)}`;
+      onInputChange({
+        target: { value: nextValue },
+      } as React.ChangeEvent<HTMLTextAreaElement>);
+      // 受控组件重渲染后光标会跳到末尾,下一帧恢复到换行符之后。
+      const caret = start + 1;
+      requestAnimationFrame(() => {
+        el.selectionStart = el.selectionEnd = caret;
+      });
+      return;
     }
+
+    // 单独回车:发送(空内容不发送)。
+    e.preventDefault();
+    if (!value.trim()) return;
+    submit();
   };
 
   // Support pasting files/images from the clipboard directly into the input.
