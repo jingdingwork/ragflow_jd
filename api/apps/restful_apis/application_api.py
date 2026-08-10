@@ -105,6 +105,7 @@ def application_catalog():
     download expose their ``url`` / installation packages.
     """
     try:
+        department_id = getattr(current_user, "department_id", None)
         accessible_ids = resolve_visible_app_ids(_effective_department_ids(current_user))
         departments, dept_app_ids, public_app_ids = build_department_app_map()
 
